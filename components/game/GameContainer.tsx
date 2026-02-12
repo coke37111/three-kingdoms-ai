@@ -16,6 +16,7 @@ import { resolveBattle, generateBattleNarrative } from "@/lib/game/combatSystem"
 import { saveGame, loadGame, autoSave, loadAutoSave, hasAnySave } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { FACTION_NAMES } from "@/constants/factions";
+import { useAuth } from "@/hooks/useAuth";
 import StatusBar from "./StatusBar";
 import ChatBubble from "./ChatBubble";
 import ChoicePanel from "./ChoicePanel";
@@ -27,6 +28,7 @@ import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
 import SaveLoadPanel from "./SaveLoadPanel";
 import GameEndScreen from "./GameEndScreen";
+import UserBadge from "./UserBadge";
 import { useVoice } from "@/hooks/useVoice";
 
 export default function GameContainer() {
@@ -44,6 +46,8 @@ export default function GameContainer() {
     scrollRef, scrollToBottom,
   } = useChatHistory();
 
+  const { user, uid, loading: authLoading, loginWithGoogle, logout } = useAuth();
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentChoices, setCurrentChoices] = useState<Choice[] | null>(null);
@@ -55,8 +59,12 @@ export default function GameContainer() {
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
 
   useEffect(() => {
-    setHasSave(hasAnySave());
-  }, []);
+    if (uid) {
+      hasAnySave(uid).then(setHasSave);
+    } else {
+      setHasSave(false);
+    }
+  }, [uid]);
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
@@ -257,8 +265,8 @@ export default function GameContainer() {
         scrollToBottom();
       });
 
-      setStreamingText("");
       addMessage({ role: "assistant", content: seg, emotion: parsed.emotion });
+      setStreamingText("");
 
       if (i < segments.length - 1) {
         await new Promise((r) => setTimeout(r, 500));
@@ -286,8 +294,10 @@ export default function GameContainer() {
 
   // ---- Auto save ----
   const doAutoSave = useCallback(() => {
-    autoSave(worldStateRef.current, messages, convHistory as any);
-  }, [worldStateRef, messages, convHistory]);
+    if (uid) {
+      autoSave(worldStateRef.current, messages, convHistory as any, uid);
+    }
+  }, [worldStateRef, messages, convHistory, uid]);
 
   // ---- Actions ----
   const startGame = useCallback(async () => {
@@ -305,7 +315,8 @@ export default function GameContainer() {
   }, [addMessage, checkAndTriggerEvents, doCallLLM, addAdvisorMsg]);
 
   const startFromSave = useCallback(async (slotIndex: number) => {
-    const save = loadGame(slotIndex);
+    if (!uid) return;
+    const save = await loadGame(slotIndex, uid);
     if (!save) return;
 
     loadWorldState(save.worldState);
@@ -313,10 +324,11 @@ export default function GameContainer() {
     setConvHistory(save.convHistory as any);
     setStarted(true);
     addMessage({ role: "system", content: `📂 저장된 게임을 불러왔습니다 (${save.metadata.turnCount}턴)` });
-  }, [loadWorldState, setMessages, setConvHistory, addMessage]);
+  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
   const startFromAutoSave = useCallback(async () => {
-    const save = loadAutoSave();
+    if (!uid) return;
+    const save = await loadAutoSave(uid);
     if (!save) return;
 
     loadWorldState(save.worldState);
@@ -324,7 +336,7 @@ export default function GameContainer() {
     setConvHistory(save.convHistory as any);
     setStarted(true);
     addMessage({ role: "system", content: `📂 자동 저장을 불러왔습니다 (${save.metadata.turnCount}턴)` });
-  }, [loadWorldState, setMessages, setConvHistory, addMessage]);
+  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
@@ -421,16 +433,18 @@ export default function GameContainer() {
   }, [worldStateRef, addMessage, setWorldState]);
 
   // ---- Save/Load Handlers ----
-  const handleSave = useCallback((slotIndex: number) => {
-    const success = saveGame(slotIndex, worldStateRef.current, messages, convHistory as any);
+  const handleSave = useCallback(async (slotIndex: number) => {
+    if (!uid) return;
+    const success = await saveGame(slotIndex, worldStateRef.current, messages, convHistory as any, uid);
     if (success) {
-      addMessage({ role: "system", content: `💾 슬롯 ${slotIndex + 1}에 저장되었습니다.` });
+      addMessage({ role: "system", content: `☁️ 슬롯 ${slotIndex + 1}에 저장되었습니다.` });
     }
     setShowSaveLoad(false);
-  }, [worldStateRef, messages, convHistory, addMessage]);
+  }, [worldStateRef, messages, convHistory, addMessage, uid]);
 
-  const handleLoad = useCallback((slotIndex: number) => {
-    const save = loadGame(slotIndex);
+  const handleLoad = useCallback(async (slotIndex: number) => {
+    if (!uid) return;
+    const save = await loadGame(slotIndex, uid);
     if (save) {
       loadWorldState(save.worldState);
       setMessages(save.chatMessages as ChatMessage[]);
@@ -438,7 +452,7 @@ export default function GameContainer() {
       addMessage({ role: "system", content: `📂 슬롯 ${slotIndex + 1}에서 불러왔습니다 (${save.metadata.turnCount}턴).` });
     }
     setShowSaveLoad(false);
-  }, [loadWorldState, setMessages, setConvHistory, addMessage]);
+  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
   const handleRestart = useCallback(() => {
     window.location.reload();
@@ -480,6 +494,20 @@ export default function GameContainer() {
     }
   }, [isListening, stopListening, startListening, matchVoiceChoice, handleChoice]);
 
+  // ---- 로그인 후 자동 게임 시작 ----
+  const [pendingStart, setPendingStart] = useState(false);
+  useEffect(() => {
+    if (pendingStart && uid && !started) {
+      setPendingStart(false);
+      startGame();
+    }
+  }, [pendingStart, uid, started, startGame]);
+
+  const handleLoginAndStart = useCallback(async () => {
+    await loginWithGoogle();
+    setPendingStart(true);
+  }, [loginWithGoogle]);
+
   // ===================== RENDER =====================
 
   if (gameEndResult) {
@@ -492,6 +520,11 @@ export default function GameContainer() {
         onStart={startGame}
         onContinue={hasSave ? startFromAutoSave : undefined}
         onLoadSlot={startFromSave}
+        user={user}
+        uid={uid}
+        authLoading={authLoading}
+        onGoogleLogin={handleLoginAndStart}
+        onLogout={logout}
       />
     );
   }
@@ -520,6 +553,7 @@ export default function GameContainer() {
         recentEvents: playerFaction.recentEvents,
         pendingTasks: playerFaction.pendingTasks,
       }} deltas={deltas}>
+        <UserBadge user={user} onLogin={() => {}} onLogout={logout} />
         <button onClick={() => setShowWorldStatus(true)} style={{
           background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
@@ -660,13 +694,16 @@ export default function GameContainer() {
         onAction={handleDiplomacy}
         disabled={isLoading}
       />
-      <SaveLoadPanel
-        show={showSaveLoad}
-        mode={saveLoadMode}
-        onClose={() => setShowSaveLoad(false)}
-        onSave={handleSave}
-        onLoad={handleLoad}
-      />
+      {uid && (
+        <SaveLoadPanel
+          show={showSaveLoad}
+          mode={saveLoadMode}
+          onClose={() => setShowSaveLoad(false)}
+          onSave={handleSave}
+          onLoad={handleLoad}
+          uid={uid}
+        />
+      )}
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}

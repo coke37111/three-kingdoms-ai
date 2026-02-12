@@ -49,7 +49,7 @@ export default function ChatBubble({ message, isTyping }: ChatBubbleProps) {
       alignItems: "flex-end",
       gap: "8px",
       margin: "6px 14px",
-      animation: "fadeInUp 0.3s ease",
+      animation: isPlayer ? "fadeInUp 0.3s ease" : undefined,
     }}>
       {!isPlayer && (
         <div style={{

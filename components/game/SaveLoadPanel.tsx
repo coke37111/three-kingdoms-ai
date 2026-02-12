@@ -9,25 +9,32 @@ interface SaveLoadPanelProps {
   onClose: () => void;
   onSave: (slotIndex: number) => void;
   onLoad: (slotIndex: number) => void;
+  uid: string;
 }
 
-export default function SaveLoadPanel({ show, mode, onClose, onSave, onLoad }: SaveLoadPanelProps) {
+export default function SaveLoadPanel({ show, mode, onClose, onSave, onLoad, uid }: SaveLoadPanelProps) {
   const [slots, setSlots] = useState<SaveSlotInfo[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (show) {
-      setSlots(listSaveSlots());
       setConfirmDelete(null);
+      setLoading(true);
+      listSaveSlots(uid).then((s) => {
+        setSlots(s);
+        setLoading(false);
+      });
     }
-  }, [show]);
+  }, [show, uid]);
 
   if (!show) return null;
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (index: number) => {
     if (confirmDelete === index) {
-      deleteSave(index);
-      setSlots(listSaveSlots());
+      await deleteSave(index, uid);
+      const s = await listSaveSlots(uid);
+      setSlots(s);
       setConfirmDelete(null);
     } else {
       setConfirmDelete(index);
@@ -55,89 +62,97 @@ export default function SaveLoadPanel({ show, mode, onClose, onSave, onLoad }: S
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <span style={{ color: "var(--gold)", fontWeight: 700, fontSize: "14px", letterSpacing: "2px" }}>
-            {mode === "save" ? "💾 저장" : "📂 불러오기"}
+            {mode === "save" ? "☁️ 저장" : "☁️ 불러오기"}
           </span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: "16px" }}>✕</button>
         </div>
 
-        {slots.map((slot) => (
-          <div key={slot.index} style={{
-            background: slot.isEmpty ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)",
-            border: "1px solid var(--border)",
-            borderRadius: "8px",
-            padding: "10px 12px",
-            marginBottom: "6px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}>
-            <div style={{ flex: 1 }}>
-              {slot.isEmpty ? (
-                <div style={{ fontSize: "12px", color: "var(--text-dim)" }}>빈 슬롯 {slot.index + 1}</div>
-              ) : (
-                <>
-                  <div style={{ fontSize: "12px", fontWeight: 600 }}>{slot.name}</div>
-                  <div style={{ fontSize: "10px", color: "var(--text-dim)", marginTop: "2px" }}>
-                    {slot.playerFactionName} · {slot.turnCount}턴 · {slot.playerCityCount}도시 · {new Date(slot.timestamp).toLocaleString("ko-KR")}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: "4px" }}>
-              {mode === "save" && (
-                <button
-                  onClick={() => onSave(slot.index)}
-                  style={{
-                    background: "var(--gold)",
-                    color: "var(--bg-primary)",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "4px 10px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  저장
-                </button>
-              )}
-              {mode === "load" && !slot.isEmpty && (
-                <button
-                  onClick={() => onLoad(slot.index)}
-                  style={{
-                    background: "var(--gold)",
-                    color: "var(--bg-primary)",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "4px 10px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  불러오기
-                </button>
-              )}
-              {!slot.isEmpty && (
-                <button
-                  onClick={() => handleDelete(slot.index)}
-                  style={{
-                    background: confirmDelete === slot.index ? "var(--danger)" : "rgba(212,68,62,0.15)",
-                    color: confirmDelete === slot.index ? "white" : "var(--danger)",
-                    border: "1px solid var(--danger)",
-                    borderRadius: "6px",
-                    padding: "4px 8px",
-                    fontSize: "10px",
-                    cursor: "pointer",
-                  }}
-                >
-                  {confirmDelete === slot.index ? "확인" : "삭제"}
-                </button>
-              )}
-            </div>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "20px", fontSize: "12px", color: "var(--text-dim)" }}>
+            ☁️ 클라우드 데이터 로딩 중...
           </div>
-        ))}
+        ) : (
+          slots.map((slot) => (
+            <div key={slot.index} style={{
+              background: slot.isEmpty ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              marginBottom: "6px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}>
+              <div style={{ flex: 1 }}>
+                {slot.isEmpty ? (
+                  <div style={{ fontSize: "12px", color: "var(--text-dim)" }}>빈 슬롯 {slot.index + 1}</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: "12px", fontWeight: 600 }}>
+                      ☁️ {slot.name}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-dim)", marginTop: "2px" }}>
+                      {slot.playerFactionName} · {slot.turnCount}턴 · {slot.playerCityCount}도시 · {new Date(slot.timestamp).toLocaleString("ko-KR")}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "4px" }}>
+                {mode === "save" && (
+                  <button
+                    onClick={() => onSave(slot.index)}
+                    style={{
+                      background: "var(--gold)",
+                      color: "var(--bg-primary)",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    저장
+                  </button>
+                )}
+                {mode === "load" && !slot.isEmpty && (
+                  <button
+                    onClick={() => onLoad(slot.index)}
+                    style={{
+                      background: "var(--gold)",
+                      color: "var(--bg-primary)",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    불러오기
+                  </button>
+                )}
+                {!slot.isEmpty && (
+                  <button
+                    onClick={() => handleDelete(slot.index)}
+                    style={{
+                      background: confirmDelete === slot.index ? "var(--danger)" : "rgba(212,68,62,0.15)",
+                      color: confirmDelete === slot.index ? "white" : "var(--danger)",
+                      border: "1px solid var(--danger)",
+                      borderRadius: "6px",
+                      padding: "4px 8px",
+                      fontSize: "10px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {confirmDelete === slot.index ? "확인" : "삭제"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

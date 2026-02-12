@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 언어 규칙
+
+- 사용자와의 모든 대화는 **한국어**로 진행한다.
+- 코드 주석, 커밋 메시지, PR 설명 등도 한국어를 사용한다.
+- 변수명/함수명 등 코드 식별자는 영어를 유지한다.
+
 ## Project Overview
 
 A multi-faction Three Kingdoms (삼국지) strategy game where the player acts as ruler Liu Bei (유비) and interacts with AI advisor Zhuge Liang (제갈량) powered by the Anthropic Claude API. Features 4 factions with AI-driven NPC rulers, combat, diplomacy, save/load, and victory/defeat conditions. The game is in Korean.
