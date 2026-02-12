@@ -27,6 +27,8 @@ import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
 import SaveLoadPanel from "./SaveLoadPanel";
 import GameEndScreen from "./GameEndScreen";
+import VoiceSettingsModal from "./VoiceSettingsModal";
+import { useVoice } from "@/hooks/useVoice";
 
 export default function GameContainer() {
   const {
@@ -70,6 +72,14 @@ export default function GameContainer() {
   });
 
   const { typeText } = useTypewriter();
+
+  const {
+    settings: voiceSettings, updateSettings: updateVoiceSettings,
+    speak, stopSpeaking, isSpeaking: voiceSpeaking,
+    startListening, stopListening, isListening, partialTranscript,
+  } = useVoice();
+
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // ---- Helper: get player as GameState-like for prompts ----
   const getPlayerGameState = useCallback(() => {
@@ -222,6 +232,11 @@ export default function GameContainer() {
     setIsLoading(false);
     setStreamingText("");
 
+    // TTS + typing start simultaneously (non-blocking)
+    if (voiceSettings.ttsEnabled && parsed.emotion) {
+      speak(parsed.dialogue, parsed.emotion);
+    }
+
     await typeText(parsed.dialogue, (partial) => {
       setStreamingText(partial);
       scrollToBottom();
@@ -237,7 +252,7 @@ export default function GameContainer() {
     if (parsed.state_changes) {
       applyPlayerChanges(parsed.state_changes, addMessage);
     }
-  }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges]);
+  }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges, voiceSettings.ttsEnabled, speak]);
 
   // ---- Check game end ----
   const doCheckGameEnd = useCallback(() => {
@@ -293,15 +308,17 @@ export default function GameContainer() {
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
+    stopSpeaking();
     const text = input.trim();
     setInput("");
     addMessage({ role: "user", content: text });
     setIsLoading(true);
     const parsed = await doCallLLM(text);
     await addAdvisorMsg(parsed);
-  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg]);
+  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg, stopSpeaking]);
 
   const handleChoice = useCallback(async (choice: Choice) => {
+    stopSpeaking();
     setWaitChoice(false);
     setCurrentChoices(null);
     addMessage({ role: "user", content: `[${choice.id}] ${choice.text}` });
@@ -339,7 +356,7 @@ export default function GameContainer() {
         await addAdvisorMsg(next);
       }, 1200);
     }, 800);
-  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave, worldStateRef, turnNotifications]);
+  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave, worldStateRef, turnNotifications, stopSpeaking]);
 
   const handleNextTurn = useCallback(async () => {
     doAutoSave();
@@ -409,6 +426,42 @@ export default function GameContainer() {
     window.location.reload();
   }, []);
 
+  // ---- Voice choice matching ----
+  const matchVoiceChoice = useCallback((transcript: string): Choice | null => {
+    if (!currentChoices) return null;
+    const t = transcript.trim().toLowerCase();
+
+    const choiceMap: Record<string, string> = {
+      "에이": "A", "a": "A", "1": "A", "첫번째": "A", "첫 번째": "A",
+      "비": "B", "b": "B", "2": "B", "두번째": "B", "두 번째": "B",
+      "씨": "C", "c": "C", "3": "C", "세번째": "C", "세 번째": "C",
+    };
+
+    for (const [keyword, id] of Object.entries(choiceMap)) {
+      if (t.includes(keyword)) {
+        const found = currentChoices.find((c) => c.id === id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [currentChoices]);
+
+  const handleMicToggle = useCallback(() => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening((text) => {
+        // Try to match a choice first
+        const choice = matchVoiceChoice(text);
+        if (choice) {
+          handleChoice(choice);
+        } else {
+          setInput(text);
+        }
+      });
+    }
+  }, [isListening, stopListening, startListening, matchVoiceChoice, handleChoice]);
+
   // ===================== RENDER =====================
 
   if (gameEndResult) {
@@ -474,7 +527,22 @@ export default function GameContainer() {
         }}>
           📋 {tasks.length}
         </button>
-      </StatusBar>
+        <button onClick={() => updateVoiceSettings({ ttsEnabled: !voiceSettings.ttsEnabled })} style={{
+          background: voiceSettings.ttsEnabled ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
+          border: `1px solid ${voiceSettings.ttsEnabled ? "var(--gold)" : "var(--border)"}`,
+          borderRadius: "16px",
+          padding: "3px 10px", color: voiceSettings.ttsEnabled ? "var(--gold)" : "var(--text-secondary)",
+          fontSize: "11px", cursor: "pointer",
+        }}>
+          {voiceSettings.ttsEnabled ? "🔊" : "🔇"}
+        </button>
+        <button onClick={() => setShowVoiceSettings(true)} style={{
+          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
+          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
+        }}>
+          ⚙️
+        </button>
+      </div>
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
       {/* NPC Processing Indicator */}
@@ -516,15 +584,33 @@ export default function GameContainer() {
         display: "flex", gap: "8px", padding: "10px 14px",
         background: "var(--bg-secondary)", borderTop: "1px solid var(--border)",
       }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder={waitChoice ? "위 선택지를 골라주세요..." : "제갈량에게 명을 내리십시오..."}
+        <button
+          onClick={handleMicToggle}
           disabled={isLoading}
           style={{
+            background: isListening ? "rgba(212,68,62,0.2)" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
+            borderRadius: "8px",
+            padding: "10px 12px",
+            fontSize: "14px",
+            cursor: isLoading ? "not-allowed" : "pointer",
+            color: isListening ? "var(--danger)" : "var(--text-secondary)",
+            animation: isListening ? "recording-pulse 1.5s infinite" : "none",
+            flexShrink: 0,
+          }}
+        >
+          🎤
+        </button>
+        <input
+          value={isListening ? partialTranscript : input}
+          onChange={(e) => { if (!isListening) setInput(e.target.value); }}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          placeholder={isListening ? "말씀하세요..." : waitChoice ? "위 선택지를 골라주세요..." : "제갈량에게 명을 내리십시오..."}
+          disabled={isLoading || isListening}
+          style={{
             flex: 1, background: "rgba(255,255,255,0.05)",
-            border: "1px solid var(--border)", borderRadius: "8px",
+            border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
+            borderRadius: "8px",
             padding: "10px 14px", color: "var(--text-primary)", fontSize: "13.5px",
           }}
         />
@@ -570,6 +656,12 @@ export default function GameContainer() {
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}
+      <VoiceSettingsModal
+        show={showVoiceSettings}
+        settings={voiceSettings}
+        onUpdate={updateVoiceSettings}
+        onClose={() => setShowVoiceSettings(false)}
+      />
     </div>
   );
 }
