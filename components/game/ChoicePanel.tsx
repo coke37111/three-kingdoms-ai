@@ -1,7 +1,7 @@
 "use client";
 
 import type { Choice } from "@/types/chat";
-import { renderHighlightedText, renderPreviewTags } from "@/lib/utils/textFormatter";
+import { renderPreviewTags } from "@/lib/utils/textFormatter";
 
 interface ChoicePanelProps {
   choices: Choice[];
@@ -59,7 +59,7 @@ export default function ChoicePanel({ choices, onSelect, disabled }: ChoicePanel
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontWeight: 700, fontSize: "13px" }}>
                 <span style={{ color: rs.color, marginRight: "6px" }}>[{choice.id}]</span>
-                {renderHighlightedText(choice.text)}
+                {choice.text}
               </span>
               <span style={{
                 fontSize: "10px",

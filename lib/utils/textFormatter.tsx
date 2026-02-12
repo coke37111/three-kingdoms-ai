@@ -1,37 +1,5 @@
 import React, { type ReactNode } from "react";
 
-/**
- * **keyword** 마커를 감지하여 gold 색상 span으로 변환.
- * 불완전한 마커(타이핑 중)는 일반 텍스트로 표시.
- */
-export function renderHighlightedText(text: string): ReactNode {
-  const regex = /\*\*([^*]+)\*\*/g;
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    parts.push(
-      <span
-        key={match.index}
-        style={{ color: "var(--gold)", fontWeight: 600 }}
-      >
-        {match[1]}
-      </span>
-    );
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length === 0 ? text : <>{parts}</>;
-}
-
 const TAG_STYLE_COMMON: React.CSSProperties = {
   padding: "2px 8px",
   borderRadius: "8px",

@@ -26,13 +26,7 @@ export function buildSystemPrompt(gameState: GameState): string {
 ${JSON.stringify(gameState, null, 2)}
 
 === 형식 규칙 ===
-1. dialogue에서 중요 키워드는 **키워드** 형식으로 감싸라:
-   - 세력/인물명: **조조**, **손권**, **관우**
-   - 자원/수치: **금**, **병력**, **식량**
-   - 지명: **허창**, **건업**
-   - 전략용어: **연합**, **전쟁**, **내정**
-2. choices[].text에서도 동일하게 **키워드** 강조
-3. choices[].preview는 간결한 증감 표기 사용:
+1. choices[].preview는 간결한 증감 표기 사용:
    - 자원 증가: "금+", "병력+", "상업+"
    - 자원 감소: "자금-", "식량-"
    - 정성적 효과는 그대로: "조조 관계 악화", "원소 자극 가능성"
@@ -49,9 +43,9 @@ ${JSON.stringify(gameState, null, 2)}
 === 응답 JSON 형식 ===
 {
   "speaker": "제갈량",
-  "dialogue": "주공, **조조**가 **허창**에서 대군을 일으켰습니다. **병력** 증강이 시급합니다.",
+  "dialogue": "주공, 조조가 허창에서 대군을 일으켰습니다. 병력 증강이 시급합니다.",
   "emotion": "calm | worried | excited | angry | thoughtful",
-  "choices": [{"id":"A","text":"**관우**에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"**내정**에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
+  "choices": [{"id":"A","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
   "state_changes": null
 }`;
 }
@@ -94,13 +88,7 @@ ${otherFactionsSummary}
 ${relationSummary}
 
 === 형식 규칙 ===
-1. dialogue에서 중요 키워드는 **키워드** 형식으로 감싸라:
-   - 세력/인물명: **조조**, **손권**, **관우**
-   - 자원/수치: **금**, **병력**, **식량**
-   - 지명: **허창**, **건업**
-   - 전략용어: **연합**, **전쟁**, **내정**
-2. choices[].text에서도 동일하게 **키워드** 강조
-3. choices[].preview는 간결한 증감 표기 사용:
+1. choices[].preview는 간결한 증감 표기 사용:
    - 자원 증가: "금+", "병력+", "상업+"
    - 자원 감소: "자금-", "식량-"
    - 정성적 효과는 그대로: "조조 관계 악화", "원소 자극 가능성"
@@ -119,9 +107,9 @@ ${relationSummary}
 === 응답 JSON 형식 ===
 {
   "speaker": "제갈량",
-  "dialogue": "주공, **조조**가 **허창**에서 대군을 일으켰습니다. **병력** 증강이 시급합니다.",
+  "dialogue": "주공, 조조가 허창에서 대군을 일으켰습니다. 병력 증강이 시급합니다.",
   "emotion": "calm | worried | excited | angry | thoughtful",
-  "choices": [{"id":"A","text":"**관우**에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"**내정**에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
+  "choices": [{"id":"A","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
   "state_changes": null
 }`;
 }

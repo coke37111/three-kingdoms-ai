@@ -1,7 +1,6 @@
 "use client";
 
 import type { ChatMessage, Emotion } from "@/types/chat";
-import { renderHighlightedText } from "@/lib/utils/textFormatter";
 
 const EMOTION_EMOJI: Record<Emotion, string> = {
   calm: "😌",
@@ -97,7 +96,7 @@ export default function ChatBubble({ message, isTyping }: ChatBubbleProps) {
           border: isPlayer ? "none" : "1px solid var(--border)",
           wordBreak: "break-word",
         }}>
-          {renderHighlightedText(message.content)}
+          {message.content}
           {isTyping && <span style={{ animation: "blink 1s infinite", color: "var(--gold)" }}>▊</span>}
         </div>
       </div>
