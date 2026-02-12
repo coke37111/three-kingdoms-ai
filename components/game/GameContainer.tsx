@@ -448,10 +448,7 @@ export default function GameContainer() {
         generals: playerFaction.generals,
         recentEvents: playerFaction.recentEvents,
         pendingTasks: playerFaction.pendingTasks,
-      }} deltas={deltas} />
-
-      {/* Top-right buttons */}
-      <div style={{ position: "absolute", top: "12px", right: "12px", zIndex: 15, display: "flex", gap: "4px" }}>
+      }} deltas={deltas}>
         <button onClick={() => setShowWorldStatus(true)} style={{
           background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
@@ -477,7 +474,7 @@ export default function GameContainer() {
         }}>
           📋 {tasks.length}
         </button>
-      </div>
+      </StatusBar>
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
       {/* NPC Processing Indicator */}

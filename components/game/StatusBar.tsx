@@ -1,14 +1,16 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { GameState, ResourceDeltas } from "@/types/game";
 import { SEASON_ICON } from "@/constants/gameConstants";
 
 interface StatusBarProps {
   state: GameState;
   deltas: ResourceDeltas;
+  children?: ReactNode;
 }
 
-export default function StatusBar({ state, deltas }: StatusBarProps) {
+export default function StatusBar({ state, deltas, children }: StatusBarProps) {
   const stats = [
     { icon: "💰", label: "금", value: state.gold, delta: deltas.gold },
     { icon: "🌾", label: "식량", value: state.food, delta: deltas.food },
@@ -24,12 +26,12 @@ export default function StatusBar({ state, deltas }: StatusBarProps) {
       top: 0,
       zIndex: 10,
     }}>
-      {/* Turn & Season */}
+      {/* Turn & Season + Action Buttons */}
       <div style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "8px",
+        marginBottom: "6px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{
@@ -44,43 +46,55 @@ export default function StatusBar({ state, deltas }: StatusBarProps) {
           <span style={{ fontSize: "16px" }}>{SEASON_ICON[state.currentSeason]}</span>
           <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{state.currentSeason}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ fontSize: "11px", color: "var(--text-dim)" }}>민심</span>
-          <div style={{
-            width: "80px",
-            height: "6px",
-            background: "rgba(255,255,255,0.06)",
-            borderRadius: "3px",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              width: `${state.popularity}%`,
-              height: "100%",
-              background: state.popularity > 60
-                ? "var(--success)"
-                : state.popularity > 30
-                ? "var(--warning)"
-                : "var(--danger)",
-              borderRadius: "3px",
-              transition: "width 0.6s ease",
-            }} />
+        {children && (
+          <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+            {children}
           </div>
-          <span style={{
-            fontSize: "12px",
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            minWidth: "24px",
-            textAlign: "right",
-            position: "relative",
-          }}>
-            {state.popularity}
-            {deltas.popularity !== 0 && (
-              <span className="delta-anim" style={{ color: deltas.popularity > 0 ? "var(--success)" : "var(--danger)" }}>
-                {deltas.popularity > 0 ? `+${deltas.popularity}` : deltas.popularity}
-              </span>
-            )}
-          </span>
+        )}
+      </div>
+
+      {/* Popularity */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        marginBottom: "6px",
+      }}>
+        <span style={{ fontSize: "11px", color: "var(--text-dim)" }}>민심</span>
+        <div style={{
+          flex: 1,
+          height: "6px",
+          background: "rgba(255,255,255,0.06)",
+          borderRadius: "3px",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            width: `${state.popularity}%`,
+            height: "100%",
+            background: state.popularity > 60
+              ? "var(--success)"
+              : state.popularity > 30
+              ? "var(--warning)"
+              : "var(--danger)",
+            borderRadius: "3px",
+            transition: "width 0.6s ease",
+          }} />
         </div>
+        <span style={{
+          fontSize: "12px",
+          fontWeight: 700,
+          color: "var(--text-primary)",
+          minWidth: "24px",
+          textAlign: "right",
+          position: "relative",
+        }}>
+          {state.popularity}
+          {deltas.popularity !== 0 && (
+            <span className="delta-anim" style={{ color: deltas.popularity > 0 ? "var(--success)" : "var(--danger)" }}>
+              {deltas.popularity > 0 ? `+${deltas.popularity}` : deltas.popularity}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* Resources */}
