@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { GameTask, FactionId, BattleResult, GameEndResult } from "@/types/game";
 import type { Choice, AIResponse, ChatMessage, TokenUsage } from "@/types/chat";
 import { useWorldState } from "@/hooks/useWorldState";
@@ -13,7 +13,7 @@ import { buildFactionAIPrompt, parseNPCResponse } from "@/lib/prompts/factionAIP
 import { executeDiplomaticAction, updateRelation, getRelationBetween } from "@/lib/game/diplomacySystem";
 import type { DiplomaticAction } from "@/lib/game/diplomacySystem";
 import { resolveBattle, generateBattleNarrative } from "@/lib/game/combatSystem";
-import { saveGame, loadGame, autoSave, loadAutoSave, hasAnySave } from "@/lib/game/saveSystem";
+import { loadGame, autoSave, loadAutoSave, hasAnySave } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { FACTION_NAMES } from "@/constants/factions";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,10 +26,12 @@ import WorldStatus from "./WorldStatus";
 import TurnNotification, { type TurnNotificationItem } from "./TurnNotification";
 import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
-import SaveLoadPanel from "./SaveLoadPanel";
 import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
 import { useVoice } from "@/hooks/useVoice";
+
+// delay 헬퍼 — setTimeout 체인을 async/await로 변환
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export default function GameContainer() {
   const {
@@ -42,6 +44,7 @@ export default function GameContainer() {
   const {
     messages, setMessages, addMessage,
     convHistory, setConvHistory, addToConvHistory,
+    convHistoryRef, messagesRef,
     streamingText, setStreamingText,
     scrollRef, scrollToBottom,
   } = useChatHistory();
@@ -58,6 +61,9 @@ export default function GameContainer() {
   const [hasSave, setHasSave] = useState(false);
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
 
+  // 턴 처리 중 가드 (BUG 3, 4 — 이중 실행 방지)
+  const processingTurnRef = useRef(false);
+
   useEffect(() => {
     if (uid) {
       hasAnySave(uid).then(setHasSave);
@@ -66,11 +72,25 @@ export default function GameContainer() {
     }
   }, [uid]);
 
+  // ---- 로그인 시 자동 저장이 있으면 자동 복원 ----
+  useEffect(() => {
+    if (!uid || started) return;
+    if (typeof window === "undefined") return;
+
+    loadAutoSave(uid).then((save) => {
+      if (!save) return;
+      loadWorldState(save.worldState);
+      setMessages(save.chatMessages as ChatMessage[]);
+      setConvHistory(save.convHistory as any);
+      setStarted(true);
+      sessionStorage.setItem("gameActive", "true");
+      addMessage({ role: "system", content: "🔄 게임을 자동 복원했습니다." });
+    });
+  }, [uid]);
+
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
   const [showDiplomacy, setShowDiplomacy] = useState(false);
-  const [showSaveLoad, setShowSaveLoad] = useState(false);
-  const [saveLoadMode, setSaveLoadMode] = useState<"save" | "load">("save");
   const [turnNotifications, setTurnNotifications] = useState<TurnNotificationItem[]>([]);
   const [battleReport, setBattleReport] = useState<BattleResult | null>(null);
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
@@ -84,11 +104,18 @@ export default function GameContainer() {
     addMessage,
   });
 
-  const { typeText } = useTypewriter();
+  const { typeText, cancelTypewriter } = useTypewriter();
 
   const {
     startListening, stopListening, isListening, partialTranscript,
   } = useVoice();
+
+  // ---- 언마운트 시 타이핑 취소 (BUG 9) ----
+  useEffect(() => {
+    return () => {
+      cancelTypewriter();
+    };
+  }, [cancelTypewriter]);
 
 
   // ---- Helper: get player as GameState-like for prompts ----
@@ -109,7 +136,7 @@ export default function GameContainer() {
     };
   }, [worldStateRef]);
 
-  // ---- API Call wrapper ----
+  // ---- API Call wrapper (BUG 2 — convHistoryRef 사용) ----
   const doCallLLM = useCallback(async (
     userMsg: string | null,
     overrideContent?: string,
@@ -117,7 +144,8 @@ export default function GameContainer() {
     const content = overrideContent || userMsg || "";
     addToConvHistory("user", content);
 
-    const trimmedHistory = [...convHistory, { role: "user" as const, content }].slice(-20);
+    // convHistoryRef.current는 addToConvHistory에 의해 이미 즉시 동기화됨
+    const trimmedHistory = convHistoryRef.current.slice(-20);
     const { response, usage } = await callLLM(
       buildWorldSystemPrompt(worldStateRef.current),
       trimmedHistory,
@@ -133,13 +161,13 @@ export default function GameContainer() {
     const raw = JSON.stringify(response);
     addToConvHistory("assistant", raw);
     return response;
-  }, [convHistory, worldStateRef, addToConvHistory]);
+  }, [worldStateRef, addToConvHistory, convHistoryRef]);
 
-  // ---- NPC Turn Processing ----
-  const processNPCTurns = useCallback(async () => {
+  // ---- NPC Turn Processing (BUG 1 — 반환값 추가) ----
+  const processNPCTurns = useCallback(async (): Promise<TurnNotificationItem[]> => {
     const world = worldStateRef.current;
     const npcFactions = world.factions.filter((f) => !f.isPlayer);
-    if (npcFactions.length === 0) return;
+    if (npcFactions.length === 0) return [];
 
     setNpcProcessing(true);
     addMessage({ role: "system", content: "⏳ 타국 군주들이 행동 중..." });
@@ -176,7 +204,6 @@ export default function GameContainer() {
           icon: faction.icon,
         });
 
-        // Apply NPC actions
         for (const action of result.actions) {
           applyNPCAction(result.factionId, action);
         }
@@ -185,9 +212,11 @@ export default function GameContainer() {
       if (notifications.length > 0) {
         setTurnNotifications(notifications);
       }
+
+      setNpcProcessing(false);
+      return notifications;
     } catch (err) {
       console.error("NPC turn error:", err);
-      // Fallback: deterministic NPC actions
       const notifications: TurnNotificationItem[] = [];
       for (const npc of npcFactions) {
         applyDeterministicAction(npc.id);
@@ -198,9 +227,9 @@ export default function GameContainer() {
         });
       }
       setTurnNotifications(notifications);
+      setNpcProcessing(false);
+      return notifications;
     }
-
-    setNpcProcessing(false);
   }, [worldStateRef, addMessage]);
 
   // ---- Apply NPC action locally ----
@@ -250,9 +279,9 @@ export default function GameContainer() {
     applyNPCAction(factionId, { action: "개발" });
   }, [applyNPCAction]);
 
-  // ---- Add advisor message with typing animation (split into segments) ----
+  // ---- Add advisor message with typing animation (BUG 3, 10) ----
   const addAdvisorMsg = useCallback(async (parsed: AIResponse) => {
-    setIsLoading(false);
+    // setIsLoading(false) 제거 — 호출자가 finally에서 관리
     setStreamingText("");
 
     const segments = parsed.dialogue.split("\n\n").filter((s) => s.trim());
@@ -262,23 +291,27 @@ export default function GameContainer() {
 
       await typeText(seg, (partial) => {
         setStreamingText(partial);
-        scrollToBottom();
+        // scrollToBottom() 제거 — useEffect가 streamingText 변경 시 자동 처리
       });
 
       addMessage({ role: "assistant", content: seg, emotion: parsed.emotion });
       setStreamingText("");
 
       if (i < segments.length - 1) {
-        await new Promise((r) => setTimeout(r, 500));
+        await delay(500);
       }
     }
 
-    if (parsed.choices && parsed.choices.length > 0) {
-      setCurrentChoices(parsed.choices);
-      setWaitChoice(true);
-    }
     if (parsed.state_changes) {
       applyPlayerChanges(parsed.state_changes, addMessage);
+    }
+
+    if (parsed.choices && parsed.choices.length > 0) {
+      await delay(400);
+      scrollToBottom();
+      setCurrentChoices(parsed.choices);
+      setWaitChoice(true);
+      setTimeout(scrollToBottom, 450);
     }
   }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges]);
 
@@ -292,26 +325,34 @@ export default function GameContainer() {
     return false;
   }, [worldStateRef]);
 
-  // ---- Auto save ----
+  // ---- Auto save (BUG 8 — ref 사용) ----
   const doAutoSave = useCallback(() => {
     if (uid) {
-      autoSave(worldStateRef.current, messages, convHistory as any, uid);
+      autoSave(worldStateRef.current, messagesRef.current, convHistoryRef.current as any, uid);
     }
-  }, [worldStateRef, messages, convHistory, uid]);
+  }, [worldStateRef, messagesRef, convHistoryRef, uid]);
 
   // ---- Actions ----
   const startGame = useCallback(async () => {
+    if (processingTurnRef.current) return;
+    processingTurnRef.current = true;
     setStarted(true);
+    sessionStorage.setItem("gameActive", "true");
     setIsLoading(true);
     addMessage({ role: "system", content: "🏯 삼국지 AI — 제갈량이 보고를 올립니다" });
 
-    const ev = checkAndTriggerEvents();
-    const prompt = ev
-      ? `게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 상황을 보고하고, 이벤트 "${ev}" 도 포함하여 조언하라. 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.`
-      : "게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 국가 상황을 보고하고, 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.";
+    try {
+      const ev = checkAndTriggerEvents();
+      const prompt = ev
+        ? `게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 상황을 보고하고, 이벤트 "${ev}" 도 포함하여 조언하라. 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.`
+        : "게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 국가 상황을 보고하고, 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.";
 
-    const parsed = await doCallLLM(null, prompt);
-    await addAdvisorMsg(parsed);
+      const parsed = await doCallLLM(null, prompt);
+      await addAdvisorMsg(parsed);
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
   }, [addMessage, checkAndTriggerEvents, doCallLLM, addAdvisorMsg]);
 
   const startFromSave = useCallback(async (slotIndex: number) => {
@@ -323,6 +364,7 @@ export default function GameContainer() {
     setMessages(save.chatMessages as ChatMessage[]);
     setConvHistory(save.convHistory as any);
     setStarted(true);
+    sessionStorage.setItem("gameActive", "true");
     addMessage({ role: "system", content: `📂 저장된 게임을 불러왔습니다 (${save.metadata.turnCount}턴)` });
   }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
@@ -335,83 +377,108 @@ export default function GameContainer() {
     setMessages(save.chatMessages as ChatMessage[]);
     setConvHistory(save.convHistory as any);
     setStarted(true);
+    sessionStorage.setItem("gameActive", "true");
     addMessage({ role: "system", content: `📂 자동 저장을 불러왔습니다 (${save.metadata.turnCount}턴)` });
   }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
+  // ---- sendMessage (BUG 4 — processingTurnRef 가드 + try/finally) ----
   const sendMessage = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || processingTurnRef.current) return;
+    processingTurnRef.current = true;
     const text = input.trim();
     setInput("");
     addMessage({ role: "user", content: text });
     setIsLoading(true);
-    const parsed = await doCallLLM(text);
-    await addAdvisorMsg(parsed);
-  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg]);
 
+    try {
+      const parsed = await doCallLLM(text);
+      await addAdvisorMsg(parsed);
+      doAutoSave();
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg, doAutoSave]);
+
+  // ---- handleChoice 리라이트 (BUG 1, 3, 4, 9) ----
   const handleChoice = useCallback(async (choice: Choice) => {
+    if (processingTurnRef.current) return;
+    processingTurnRef.current = true;
+
     setWaitChoice(false);
     setCurrentChoices(null);
     addMessage({ role: "user", content: `[${choice.id}] ${choice.text}` });
     setIsLoading(true);
 
-    const prompt = `플레이어가 [${choice.id}] "${choice.text}"을(를) 선택했다. 결과를 보고하라. 반드시 state_changes를 포함하여 수치 변화를 알려라. state_changes: {"gold_delta":숫자,"food_delta":숫자,"troops_delta":숫자,"popularity_delta":숫자,"city_updates":[{"city":"도시명","defense_delta":숫자}],"general_updates":[{"name":"장수명","task":"임무","loyalty_delta":숫자}],"new_events":["설명"],"result_message":"요약"}`;
-    const parsed = await doCallLLM(null, prompt);
-    await addAdvisorMsg(parsed);
+    try {
+      // 1. 선택 결과 보고
+      const prompt = `플레이어가 [${choice.id}] "${choice.text}"을(를) 선택했다. 결과를 보고하라. 반드시 state_changes를 포함하여 수치 변화를 알려라. state_changes: {"gold_delta":숫자,"food_delta":숫자,"troops_delta":숫자,"popularity_delta":숫자,"city_updates":[{"city":"도시명","defense_delta":숫자}],"general_updates":[{"name":"장수명","task":"임무","loyalty_delta":숫자}],"new_events":["설명"],"result_message":"요약"}`;
+      const parsed = await doCallLLM(null, prompt);
+      await addAdvisorMsg(parsed);
 
-    // Auto save before turn advance
-    doAutoSave();
+      doAutoSave();
 
-    setTimeout(async () => {
-      // Process NPC turns
-      await processNPCTurns();
+      // 2. NPC 턴 처리
+      await delay(800);
+      const notifications = await processNPCTurns();
 
-      // Advance turn
+      // 3. 턴 진행
       advanceWorldTurn();
 
-      // Check game end
       if (doCheckGameEnd()) return;
 
-      setTimeout(async () => {
-        const ev = checkAndTriggerEvents();
-        const world = worldStateRef.current;
-        const npcSummary = turnNotifications.length > 0
-          ? `\n타국 동향: ${turnNotifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
-          : "";
-
-        const np = ev
-          ? `새 턴이 시작되었다. 이벤트: "${ev}".${npcSummary} 보고하고 2~3개 선택지를 제시하라.`
-          : `새 턴이 시작되었다.${npcSummary} 상황을 보고하고 2~3개 선택지를 제시하라.`;
-        setIsLoading(true);
-        const next = await doCallLLM(null, np);
-        await addAdvisorMsg(next);
-      }, 1200);
-    }, 800);
-  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave, worldStateRef, turnNotifications]);
-
-  const handleNextTurn = useCallback(async () => {
-    doAutoSave();
-
-    // Process NPC turns first
-    await processNPCTurns();
-
-    advanceWorldTurn();
-
-    if (doCheckGameEnd()) return;
-
-    setTimeout(async () => {
+      // 4. 새 턴 보고
+      await delay(1200);
       const ev = checkAndTriggerEvents();
-      const npcSummary = turnNotifications.length > 0
-        ? `\n타국 동향: ${turnNotifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
+      const npcSummary = notifications.length > 0
+        ? `\n타국 동향: ${notifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
+        : "";
+
+      const np = ev
+        ? `새 턴이 시작되었다. 이벤트: "${ev}".${npcSummary} 보고하고 2~3개 선택지를 제시하라.`
+        : `새 턴이 시작되었다.${npcSummary} 상황을 보고하고 2~3개 선택지를 제시하라.`;
+
+      const next = await doCallLLM(null, np);
+      await addAdvisorMsg(next);
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave]);
+
+  // ---- handleNextTurn 리라이트 (BUG 1, 3, 4, 9) ----
+  const handleNextTurn = useCallback(async () => {
+    if (processingTurnRef.current) return;
+    processingTurnRef.current = true;
+    setIsLoading(true);
+
+    try {
+      doAutoSave();
+
+      // NPC 턴 처리
+      const notifications = await processNPCTurns();
+
+      advanceWorldTurn();
+
+      if (doCheckGameEnd()) return;
+
+      await delay(800);
+      const ev = checkAndTriggerEvents();
+      const npcSummary = notifications.length > 0
+        ? `\n타국 동향: ${notifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
         : "";
 
       const np = ev
         ? `새 턴이다. 이벤트: "${ev}".${npcSummary} 보고하고 2~3개 선택지를 제시하라.`
         : `새 턴이다.${npcSummary} 보고하고 2~3개 선택지를 제시하라.`;
-      setIsLoading(true);
+
       const next = await doCallLLM(null, np);
       await addAdvisorMsg(next);
-    }, 800);
-  }, [advanceWorldTurn, checkAndTriggerEvents, doCallLLM, addAdvisorMsg, processNPCTurns, doCheckGameEnd, doAutoSave, turnNotifications]);
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [advanceWorldTurn, checkAndTriggerEvents, doCallLLM, addAdvisorMsg, processNPCTurns, doCheckGameEnd, doAutoSave]);
 
   // ---- Diplomacy Handler ----
   const handleDiplomacy = useCallback((targetId: FactionId, action: DiplomaticAction) => {
@@ -430,31 +497,12 @@ export default function GameContainer() {
     }));
 
     setShowDiplomacy(false);
-  }, [worldStateRef, addMessage, setWorldState]);
+    doAutoSave();
+  }, [worldStateRef, addMessage, setWorldState, doAutoSave]);
 
-  // ---- Save/Load Handlers ----
-  const handleSave = useCallback(async (slotIndex: number) => {
-    if (!uid) return;
-    const success = await saveGame(slotIndex, worldStateRef.current, messages, convHistory as any, uid);
-    if (success) {
-      addMessage({ role: "system", content: `☁️ 슬롯 ${slotIndex + 1}에 저장되었습니다.` });
-    }
-    setShowSaveLoad(false);
-  }, [worldStateRef, messages, convHistory, addMessage, uid]);
-
-  const handleLoad = useCallback(async (slotIndex: number) => {
-    if (!uid) return;
-    const save = await loadGame(slotIndex, uid);
-    if (save) {
-      loadWorldState(save.worldState);
-      setMessages(save.chatMessages as ChatMessage[]);
-      setConvHistory(save.convHistory as any);
-      addMessage({ role: "system", content: `📂 슬롯 ${slotIndex + 1}에서 불러왔습니다 (${save.metadata.turnCount}턴).` });
-    }
-    setShowSaveLoad(false);
-  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
 
   const handleRestart = useCallback(() => {
+    sessionStorage.removeItem("gameActive");
     window.location.reload();
   }, []);
 
@@ -483,7 +531,6 @@ export default function GameContainer() {
       stopListening();
     } else {
       startListening((text) => {
-        // Try to match a choice first
         const choice = matchVoiceChoice(text);
         if (choice) {
           handleChoice(choice);
@@ -566,12 +613,6 @@ export default function GameContainer() {
         }}>
           🏛️
         </button>
-        <button onClick={() => { setSaveLoadMode("save"); setShowSaveLoad(true); }} style={{
-          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
-          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
-        }}>
-          💾
-        </button>
         <button onClick={() => setShowTasks(!showTasks)} style={{
           background: tasks.length > 0 ? "rgba(212,68,62,0.2)" : "rgba(255,255,255,0.05)",
           border: "1px solid var(--border)", borderRadius: "16px",
@@ -625,7 +666,13 @@ export default function GameContainer() {
       </div>
 
       {/* Choices */}
-      {currentChoices && <ChoicePanel choices={currentChoices} onSelect={handleChoice} disabled={isLoading} />}
+      <div style={{
+        maxHeight: currentChoices ? "60vh" : "0",
+        overflow: "hidden",
+        transition: "max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        {currentChoices && <ChoicePanel choices={currentChoices} onSelect={handleChoice} disabled={isLoading} />}
+      </div>
 
       {/* Input */}
       <div style={{
@@ -694,16 +741,6 @@ export default function GameContainer() {
         onAction={handleDiplomacy}
         disabled={isLoading}
       />
-      {uid && (
-        <SaveLoadPanel
-          show={showSaveLoad}
-          mode={saveLoadMode}
-          onClose={() => setShowSaveLoad(false)}
-          onSave={handleSave}
-          onLoad={handleLoad}
-          uid={uid}
-        />
-      )}
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}

@@ -23,7 +23,6 @@ export default function ChoicePanel({ choices, onSelect, disabled }: ChoicePanel
       padding: "12px 14px",
       background: "linear-gradient(180deg, var(--bg-card) 0%, var(--bg-secondary) 100%)",
       borderTop: "1px solid var(--border)",
-      animation: "fadeInUp 0.4s ease",
     }}>
       <div style={{
         fontSize: "11px",

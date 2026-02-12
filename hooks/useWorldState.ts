@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { WorldState, Faction, FactionId, StateChanges, ResourceDeltas } from "@/types/game";
 import type { ChatMessage } from "@/types/chat";
 import { applyStateChanges } from "@/lib/game/stateManager";
@@ -18,20 +18,28 @@ function createInitialWorldState(): WorldState {
 }
 
 export function useWorldState() {
-  const [worldState, setWorldState] = useState<WorldState>(createInitialWorldState);
+  const [worldState, setWorldStateRaw] = useState<WorldState>(createInitialWorldState);
   const [deltas, setDeltas] = useState<ResourceDeltas>(ZERO_DELTAS);
   const worldStateRef = useRef<WorldState>(worldState);
 
-  useEffect(() => {
-    worldStateRef.current = worldState;
-  }, [worldState]);
+  // useEffect 기반 동기화 제거 → functional updater 내부에서 즉시 동기화 (BUG 6)
+  const setWorldState: typeof setWorldStateRaw = useCallback((updater) => {
+    setWorldStateRaw((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      worldStateRef.current = next;
+      return next;
+    });
+  }, []);
 
-  useEffect(() => {
-    if (deltas.gold || deltas.food || deltas.troops || deltas.popularity) {
-      const t = setTimeout(() => setDeltas(ZERO_DELTAS), 2200);
-      return () => clearTimeout(t);
-    }
-  }, [deltas]);
+  // deltas 자동 리셋 (기존 유지)
+  const [, setDeltaTimer] = useState<NodeJS.Timeout | null>(null);
+  const setDeltasWithReset = useCallback((nd: ResourceDeltas) => {
+    setDeltas(nd);
+    setDeltaTimer((prev) => {
+      if (prev) clearTimeout(prev);
+      return setTimeout(() => setDeltas(ZERO_DELTAS), 2200);
+    });
+  }, []);
 
   const getPlayerFaction = useCallback((): Faction => {
     return worldState.factions.find((f) => f.isPlayer)!;
@@ -50,7 +58,7 @@ export function useWorldState() {
       ...prev,
       factions: prev.factions.map((f) => f.id === factionId ? updater(f) : f),
     }));
-  }, []);
+  }, [setWorldState]);
 
   const applyPlayerChanges = useCallback((
     changes: StateChanges,
@@ -75,7 +83,7 @@ export function useWorldState() {
       };
 
       const { nextState, deltas: nd, resultMessage } = applyStateChanges(playerAsGameState, changes);
-      setDeltas(nd);
+      setDeltasWithReset(nd);
 
       if (resultMessage) {
         addMessage({ role: "system", content: `📜 ${resultMessage}` });
@@ -99,10 +107,11 @@ export function useWorldState() {
         ),
       };
     });
-  }, []);
+  }, [setWorldState, setDeltasWithReset]);
 
   const loadWorldState = useCallback((state: WorldState) => {
-    setWorldState(state);
+    worldStateRef.current = state;
+    setWorldStateRaw(state);
   }, []);
 
   return {
@@ -110,7 +119,7 @@ export function useWorldState() {
     setWorldState,
     worldStateRef,
     deltas,
-    setDeltas,
+    setDeltas: setDeltasWithReset,
     getPlayerFaction,
     getNPCFactions,
     getFactionById,

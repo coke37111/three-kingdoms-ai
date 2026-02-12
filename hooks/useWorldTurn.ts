@@ -9,7 +9,7 @@ import { SEASONS, SEASON_ICON, SEASON_FOOD_MULTIPLIER, TROOP_FOOD_COST_PER_UNIT 
 interface UseWorldTurnParams {
   worldStateRef: React.MutableRefObject<WorldState>;
   setWorldState: React.Dispatch<React.SetStateAction<WorldState>>;
-  setDeltas: React.Dispatch<React.SetStateAction<ResourceDeltas>>;
+  setDeltas: (d: ResourceDeltas) => void;
   setTasks: React.Dispatch<React.SetStateAction<GameTask[]>>;
   addMessage: (msg: ChatMessage) => void;
 }
@@ -34,28 +34,34 @@ export function useWorldTurn({
   addMessage,
 }: UseWorldTurnParams) {
   const advanceWorldTurn = useCallback(() => {
-    const world = worldStateRef.current;
-    const player = world.factions.find((f) => f.isPlayer)!;
-    const r = calcResources({
-      rulerName: player.rulerName,
-      gold: player.gold,
-      food: player.food,
-      totalTroops: player.totalTroops,
-      popularity: player.popularity,
-      currentTurn: world.currentTurn,
-      currentSeason: world.currentSeason,
-      cities: player.cities,
-      generals: player.generals,
-      recentEvents: player.recentEvents,
-      pendingTasks: player.pendingTasks,
-    });
-
-    const si = SEASONS.indexOf(world.currentSeason);
-    const ns = SEASONS[(si + 1) % 4];
-    const netFood = r.foodProd - r.foodCost;
+    // 자원 계산을 functional updater 내부로 이동 → prev에서 읽어 항상 최신 상태 보장 (BUG 7)
+    let playerDeltas = { goldIncome: 0, netFood: 0 };
+    let turnMessage = "";
 
     setWorldState((prev) => {
-      // Update all factions' resources
+      const player = prev.factions.find((f) => f.isPlayer)!;
+      const r = calcResources({
+        rulerName: player.rulerName,
+        gold: player.gold,
+        food: player.food,
+        totalTroops: player.totalTroops,
+        popularity: player.popularity,
+        currentTurn: prev.currentTurn,
+        currentSeason: prev.currentSeason,
+        cities: player.cities,
+        generals: player.generals,
+        recentEvents: player.recentEvents,
+        pendingTasks: player.pendingTasks,
+      });
+
+      const si = SEASONS.indexOf(prev.currentSeason);
+      const ns = SEASONS[(si + 1) % 4];
+      const netFood = r.foodProd - r.foodCost;
+
+      // updater 바깥의 변수로 캡처
+      playerDeltas = { goldIncome: r.goldIncome, netFood };
+      turnMessage = `🏯 第${prev.currentTurn + 1}턴 — ${ns} ${SEASON_ICON[ns]} | 금 +${r.goldIncome.toLocaleString()} | 식량 ${netFood >= 0 ? "+" : ""}${netFood.toLocaleString()}`;
+
       const updatedFactions = prev.factions.map((faction) => {
         const res = calcFactionResources(faction, ns);
         const fNetFood = res.foodProd - res.foodCost;
@@ -76,7 +82,7 @@ export function useWorldTurn({
       };
     });
 
-    setDeltas({ gold: r.goldIncome, food: netFood, troops: 0, popularity: 0 });
+    setDeltas({ gold: playerDeltas.goldIncome, food: playerDeltas.netFood, troops: 0, popularity: 0 });
     setTasks((prev) =>
       prev
         .map((t) => ({
@@ -87,11 +93,8 @@ export function useWorldTurn({
         .filter((t) => t.turnsRemaining !== 0)
     );
 
-    addMessage({
-      role: "system",
-      content: `🏯 第${world.currentTurn + 1}턴 — ${ns} ${SEASON_ICON[ns]} | 금 +${r.goldIncome.toLocaleString()} | 식량 ${netFood >= 0 ? "+" : ""}${netFood.toLocaleString()}`,
-    });
-  }, [worldStateRef, setWorldState, setDeltas, setTasks, addMessage]);
+    addMessage({ role: "system", content: turnMessage });
+  }, [setWorldState, setDeltas, setTasks, addMessage]);
 
   const checkAndTriggerEvents = useCallback(() => {
     const world = worldStateRef.current;

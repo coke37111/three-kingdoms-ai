@@ -19,8 +19,12 @@ export function useAuth() {
   const loginWithGoogle = useCallback(async () => {
     try {
       await signInWithGoogle();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Google login failed:", e);
+      // 사용자에게 에러 상황 알림
+      const code = e.code || "UNKNOWN";
+      const message = e.message || "알 수 없는 오류가 발생했습니다.";
+      alert(`로그인 실패\n\nCode: ${code}\nMessage: ${message}\n\n설정이나 네트워크 상태를 확인해주세요.`);
     }
   }, []);
 

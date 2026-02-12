@@ -17,6 +17,14 @@ let db: Firestore;
 
 function getFirebaseApp(): FirebaseApp {
   if (!app) {
+    if (typeof window !== 'undefined') {
+      console.log("Infrastructure: Initializing Firebase App");
+      console.log("Infrastructure: Config Check:", {
+        hasApiKey: !!firebaseConfig.apiKey,
+        authDomain: firebaseConfig.authDomain,
+        projectId: firebaseConfig.projectId
+      });
+    }
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   }
   return app;

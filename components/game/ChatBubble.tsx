@@ -10,6 +10,64 @@ const EMOTION_EMOJI: Record<Emotion, string> = {
   thoughtful: "🤔",
 };
 
+function colorizeNumbers(text: string) {
+  // 숫자와 증감 키워드를 포함한 패턴 매칭
+  // 그룹 1: 증가/회복 등 (녹색, +부호)
+  // 그룹 2: 감소/소모 등 (적색, -부호)
+  // 그룹 3: 기타 숫자 (부호에 따라 색상 적용)
+  const regex = /([+-]?\d[\d,]*)(?:\s*(?:증가|회복|획득|상승))|([+-]?\d[\d,]*)(?:\s*(?:감소|소모|피해|하락|지출))|([+-]?\d[\d,]*)/g;
+
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // 매치된 문자열 앞부분 추가
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const positiveVal = match[1]; // "1500" (뒤에 '증가'가 있었음) 혹은 undefined
+    const negativeVal = match[2]; // "500" (뒤에 '소모'가 있었음) 혹은 undefined
+    const neutralVal = match[3];  // 단순 숫자 혹은 undefined
+
+    if (positiveVal) {
+      // 이미 +가 있으면 제거하고 다시 붙임
+      const val = positiveVal.replace(/^[+]/, "");
+      parts.push(
+        <span key={match.index} style={{ color: "var(--success)", fontWeight: 700 }}>
+          {`+${val}`}
+        </span>
+      );
+    } else if (negativeVal) {
+      // 이미 -가 있으면 제거하고 다시 붙임
+      const val = negativeVal.replace(/^[-]/, "");
+      parts.push(
+        <span key={match.index} style={{ color: "var(--danger)", fontWeight: 700 }}>
+          {`-${val}`}
+        </span>
+      );
+    } else if (neutralVal) {
+      // 키워드 없는 단순 숫자 (+/- 부호가 이미 있는 경우 처리)
+      if (neutralVal.startsWith("+")) {
+        parts.push(<span key={match.index} style={{ color: "var(--success)", fontWeight: 700 }}>{neutralVal}</span>);
+      } else if (neutralVal.startsWith("-")) {
+        parts.push(<span key={match.index} style={{ color: "var(--danger)", fontWeight: 700 }}>{neutralVal}</span>);
+      } else {
+        parts.push(neutralVal);
+      }
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
 interface ChatBubbleProps {
   message: ChatMessage;
   isTyping?: boolean;
@@ -36,7 +94,7 @@ export default function ChatBubble({ message, isTyping }: ChatBubbleProps) {
           border: "1px solid var(--border)",
           letterSpacing: "0.5px",
         }}>
-          {message.content}
+          {colorizeNumbers(message.content)}
         </span>
       </div>
     );
