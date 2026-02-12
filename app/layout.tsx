@@ -1,11 +1,12 @@
 import "./globals.css";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "삼국지 AI — 군주 시뮬레이션",
   description: "제갈량과 함께 천하를 통일하라",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
       <head>

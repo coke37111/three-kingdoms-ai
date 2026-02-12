@@ -1,5 +1,10 @@
-export async function POST(request) {
-  const { system, messages } = await request.json();
+interface ChatRequest {
+  system: string;
+  messages: { role: string; content: string }[];
+}
+
+export async function POST(request: Request) {
+  const { system, messages }: ChatRequest = await request.json();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -30,6 +35,9 @@ export async function POST(request) {
     const data = await response.json();
     return Response.json(data);
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    );
   }
 }
