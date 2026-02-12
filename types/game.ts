@@ -100,6 +100,7 @@ export interface GameState {
   totalTroops: number;
   popularity: number;
   currentTurn: number;
+  currentMonth: number;
   currentSeason: Season;
   cities: City[];
   generals: General[];
@@ -149,6 +150,7 @@ export interface Treaty {
 
 export interface WorldState {
   currentTurn: number;
+  currentMonth: number;
   currentSeason: Season;
   factions: Faction[];
   relations: DiplomaticRelation[];

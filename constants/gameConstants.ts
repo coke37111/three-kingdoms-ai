@@ -16,4 +16,11 @@ export const SEASON_FOOD_MULTIPLIER: Record<Season, number> = {
   "겨울": 0.5,
 };
 
+export function getSeasonFromMonth(month: number): Season {
+  if (month >= 3 && month <= 5) return "봄";
+  if (month >= 6 && month <= 8) return "여름";
+  if (month >= 9 && month <= 11) return "가을";
+  return "겨울"; // 12, 1, 2
+}
+
 export const TROOP_FOOD_COST_PER_UNIT = 2;

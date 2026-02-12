@@ -9,6 +9,7 @@ const ZERO_DELTAS: ResourceDeltas = { gold: 0, food: 0, troops: 0, popularity: 0
 function createInitialWorldState(): WorldState {
   return {
     currentTurn: 1,
+    currentMonth: 3,
     currentSeason: "봄",
     factions: INITIAL_FACTIONS,
     relations: INITIAL_RELATIONS,
@@ -75,6 +76,7 @@ export function useWorldState() {
         totalTroops: player.totalTroops,
         popularity: player.popularity,
         currentTurn: prev.currentTurn,
+        currentMonth: prev.currentMonth,
         currentSeason: prev.currentSeason,
         cities: player.cities,
         generals: player.generals,

@@ -66,6 +66,7 @@ export function buildWorldSystemPrompt(world: WorldState): string {
     totalTroops: player.totalTroops,
     popularity: player.popularity,
     currentTurn: world.currentTurn,
+    currentMonth: world.currentMonth,
     currentSeason: world.currentSeason,
     cities: player.cities,
     generals: player.generals,

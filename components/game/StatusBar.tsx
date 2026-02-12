@@ -43,6 +43,7 @@ export default function StatusBar({ state, deltas, children }: StatusBarProps) {
           }}>
             第{state.currentTurn}턴
           </span>
+          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{state.currentMonth}월</span>
           <span style={{ fontSize: "16px" }}>{SEASON_ICON[state.currentSeason]}</span>
           <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{state.currentSeason}</span>
         </div>

@@ -7,6 +7,7 @@ export const INITIAL_STATE: GameState = {
   totalTroops: 8000,
   popularity: 65,
   currentTurn: 1,
+  currentMonth: 3,
   currentSeason: "봄",
   cities: [
     { cityName: "신야", population: 50000, defense: 40, commerce: 55, agriculture: 60, garrison: 5000, governor: "제갈량" },

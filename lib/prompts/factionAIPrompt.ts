@@ -36,7 +36,7 @@ ${relSummary}`;
   return `너는 삼국지 시대의 전략 게임 심판이다.
 각 NPC 군주의 성격과 상황을 고려하여, 이번 턴에 각 군주가 취할 행동을 결정하라.
 
-=== 현재 월드 상태 (${world.currentTurn}턴, ${world.currentSeason}) ===
+=== 현재 월드 상태 (${world.currentTurn}턴, ${world.currentMonth}월, ${world.currentSeason}) ===
 ${worldSummary}
 
 === NPC 군주 상세 ===

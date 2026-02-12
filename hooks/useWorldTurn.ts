@@ -4,7 +4,7 @@ import type { ChatMessage } from "@/types/chat";
 import { calcResources } from "@/lib/game/resourceCalculator";
 import { checkEvents } from "@/lib/game/eventSystem";
 import { advanceTreaties } from "@/lib/game/diplomacySystem";
-import { SEASONS, SEASON_ICON, SEASON_FOOD_MULTIPLIER, TROOP_FOOD_COST_PER_UNIT } from "@/constants/gameConstants";
+import { SEASON_ICON, SEASON_FOOD_MULTIPLIER, TROOP_FOOD_COST_PER_UNIT, getSeasonFromMonth } from "@/constants/gameConstants";
 
 interface UseWorldTurnParams {
   worldStateRef: React.MutableRefObject<WorldState>;
@@ -47,6 +47,7 @@ export function useWorldTurn({
         totalTroops: player.totalTroops,
         popularity: player.popularity,
         currentTurn: prev.currentTurn,
+        currentMonth: prev.currentMonth,
         currentSeason: prev.currentSeason,
         cities: player.cities,
         generals: player.generals,
@@ -54,13 +55,13 @@ export function useWorldTurn({
         pendingTasks: player.pendingTasks,
       });
 
-      const si = SEASONS.indexOf(prev.currentSeason);
-      const ns = SEASONS[(si + 1) % 4];
+      const nextMonth = (prev.currentMonth % 12) + 1;
+      const ns = getSeasonFromMonth(nextMonth);
       const netFood = r.foodProd - r.foodCost;
 
       // updater 바깥의 변수로 캡처
       playerDeltas = { goldIncome: r.goldIncome, netFood };
-      turnMessage = `🏯 第${prev.currentTurn + 1}턴 — ${ns} ${SEASON_ICON[ns]} | 금 +${r.goldIncome.toLocaleString()} | 식량 ${netFood >= 0 ? "+" : ""}${netFood.toLocaleString()}`;
+      turnMessage = `🏯 第${prev.currentTurn + 1}턴 — ${nextMonth}월 ${SEASON_ICON[ns]} ${ns} | 금 +${r.goldIncome.toLocaleString()} | 식량 ${netFood >= 0 ? "+" : ""}${netFood.toLocaleString()}`;
 
       const updatedFactions = prev.factions.map((faction) => {
         const res = calcFactionResources(faction, ns);
@@ -75,6 +76,7 @@ export function useWorldTurn({
       return {
         ...prev,
         currentTurn: prev.currentTurn + 1,
+        currentMonth: nextMonth,
         currentSeason: ns,
         factions: updatedFactions,
         relations: advanceTreaties(prev.relations),
@@ -107,6 +109,7 @@ export function useWorldTurn({
       totalTroops: player.totalTroops,
       popularity: player.popularity,
       currentTurn: world.currentTurn,
+      currentMonth: world.currentMonth,
       currentSeason: world.currentSeason,
       cities: player.cities,
       generals: player.generals,
