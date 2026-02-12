@@ -14,9 +14,10 @@ export default function TaskPanel({ tasks, show, onToggle }: TaskPanelProps) {
   return (
     <div style={{
       position: "absolute",
-      top: "90px",
+      top: "110px",
       right: "12px",
       width: "240px",
+      maxWidth: "calc(100vw - 24px)",
       background: "var(--bg-card)",
       border: "1px solid var(--border)",
       borderRadius: "12px",
