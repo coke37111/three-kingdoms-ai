@@ -227,23 +227,32 @@ export default function GameContainer() {
     applyNPCAction(factionId, { action: "개발" });
   }, [applyNPCAction]);
 
-  // ---- Add advisor message with typing animation ----
+  // ---- Add advisor message with typing animation (split into segments) ----
   const addAdvisorMsg = useCallback(async (parsed: AIResponse) => {
     setIsLoading(false);
     setStreamingText("");
 
-    // TTS + typing start simultaneously (non-blocking)
-    if (voiceSettings.ttsEnabled && parsed.emotion) {
-      speak(parsed.dialogue, parsed.emotion);
+    const segments = parsed.dialogue.split("\n\n").filter((s) => s.trim());
+
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i].trim();
+
+      if (voiceSettings.ttsEnabled && parsed.emotion) {
+        speak(seg, parsed.emotion);
+      }
+
+      await typeText(seg, (partial) => {
+        setStreamingText(partial);
+        scrollToBottom();
+      });
+
+      setStreamingText("");
+      addMessage({ role: "assistant", content: seg, emotion: parsed.emotion });
+
+      if (i < segments.length - 1) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
     }
-
-    await typeText(parsed.dialogue, (partial) => {
-      setStreamingText(partial);
-      scrollToBottom();
-    });
-
-    setStreamingText("");
-    addMessage({ role: "assistant", content: parsed.dialogue, emotion: parsed.emotion });
 
     if (parsed.choices && parsed.choices.length > 0) {
       setCurrentChoices(parsed.choices);
@@ -542,7 +551,7 @@ export default function GameContainer() {
         }}>
           ⚙️
         </button>
-      </div>
+      </StatusBar>
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
       {/* NPC Processing Indicator */}

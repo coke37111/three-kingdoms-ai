@@ -93,10 +93,10 @@ This is a Next.js 14 App Router project using **TypeScript** with a modular arch
 - **Path aliases**: `@/*` maps to project root via `tsconfig.json`
 - **SSR safety**: `saveSystem.ts` guards all `localStorage` access with `typeof window !== "undefined"`
 
-## Plans
+## Docs
 
-- **`plans/01-refactoring.md`** — TypeScript 전환 + 모듈 분리 리팩토링 계획 (완료)
-- **`plans/02-gameplay-expansion.md`** — 다수 군주/전투/외교/세이브/승리 조건 확장 계획 (완료)
+- **`docs/01-refactoring.md`** — TypeScript 전환 + 모듈 분리 리팩토링 계획 (완료)
+- **`docs/02-gameplay-expansion.md`** — 다수 군주/전투/외교/세이브/승리 조건 확장 계획 (완료)
 
 ## Environment
 

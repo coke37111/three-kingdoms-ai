@@ -87,7 +87,7 @@ export default function ChatBubble({ message, isTyping }: ChatBubbleProps) {
         )}
         <div style={{
           background: isPlayer
-            ? "linear-gradient(135deg, var(--accent), #8b2020)"
+            ? "linear-gradient(135deg, #5c4a1e, #3d3011)"
             : "var(--bg-card)",
           color: "var(--text-primary)",
           padding: "10px 14px",
