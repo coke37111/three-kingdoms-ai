@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { GameTask, FactionId, BattleResult, GameEndResult } from "@/types/game";
-import type { Choice, AIResponse, ChatMessage } from "@/types/chat";
+import type { Choice, AIResponse, ChatMessage, TokenUsage } from "@/types/chat";
 import { useWorldState } from "@/hooks/useWorldState";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useWorldTurn } from "@/hooks/useWorldTurn";
@@ -27,7 +27,6 @@ import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
 import SaveLoadPanel from "./SaveLoadPanel";
 import GameEndScreen from "./GameEndScreen";
-import VoiceSettingsModal from "./VoiceSettingsModal";
 import { useVoice } from "@/hooks/useVoice";
 
 export default function GameContainer() {
@@ -52,6 +51,12 @@ export default function GameContainer() {
   const [showTasks, setShowTasks] = useState(false);
   const [started, setStarted] = useState(false);
   const [waitChoice, setWaitChoice] = useState(false);
+  const [hasSave, setHasSave] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
+
+  useEffect(() => {
+    setHasSave(hasAnySave());
+  }, []);
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
@@ -74,12 +79,9 @@ export default function GameContainer() {
   const { typeText } = useTypewriter();
 
   const {
-    settings: voiceSettings, updateSettings: updateVoiceSettings,
-    speak, stopSpeaking, isSpeaking: voiceSpeaking,
     startListening, stopListening, isListening, partialTranscript,
   } = useVoice();
 
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // ---- Helper: get player as GameState-like for prompts ----
   const getPlayerGameState = useCallback(() => {
@@ -108,14 +110,21 @@ export default function GameContainer() {
     addToConvHistory("user", content);
 
     const trimmedHistory = [...convHistory, { role: "user" as const, content }].slice(-20);
-    const result = await callLLM(
+    const { response, usage } = await callLLM(
       buildWorldSystemPrompt(worldStateRef.current),
       trimmedHistory,
     );
 
-    const raw = JSON.stringify(result);
+    if (usage) {
+      setTokenUsage((prev) => ({
+        input: prev.input + usage.input_tokens,
+        output: prev.output + usage.output_tokens,
+      }));
+    }
+
+    const raw = JSON.stringify(response);
     addToConvHistory("assistant", raw);
-    return result;
+    return response;
   }, [convHistory, worldStateRef, addToConvHistory]);
 
   // ---- NPC Turn Processing ----
@@ -139,6 +148,12 @@ export default function GameContainer() {
       });
       const data = await res.json();
       const raw = data.content?.[0]?.text || "";
+      if (data.usage) {
+        setTokenUsage((prev) => ({
+          input: prev.input + data.usage.input_tokens,
+          output: prev.output + data.usage.output_tokens,
+        }));
+      }
       const npcResults = parseNPCResponse(raw);
 
       const notifications: TurnNotificationItem[] = [];
@@ -237,10 +252,6 @@ export default function GameContainer() {
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i].trim();
 
-      if (voiceSettings.ttsEnabled && parsed.emotion) {
-        speak(seg, parsed.emotion);
-      }
-
       await typeText(seg, (partial) => {
         setStreamingText(partial);
         scrollToBottom();
@@ -261,7 +272,7 @@ export default function GameContainer() {
     if (parsed.state_changes) {
       applyPlayerChanges(parsed.state_changes, addMessage);
     }
-  }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges, voiceSettings.ttsEnabled, speak]);
+  }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges]);
 
   // ---- Check game end ----
   const doCheckGameEnd = useCallback(() => {
@@ -317,17 +328,15 @@ export default function GameContainer() {
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
-    stopSpeaking();
     const text = input.trim();
     setInput("");
     addMessage({ role: "user", content: text });
     setIsLoading(true);
     const parsed = await doCallLLM(text);
     await addAdvisorMsg(parsed);
-  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg, stopSpeaking]);
+  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg]);
 
   const handleChoice = useCallback(async (choice: Choice) => {
-    stopSpeaking();
     setWaitChoice(false);
     setCurrentChoices(null);
     addMessage({ role: "user", content: `[${choice.id}] ${choice.text}` });
@@ -365,7 +374,7 @@ export default function GameContainer() {
         await addAdvisorMsg(next);
       }, 1200);
     }, 800);
-  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave, worldStateRef, turnNotifications, stopSpeaking]);
+  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave, worldStateRef, turnNotifications]);
 
   const handleNextTurn = useCallback(async () => {
     doAutoSave();
@@ -481,7 +490,7 @@ export default function GameContainer() {
     return (
       <TitleScreen
         onStart={startGame}
-        onContinue={hasAnySave() ? startFromAutoSave : undefined}
+        onContinue={hasSave ? startFromAutoSave : undefined}
         onLoadSlot={startFromSave}
       />
     );
@@ -536,21 +545,6 @@ export default function GameContainer() {
         }}>
           📋 {tasks.length}
         </button>
-        <button onClick={() => updateVoiceSettings({ ttsEnabled: !voiceSettings.ttsEnabled })} style={{
-          background: voiceSettings.ttsEnabled ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
-          border: `1px solid ${voiceSettings.ttsEnabled ? "var(--gold)" : "var(--border)"}`,
-          borderRadius: "16px",
-          padding: "3px 10px", color: voiceSettings.ttsEnabled ? "var(--gold)" : "var(--text-secondary)",
-          fontSize: "11px", cursor: "pointer",
-        }}>
-          {voiceSettings.ttsEnabled ? "🔊" : "🔇"}
-        </button>
-        <button onClick={() => setShowVoiceSettings(true)} style={{
-          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
-          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
-        }}>
-          ⚙️
-        </button>
       </StatusBar>
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
@@ -571,6 +565,17 @@ export default function GameContainer() {
 
       {/* Turn Notifications */}
       <TurnNotification notifications={turnNotifications} onDismiss={() => setTurnNotifications([])} />
+
+      {/* Token Usage */}
+      {(tokenUsage.input > 0 || tokenUsage.output > 0) && (
+        <div style={{
+          textAlign: "center", padding: "2px 0", fontSize: "10px",
+          color: "var(--text-dim)", borderBottom: "1px solid var(--border)",
+          background: "var(--bg-secondary)", letterSpacing: "0.5px",
+        }}>
+          토큰 ▲{tokenUsage.input.toLocaleString()} ▼{tokenUsage.output.toLocaleString()}
+        </div>
+      )}
 
       {/* Chat */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
@@ -665,12 +670,6 @@ export default function GameContainer() {
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}
-      <VoiceSettingsModal
-        show={showVoiceSettings}
-        settings={voiceSettings}
-        onUpdate={updateVoiceSettings}
-        onClose={() => setShowVoiceSettings(false)}
-      />
     </div>
   );
 }

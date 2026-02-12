@@ -9,7 +9,7 @@ export function useTypewriter() {
     for (let i = 0; i < text.length; i++) {
       displayed += text[i];
       onUpdate(displayed);
-      await new Promise((r) => setTimeout(r, 22 + Math.random() * 18));
+      await new Promise((r) => setTimeout(r, 11 + Math.random() * 9));
     }
   }, []);
 

@@ -7,12 +7,22 @@ export interface Choice {
   preview: string;
 }
 
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
 export interface AIResponse {
   speaker: string;
   dialogue: string;
   emotion: Emotion;
   choices: Choice[] | null;
   state_changes: import("./game").StateChanges | null;
+}
+
+export interface LLMResult {
+  response: AIResponse;
+  usage: TokenUsage | null;
 }
 
 export interface ChatMessage {
