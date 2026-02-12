@@ -1,20 +1,27 @@
-import type { AIResponse, LLMResult } from "@/types/chat";
+import type { AIResponse, LLMResult, LLMProvider } from "@/types/chat";
+
+export interface CallLLMOptions {
+  skipCache?: boolean;
+}
 
 export async function callLLM(
   system: string,
-  messages: { role: string; content: string }[]
+  messages: { role: string; content: string }[],
+  provider: LLMProvider = "openai",
+  options?: CallLLMOptions,
 ): Promise<LLMResult> {
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system, messages }),
+      body: JSON.stringify({ system, messages, provider, skipCache: options?.skipCache }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    const raw: string = data.content?.[0]?.text || "";
-    const usage = data.usage ?? null;
+    // 서버에서 정규화된 응답: { text, usage, provider, cached }
+    const raw: string = data.text || "";
+    const usage = data.cached ? null : (data.usage ?? null);
 
     let response: AIResponse;
     try {

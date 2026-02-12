@@ -45,7 +45,7 @@ ${JSON.stringify(gameState, null, 2)}
   "speaker": "제갈량",
   "dialogue": "주공, 조조가 허창에서 대군을 일으켰습니다. 병력 증강이 시급합니다.",
   "emotion": "calm | worried | excited | angry | thoughtful",
-  "choices": [{"id":"A","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
+  "choices": [{"id":"1","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"2","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
   "state_changes": null
 }`;
 }
@@ -110,7 +110,7 @@ ${relationSummary}
   "speaker": "제갈량",
   "dialogue": "주공, 조조가 허창에서 대군을 일으켰습니다. 병력 증강이 시급합니다.",
   "emotion": "calm | worried | excited | angry | thoughtful",
-  "choices": [{"id":"A","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"B","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
+  "choices": [{"id":"1","text":"관우에게 선봉 명령","risk":"high","preview":"병력-, 금-, 승리시 허창 점령"},{"id":"2","text":"내정에 집중하며 방어","risk":"low","preview":"금+, 상업+, 안정적 성장"}],
   "state_changes": null
 }`;
 }

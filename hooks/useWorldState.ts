@@ -64,7 +64,10 @@ export function useWorldState() {
   const applyPlayerChanges = useCallback((
     changes: StateChanges,
     addMessage: (msg: ChatMessage) => void,
+    dialogue?: string,
   ) => {
+    let pendingMessage: string | null = null;
+
     setWorldState((prev) => {
       const player = prev.factions.find((f) => f.isPlayer);
       if (!player) return prev;
@@ -87,8 +90,8 @@ export function useWorldState() {
       const { nextState, deltas: nd, resultMessage } = applyStateChanges(playerAsGameState, changes);
       setDeltasWithReset(nd);
 
-      if (resultMessage) {
-        addMessage({ role: "system", content: `📜 ${resultMessage}` });
+      if (resultMessage && !(dialogue && dialogue.includes(resultMessage))) {
+        pendingMessage = resultMessage;
       }
 
       return {
@@ -109,6 +112,10 @@ export function useWorldState() {
         ),
       };
     });
+
+    if (pendingMessage) {
+      addMessage({ role: "system", content: `📜 ${pendingMessage}` });
+    }
   }, [setWorldState, setDeltasWithReset]);
 
   const loadWorldState = useCallback((state: WorldState) => {

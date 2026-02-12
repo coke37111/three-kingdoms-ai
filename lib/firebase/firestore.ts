@@ -2,6 +2,11 @@ import { doc, setDoc, getDoc, deleteDoc, collection, getDocs } from "firebase/fi
 import { getFirebaseDb } from "./config";
 import type { SaveData } from "@/types/game";
 import type { SaveSlotInfo } from "@/lib/game/saveSystem";
+import type { LLMProvider } from "@/types/chat";
+
+export interface UserPreferences {
+  llmProvider: LLMProvider;
+}
 
 function savesCollection(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "saves");
@@ -96,12 +101,48 @@ export async function cloudListSaveSlots(uid: string): Promise<SaveSlotInfo[]> {
   }
 }
 
+export async function cloudHasAutoSave(uid: string): Promise<boolean> {
+  try {
+    const snap = await getDoc(saveDoc(uid, "autosave"));
+    return snap.exists();
+  } catch (e) {
+    console.error("Cloud check autosave failed:", e);
+    return false;
+  }
+}
+
 export async function cloudHasAnySave(uid: string): Promise<boolean> {
   try {
     const snap = await getDocs(savesCollection(uid));
     return !snap.empty;
   } catch (e) {
     console.error("Cloud check saves failed:", e);
+    return false;
+  }
+}
+
+// ---- 사용자 설정 (preferences) ----
+
+function preferencesDoc(uid: string) {
+  return doc(getFirebaseDb(), "users", uid, "settings", "preferences");
+}
+
+export async function loadUserPreferences(uid: string): Promise<UserPreferences | null> {
+  try {
+    const snap = await getDoc(preferencesDoc(uid));
+    return snap.exists() ? (snap.data() as UserPreferences) : null;
+  } catch (e) {
+    console.error("Load preferences failed:", e);
+    return null;
+  }
+}
+
+export async function saveUserPreferences(uid: string, prefs: Partial<UserPreferences>): Promise<boolean> {
+  try {
+    await setDoc(preferencesDoc(uid), prefs, { merge: true });
+    return true;
+  } catch (e) {
+    console.error("Save preferences failed:", e);
     return false;
   }
 }

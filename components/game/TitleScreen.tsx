@@ -2,12 +2,10 @@
 
 import { useState, useCallback } from "react";
 import type { User } from "firebase/auth";
-import SaveLoadPanel from "./SaveLoadPanel";
 
 interface TitleScreenProps {
   onStart: () => void;
   onContinue?: () => void;
-  onLoadSlot?: (slotIndex: number) => void;
   user: User | null;
   uid: string | null;
   authLoading: boolean;
@@ -15,8 +13,7 @@ interface TitleScreenProps {
   onLogout: () => void;
 }
 
-export default function TitleScreen({ onStart, onContinue, onLoadSlot, user, uid, authLoading, onGoogleLogin, onLogout }: TitleScreenProps) {
-  const [showLoad, setShowLoad] = useState(false);
+export default function TitleScreen({ onStart, onContinue, user, uid, authLoading, onGoogleLogin, onLogout }: TitleScreenProps) {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const handleLoginAndStart = useCallback(async () => {
@@ -142,7 +139,7 @@ export default function TitleScreen({ onStart, onContinue, onLoadSlot, user, uid
         gap: "10px",
         animation: "fadeInUp 0.8s ease 0.5s both",
       }}>
-        {/* 미로그인: Google 로그인 버튼 (로그인 후 바로 게임 시작) */}
+        {/* 미로그인: Google 로그인 버튼 (로그인만 수행) */}
         {!isLoggedIn && !authLoading && (
           <button
             onClick={handleLoginAndStart}
@@ -192,8 +189,64 @@ export default function TitleScreen({ onStart, onContinue, onLoadSlot, user, uid
           </div>
         )}
 
-        {/* 로그인 완료: 게임 시작 버튼들 */}
-        {isLoggedIn && (
+        {/* 로그인 + autosave 있음: 이어하기(메인) + 새로 시작하기 + 불러오기 */}
+        {isLoggedIn && onContinue && (
+          <>
+            <button
+              onClick={onContinue}
+              style={{
+                background: "transparent",
+                color: "var(--gold)",
+                border: "1px solid var(--gold)",
+                padding: "14px 48px",
+                borderRadius: "4px",
+                fontSize: "15px",
+                fontWeight: 700,
+                cursor: "pointer",
+                letterSpacing: "4px",
+                transition: "all 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLButtonElement).style.background = "var(--gold)";
+                (e.target as HTMLButtonElement).style.color = "var(--bg-primary)";
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLButtonElement).style.background = "transparent";
+                (e.target as HTMLButtonElement).style.color = "var(--gold)";
+              }}
+            >
+              이어하기
+            </button>
+            <button
+              onClick={onStart}
+              style={{
+                background: "transparent",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                padding: "10px 48px",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                letterSpacing: "2px",
+                transition: "all 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLButtonElement).style.borderColor = "var(--gold)";
+                (e.target as HTMLButtonElement).style.color = "var(--gold)";
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLButtonElement).style.borderColor = "var(--border)";
+                (e.target as HTMLButtonElement).style.color = "var(--text-secondary)";
+              }}
+            >
+              새로 시작하기
+            </button>
+          </>
+        )}
+
+        {/* 로그인 + autosave 없음: 출사표(새 게임) */}
+        {isLoggedIn && !onContinue && (
           <>
             <button
               onClick={onStart}
@@ -220,51 +273,6 @@ export default function TitleScreen({ onStart, onContinue, onLoadSlot, user, uid
             >
               출사표를 올리다
             </button>
-
-            {onContinue && (
-              <button
-                onClick={onContinue}
-                style={{
-                  background: "transparent",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--border)",
-                  padding: "10px 48px",
-                  borderRadius: "4px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  letterSpacing: "2px",
-                  transition: "all 0.3s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.target as HTMLButtonElement).style.borderColor = "var(--gold)";
-                  (e.target as HTMLButtonElement).style.color = "var(--gold)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLButtonElement).style.borderColor = "var(--border)";
-                  (e.target as HTMLButtonElement).style.color = "var(--text-secondary)";
-                }}
-              >
-                이어하기
-              </button>
-            )}
-
-            {onLoadSlot && (
-              <button
-                onClick={() => setShowLoad(true)}
-                style={{
-                  background: "transparent",
-                  color: "var(--text-dim)",
-                  border: "none",
-                  padding: "8px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  letterSpacing: "1px",
-                }}
-              >
-                📂 불러오기
-              </button>
-            )}
           </>
         )}
       </div>
@@ -280,16 +288,6 @@ export default function TitleScreen({ onStart, onContinue, onLoadSlot, user, uid
         background: "linear-gradient(90deg, transparent, var(--gold-dim), transparent)",
       }} />
 
-      {onLoadSlot && uid && (
-        <SaveLoadPanel
-          show={showLoad}
-          mode="load"
-          onClose={() => setShowLoad(false)}
-          onSave={() => {}}
-          onLoad={(slot) => { setShowLoad(false); onLoadSlot(slot); }}
-          uid={uid}
-        />
-      )}
     </div>
   );
 }

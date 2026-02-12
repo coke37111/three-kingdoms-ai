@@ -2,18 +2,18 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { GameTask, FactionId, BattleResult, GameEndResult } from "@/types/game";
-import type { Choice, AIResponse, ChatMessage, TokenUsage } from "@/types/chat";
+import type { Choice, AIResponse, ChatMessage, LLMProvider } from "@/types/chat";
 import { useWorldState } from "@/hooks/useWorldState";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useWorldTurn } from "@/hooks/useWorldTurn";
 import { useTypewriter } from "@/hooks/useTypewriter";
-import { callLLM } from "@/lib/api/llmClient";
+import { callLLM, type CallLLMOptions } from "@/lib/api/llmClient";
 import { buildWorldSystemPrompt } from "@/lib/prompts/systemPrompt";
 import { buildFactionAIPrompt, parseNPCResponse } from "@/lib/prompts/factionAIPrompt";
 import { executeDiplomaticAction, updateRelation, getRelationBetween } from "@/lib/game/diplomacySystem";
 import type { DiplomaticAction } from "@/lib/game/diplomacySystem";
 import { resolveBattle, generateBattleNarrative } from "@/lib/game/combatSystem";
-import { loadGame, autoSave, loadAutoSave, hasAnySave } from "@/lib/game/saveSystem";
+import { autoSave, loadAutoSave, hasAutoSave } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { FACTION_NAMES } from "@/constants/factions";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,12 +23,13 @@ import ChoicePanel from "./ChoicePanel";
 import TaskPanel from "./TaskPanel";
 import TitleScreen from "./TitleScreen";
 import WorldStatus from "./WorldStatus";
-import TurnNotification, { type TurnNotificationItem } from "./TurnNotification";
+import { type TurnNotificationItem } from "./TurnNotification";
 import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
 import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
 import { useVoice } from "@/hooks/useVoice";
+import { usePreferences } from "@/hooks/usePreferences";
 
 // delay 헬퍼 — setTimeout 체인을 async/await로 변환
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -50,6 +51,7 @@ export default function GameContainer() {
   } = useChatHistory();
 
   const { user, uid, loading: authLoading, loginWithGoogle, logout } = useAuth();
+  const { llmProvider, setLlmProvider, prefsLoading } = usePreferences(uid);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -59,39 +61,36 @@ export default function GameContainer() {
   const [started, setStarted] = useState(false);
   const [waitChoice, setWaitChoice] = useState(false);
   const [hasSave, setHasSave] = useState(false);
-  const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
+  const [tokenUsage, setTokenUsageRaw] = useState<{ input: number; output: number }>(() => {
+    if (typeof window === "undefined") return { input: 0, output: 0 };
+    try {
+      const s = localStorage.getItem("tk_usage");
+      return s ? JSON.parse(s) : { input: 0, output: 0 };
+    } catch { return { input: 0, output: 0 }; }
+  });
+  const setTokenUsage = useCallback((updater: { input: number; output: number } | ((prev: { input: number; output: number }) => { input: number; output: number })) => {
+    setTokenUsageRaw((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try { localStorage.setItem("tk_usage", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   // 턴 처리 중 가드 (BUG 3, 4 — 이중 실행 방지)
   const processingTurnRef = useRef(false);
 
   useEffect(() => {
     if (uid) {
-      hasAnySave(uid).then(setHasSave);
+      hasAutoSave(uid).then(setHasSave);
     } else {
       setHasSave(false);
     }
   }, [uid]);
 
-  // ---- 로그인 시 자동 저장이 있으면 자동 복원 ----
-  useEffect(() => {
-    if (!uid || started) return;
-    if (typeof window === "undefined") return;
-
-    loadAutoSave(uid).then((save) => {
-      if (!save) return;
-      loadWorldState(save.worldState);
-      setMessages(save.chatMessages as ChatMessage[]);
-      setConvHistory(save.convHistory as any);
-      setStarted(true);
-      sessionStorage.setItem("gameActive", "true");
-      addMessage({ role: "system", content: "🔄 게임을 자동 복원했습니다." });
-    });
-  }, [uid]);
-
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
   const [showDiplomacy, setShowDiplomacy] = useState(false);
-  const [turnNotifications, setTurnNotifications] = useState<TurnNotificationItem[]>([]);
+  // turnNotifications 상태 제거 — 채팅 메시지로 대체
   const [battleReport, setBattleReport] = useState<BattleResult | null>(null);
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
   const [npcProcessing, setNpcProcessing] = useState(false);
@@ -141,6 +140,7 @@ export default function GameContainer() {
   const doCallLLM = useCallback(async (
     userMsg: string | null,
     overrideContent?: string,
+    options?: CallLLMOptions,
   ): Promise<AIResponse> => {
     const content = overrideContent || userMsg || "";
     addToConvHistory("user", content);
@@ -150,6 +150,8 @@ export default function GameContainer() {
     const { response, usage } = await callLLM(
       buildWorldSystemPrompt(worldStateRef.current),
       trimmedHistory,
+      llmProvider,
+      options,
     );
 
     if (usage) {
@@ -162,7 +164,7 @@ export default function GameContainer() {
     const raw = JSON.stringify(response);
     addToConvHistory("assistant", raw);
     return response;
-  }, [worldStateRef, addToConvHistory, convHistoryRef]);
+  }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider]);
 
   // ---- NPC Turn Processing (BUG 1 — 반환값 추가) ----
   const processNPCTurns = useCallback(async (): Promise<TurnNotificationItem[]> => {
@@ -181,11 +183,12 @@ export default function GameContainer() {
         body: JSON.stringify({
           system: "너는 삼국지 전략 게임의 심판이다. 반드시 JSON으로만 응답하라.",
           messages: [{ role: "user", content: prompt }],
+          provider: llmProvider,
         }),
       });
       const data = await res.json();
-      const raw = data.content?.[0]?.text || "";
-      if (data.usage) {
+      const raw = data.text || "";
+      if (data.usage && !data.cached) {
         setTokenUsage((prev) => ({
           input: prev.input + data.usage.input_tokens,
           output: prev.output + data.usage.output_tokens,
@@ -211,7 +214,8 @@ export default function GameContainer() {
       }
 
       if (notifications.length > 0) {
-        setTurnNotifications(notifications);
+        const lines = notifications.map((n) => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
+        addMessage({ role: "system", content: `📢 타국 동향\n${lines}` });
       }
 
       setNpcProcessing(false);
@@ -227,11 +231,12 @@ export default function GameContainer() {
           icon: npc.icon,
         });
       }
-      setTurnNotifications(notifications);
+      const lines = notifications.map((n) => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
+      addMessage({ role: "system", content: `📢 타국 동향\n${lines}` });
       setNpcProcessing(false);
       return notifications;
     }
-  }, [worldStateRef, addMessage]);
+  }, [worldStateRef, addMessage, llmProvider]);
 
   // ---- Apply NPC action locally ----
   const applyNPCAction = useCallback((factionId: FactionId, action: { action: string; target?: string; details?: string }) => {
@@ -254,7 +259,7 @@ export default function GameContainer() {
           }
           case "모병": {
             const recruitCost = 2000;
-            const recruits = 3000;
+            const recruits = 30000;
             if (f.gold < recruitCost) return f;
             return { ...f, gold: f.gold - recruitCost, totalTroops: f.totalTroops + recruits };
           }
@@ -304,7 +309,7 @@ export default function GameContainer() {
     }
 
     if (parsed.state_changes) {
-      applyPlayerChanges(parsed.state_changes, addMessage);
+      applyPlayerChanges(parsed.state_changes, addMessage, parsed.dialogue);
     }
 
     if (parsed.choices && parsed.choices.length > 0) {
@@ -337,6 +342,7 @@ export default function GameContainer() {
   const startGame = useCallback(async () => {
     if (processingTurnRef.current) return;
     processingTurnRef.current = true;
+    setTokenUsage({ input: 0, output: 0 });
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
     setIsLoading(true);
@@ -356,31 +362,31 @@ export default function GameContainer() {
     }
   }, [addMessage, checkAndTriggerEvents, doCallLLM, addAdvisorMsg]);
 
-  const startFromSave = useCallback(async (slotIndex: number) => {
-    if (!uid) return;
-    const save = await loadGame(slotIndex, uid);
-    if (!save) return;
-
-    loadWorldState(save.worldState);
-    setMessages(save.chatMessages as ChatMessage[]);
-    setConvHistory(save.convHistory as any);
-    setStarted(true);
-    sessionStorage.setItem("gameActive", "true");
-    addMessage({ role: "system", content: `📂 저장된 게임을 불러왔습니다 (${save.metadata.turnCount}턴)` });
-  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
-
   const startFromAutoSave = useCallback(async () => {
     if (!uid) return;
-    const save = await loadAutoSave(uid);
-    if (!save) return;
+    if (processingTurnRef.current) return;
+    processingTurnRef.current = true;
 
+    const save = await loadAutoSave(uid);
+    if (!save) { processingTurnRef.current = false; return; }
+
+    setTokenUsage({ input: 0, output: 0 });
     loadWorldState(save.worldState);
     setMessages(save.chatMessages as ChatMessage[]);
     setConvHistory(save.convHistory as any);
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
     addMessage({ role: "system", content: `📂 자동 저장을 불러왔습니다 (${save.metadata.turnCount}턴)` });
-  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid]);
+    setIsLoading(true);
+
+    try {
+      const parsed = await doCallLLM(null, "저장된 게임을 불러왔다. 현재 상황을 간략히 요약하고 2~3개 선택지를 제시하라.");
+      await addAdvisorMsg(parsed);
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid, setTokenUsage, doCallLLM, addAdvisorMsg]);
 
   // ---- sendMessage (BUG 4 — processingTurnRef 가드 + try/finally) ----
   const sendMessage = useCallback(async () => {
@@ -417,8 +423,6 @@ export default function GameContainer() {
       const parsed = await doCallLLM(null, prompt);
       await addAdvisorMsg(parsed);
 
-      doAutoSave();
-
       // 2. NPC 턴 처리
       await delay(800);
       const notifications = await processNPCTurns();
@@ -436,11 +440,13 @@ export default function GameContainer() {
         : "";
 
       const np = ev
-        ? `새 턴이 시작되었다. 이벤트: "${ev}".${npcSummary} 보고하고 2~3개 선택지를 제시하라.`
-        : `새 턴이 시작되었다.${npcSummary} 상황을 보고하고 2~3개 선택지를 제시하라.`;
+        ? `이벤트: "${ev}".${npcSummary} 현재 정세를 분석하고 2~3개 선택지를 제시하라.`
+        : `${npcSummary ? npcSummary + " " : ""}현재 정세를 분석하고 2~3개 선택지를 제시하라.`;
 
       const next = await doCallLLM(null, np);
       await addAdvisorMsg(next);
+
+      doAutoSave();
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
@@ -454,8 +460,6 @@ export default function GameContainer() {
     setIsLoading(true);
 
     try {
-      doAutoSave();
-
       // NPC 턴 처리
       const notifications = await processNPCTurns();
 
@@ -470,11 +474,13 @@ export default function GameContainer() {
         : "";
 
       const np = ev
-        ? `새 턴이다. 이벤트: "${ev}".${npcSummary} 보고하고 2~3개 선택지를 제시하라.`
-        : `새 턴이다.${npcSummary} 보고하고 2~3개 선택지를 제시하라.`;
+        ? `이벤트: "${ev}".${npcSummary} 현재 정세를 분석하고 2~3개 선택지를 제시하라.`
+        : `${npcSummary ? npcSummary + " " : ""}현재 정세를 분석하고 2~3개 선택지를 제시하라.`;
 
       const next = await doCallLLM(null, np);
       await addAdvisorMsg(next);
+
+      doAutoSave();
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
@@ -542,18 +548,9 @@ export default function GameContainer() {
     }
   }, [isListening, stopListening, startListening, matchVoiceChoice, handleChoice]);
 
-  // ---- 로그인 후 자동 게임 시작 ----
-  const [pendingStart, setPendingStart] = useState(false);
-  useEffect(() => {
-    if (pendingStart && uid && !started) {
-      setPendingStart(false);
-      startGame();
-    }
-  }, [pendingStart, uid, started, startGame]);
-
-  const handleLoginAndStart = useCallback(async () => {
+  // ---- Google 로그인 (로그인만 수행, 게임 시작은 사용자가 별도 선택) ----
+  const handleGoogleLogin = useCallback(async () => {
     await loginWithGoogle();
-    setPendingStart(true);
   }, [loginWithGoogle]);
 
   // ===================== RENDER =====================
@@ -567,11 +564,10 @@ export default function GameContainer() {
       <TitleScreen
         onStart={startGame}
         onContinue={hasSave ? startFromAutoSave : undefined}
-        onLoadSlot={startFromSave}
         user={user}
         uid={uid}
         authLoading={authLoading}
-        onGoogleLogin={handleLoginAndStart}
+        onGoogleLogin={handleGoogleLogin}
         onLogout={logout}
       />
     );
@@ -640,19 +636,35 @@ export default function GameContainer() {
         </div>
       )}
 
-      {/* Turn Notifications */}
-      <TurnNotification notifications={turnNotifications} onDismiss={() => setTurnNotifications([])} />
 
-      {/* Token Usage */}
-      {(tokenUsage.input > 0 || tokenUsage.output > 0) && (
-        <div style={{
-          textAlign: "center", padding: "2px 0", fontSize: "10px",
-          color: "var(--text-dim)", borderBottom: "1px solid var(--border)",
-          background: "var(--bg-secondary)", letterSpacing: "0.5px",
-        }}>
-          토큰 ▲{tokenUsage.input.toLocaleString()} ▼{tokenUsage.output.toLocaleString()}
-        </div>
-      )}
+      {/* AI Provider Toggle + Token Usage */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+        padding: "2px 8px", fontSize: "10px",
+        color: "var(--text-dim)", borderBottom: "1px solid var(--border)",
+        background: "var(--bg-secondary)", letterSpacing: "0.5px",
+      }}>
+        <button
+          onClick={() => setLlmProvider(llmProvider === "openai" ? "claude" : "openai")}
+          disabled={isLoading || prefsLoading}
+          style={{
+            background: llmProvider === "claude" ? "rgba(204,120,50,0.15)" : "rgba(100,180,100,0.15)",
+            border: `1px solid ${llmProvider === "claude" ? "rgba(204,120,50,0.4)" : "rgba(100,180,100,0.4)"}`,
+            borderRadius: "10px", padding: "1px 8px", fontSize: "10px",
+            color: llmProvider === "claude" ? "#cc7832" : "#64b464",
+            cursor: isLoading || prefsLoading ? "not-allowed" : "pointer",
+            opacity: isLoading || prefsLoading ? 0.5 : 1,
+            fontWeight: 600,
+          }}
+        >
+          {llmProvider === "claude" ? "Claude" : "GPT-4o"}
+        </button>
+        {(tokenUsage.input > 0 || tokenUsage.output > 0) && (
+          <span>
+            턴당 ▲{Math.round(tokenUsage.input / Math.max(1, worldState.currentTurn)).toLocaleString()} ▼{Math.round(tokenUsage.output / Math.max(1, worldState.currentTurn)).toLocaleString()}
+          </span>
+        )}
+      </div>
 
       {/* Chat */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>

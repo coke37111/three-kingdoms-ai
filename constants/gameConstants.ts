@@ -23,4 +23,4 @@ export function getSeasonFromMonth(month: number): Season {
   return "겨울"; // 12, 1, 2
 }
 
-export const TROOP_FOOD_COST_PER_UNIT = 2;
+export const TROOP_FOOD_COST_PER_UNIT = 0.2;

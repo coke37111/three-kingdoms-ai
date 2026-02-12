@@ -1,5 +1,7 @@
 export type Emotion = "calm" | "worried" | "excited" | "angry" | "thoughtful";
 
+export type LLMProvider = "claude" | "openai";
+
 export interface Choice {
   id: string;
   text: string;
@@ -10,6 +12,13 @@ export interface Choice {
 export interface TokenUsage {
   input_tokens: number;
   output_tokens: number;
+}
+
+export interface NormalizedLLMResponse {
+  text: string;
+  usage: { input_tokens: number; output_tokens: number } | null;
+  provider: LLMProvider;
+  cached?: boolean;
 }
 
 export interface AIResponse {

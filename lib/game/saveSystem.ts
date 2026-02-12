@@ -2,7 +2,7 @@ import type { WorldState, SaveData } from "@/types/game";
 import type { ChatMessage, ConversationMessage } from "@/types/chat";
 import {
   cloudSaveGame, cloudLoadGame, cloudAutoSave, cloudLoadAutoSave,
-  cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave,
+  cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave, cloudHasAutoSave,
 } from "@/lib/firebase/firestore";
 
 const SAVE_VERSION = 1;
@@ -83,4 +83,8 @@ export async function listSaveSlots(uid: string): Promise<SaveSlotInfo[]> {
 
 export async function hasAnySave(uid: string): Promise<boolean> {
   return cloudHasAnySave(uid);
+}
+
+export async function hasAutoSave(uid: string): Promise<boolean> {
+  return cloudHasAutoSave(uid);
 }

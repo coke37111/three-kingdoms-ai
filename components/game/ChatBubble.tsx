@@ -93,6 +93,7 @@ export default function ChatBubble({ message, isTyping }: ChatBubbleProps) {
           borderRadius: "12px",
           border: "1px solid var(--border)",
           letterSpacing: "0.5px",
+          whiteSpace: "pre-line",
         }}>
           {colorizeNumbers(message.content)}
         </span>

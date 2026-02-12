@@ -87,6 +87,12 @@ This is a Next.js 14 App Router project using **TypeScript** with a modular arch
 5. Turn advances → all factions get seasonal resources → treaties age → random events check
 6. Victory/defeat conditions checked → new AI report with choices
 
+### 인증과 저장
+- 인증(Google 로그인)과 저장은 동일 개념 — 로그인 = 해당 계정의 저장 데이터로 플레이
+- 첫 방문: Google 로그인 → "출사표를 올리다" (새 게임)
+- 재방문(autosave 존재): "이어하기" + "새로 시작하기" 선택
+- 모든 저장은 Firebase Firestore에 uid 기반으로 저장
+
 ### Key Patterns
 
 - **WorldState architecture**: `WorldState` contains `Faction[]` (player + 3 NPCs), `DiplomaticRelation[]`, turn order
@@ -99,10 +105,24 @@ This is a Next.js 14 App Router project using **TypeScript** with a modular arch
 - **Path aliases**: `@/*` maps to project root via `tsconfig.json`
 - **SSR safety**: `saveSystem.ts` guards all `localStorage` access with `typeof window !== "undefined"`
 
-## Docs
+## 문서 규칙
 
-- **`docs/01-refactoring.md`** — TypeScript 전환 + 모듈 분리 리팩토링 계획 (완료)
-- **`docs/02-gameplay-expansion.md`** — 다수 군주/전투/외교/세이브/승리 조건 확장 계획 (완료)
+- **`plans/`** — 기능 구현 전 작성하는 **계획 문서** (설계, 의존성, 실행 단계)
+- **`docs/`** — 구현 완료 후 현재 상태를 반영하는 **현행 문서** (아키텍처, 시스템, 데이터 모델)
+- 새 기능 추가 시: `plans/`에 계획 작성 → 구현 → `docs/`에 현행 반영
+
+### plans/
+- **`plans/01-refactoring.md`** — TypeScript 전환 + 모듈 분리 (완료)
+- **`plans/02-gameplay-expansion.md`** — 다수 군주/전투/외교/세이브/승리 조건 확장 (완료)
+
+### docs/
+- **`docs/03-architecture.md`** — 기술 스택, 디렉토리 구조, 데이터 흐름, 설계 원칙
+- **`docs/04-game-systems.md`** — 턴, 자원, 전투, 외교, 이벤트, 승패 시스템
+- **`docs/05-ai-system.md`** — AI 모델, 프롬프트, 캐시, JSON 파싱
+- **`docs/06-auth-and-save.md`** — Firebase 인증, Firestore 저장, 사용자 설정
+- **`docs/07-ui-components.md`** — CSS 변수, 컴포넌트 구조, 스타일 규칙
+- **`docs/08-data-model.md`** — 타입, 인터페이스, 상수 데이터
+- **`docs/09-differentiation.md`** — 차별점 및 혁신 요소, AI 네이티브 게임 특성, 기존 게임 비교
 
 ## Environment
 

@@ -5,6 +5,7 @@ node_modules/
 
 .vercel
 .claude/
+.cache/
 app/api/debug-env/
 app/debug/
 nul
