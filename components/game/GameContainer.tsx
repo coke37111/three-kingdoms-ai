@@ -470,8 +470,10 @@ export default function GameContainer() {
       updateAdvisorStats(advisorUpdates);
 
       // auto_actions의 state_changes 즉시 적용
+      // Phase 1: auto_actions 태그가 변화를 표시하므로 result_message 시스템 메시지 억제
       if (council.state_changes) {
-        applyPlayerChanges(council.state_changes, addMessage);
+        const { result_message: _, ...changesOnly } = council.state_changes;
+        applyPlayerChanges(changesOnly, addMessage);
       }
 
       // 참모 회의 메시지 애니메이션 (AI 응답 대기 시간만큼 딜레이 차감)
@@ -623,7 +625,8 @@ export default function GameContainer() {
       const { council, advisorUpdates, elapsedMs } = await doCouncilMeeting(context);
       updateAdvisorStats(advisorUpdates);
       if (council.state_changes) {
-        applyPlayerChanges(council.state_changes, addMessage);
+        const { result_message: _, ...changesOnly } = council.state_changes;
+        applyPlayerChanges(changesOnly, addMessage);
       }
 
       // 도입 서사와 회의 사이에 타이틀 구분선 삽입
