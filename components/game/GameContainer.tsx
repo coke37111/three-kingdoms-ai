@@ -197,12 +197,14 @@ export default function GameContainer() {
     addToConvHistory("user", context);
     const trimmedHistory = convHistoryRef.current.slice(-20);
 
+    const t0 = Date.now();
     const { council, advisorUpdates, usage } = await callCouncilLLM(
       systemPrompt,
       trimmedHistory,
       llmProvider,
       options,
     );
+    const elapsedMs = Date.now() - t0;
 
     if (usage) {
       setTokenUsage((prev) => ({
@@ -212,7 +214,7 @@ export default function GameContainer() {
     }
 
     addToConvHistory("assistant", JSON.stringify(council));
-    return { council, advisorUpdates };
+    return { council, advisorUpdates, elapsedMs };
   }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider, setTokenUsage]);
 
   // ---- Phase 2: 결재/자유입력 처리 (API 1회) ----
@@ -233,12 +235,14 @@ export default function GameContainer() {
     const trimmedHistory = convHistoryRef.current.slice(-20);
 
     const replyTo = action.type === "freetext" ? action.replyTo : undefined;
+    const t0 = Date.now();
     const { council, advisorUpdates, usage } = await callCouncilLLM(
       systemPrompt,
       trimmedHistory,
       llmProvider,
       { replyTo },
     );
+    const elapsedMs = Date.now() - t0;
 
     if (usage) {
       setTokenUsage((prev) => ({
@@ -248,20 +252,24 @@ export default function GameContainer() {
     }
 
     addToConvHistory("assistant", JSON.stringify(council));
-    return { council, advisorUpdates };
+    return { council, advisorUpdates, elapsedMs };
   }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider, setTokenUsage]);
 
   // ---- 참모 회의 메시지 애니메이션 ----
   // options.firstImmediate: 첫 메시지 즉시 표시
   // options.speedDecay: 메시지마다 속도 배율 (0.8 = 매번 20% 빠르게)
+  // options.apiElapsedMs: AI 응답 대기 시간 — 애니메이션 딜레이에서 차감
   const animateCouncilMessages = useCallback(async (
     msgs: CouncilMessage[],
     clearFirst = true,
-    options?: { firstImmediate?: boolean; speedDecay?: number; speedMultiplier?: number },
+    options?: { firstImmediate?: boolean; speedDecay?: number; speedMultiplier?: number; apiElapsedMs?: number },
   ) => {
     if (clearFirst) {
       setCouncilMessages([]);
     }
+
+    // AI 응답 대기 시간을 크레딧으로 사용 — 딜레이에서 차감
+    let credit = options?.apiElapsedMs ?? 0;
 
     for (let i = 0; i < msgs.length; i++) {
       const msg = msgs[i];
@@ -278,8 +286,10 @@ export default function GameContainer() {
         // 입력 중... 표시
         setTypingIndicator({ speaker: msg.speaker });
         scrollToBottom();
-        const typingDuration = Math.max(400, msg.dialogue.length * 50 * speed);
-        await delay(typingDuration);
+        const typingDuration = Math.max(400, msg.dialogue.length * 30 * speed);
+        const actualTyping = Math.max(0, typingDuration - credit);
+        credit = Math.max(0, credit - typingDuration);
+        await delay(actualTyping);
 
         // 입력 중 해제 → 메시지 표시
         setTypingIndicator(null);
@@ -290,7 +300,9 @@ export default function GameContainer() {
       if (i < msgs.length - 1) {
         // 참모 간 딜레이: 0.5~2초 (속도 보정 적용)
         const interDelay = (500 + Math.random() * 1500) * speed;
-        await delay(interDelay);
+        const actualInter = Math.max(0, interDelay - credit);
+        credit = Math.max(0, credit - interDelay);
+        await delay(actualInter);
       }
     }
   }, [scrollToBottom]);
@@ -452,7 +464,7 @@ export default function GameContainer() {
     setIsLoading(true);
 
     try {
-      const { council, advisorUpdates } = await doCouncilMeeting(context);
+      const { council, advisorUpdates, elapsedMs } = await doCouncilMeeting(context);
 
       // 참모 열정/충성도 업데이트
       updateAdvisorStats(advisorUpdates);
@@ -462,8 +474,8 @@ export default function GameContainer() {
         applyPlayerChanges(council.state_changes, addMessage);
       }
 
-      // 참모 회의 메시지 애니메이션
-      await animateCouncilMessages(council.council_messages);
+      // 참모 회의 메시지 애니메이션 (AI 응답 대기 시간만큼 딜레이 차감)
+      await animateCouncilMessages(council.council_messages, true, { apiElapsedMs: elapsedMs });
 
       // 자율 행동 + 결재 요청 표시
       setAutoActions(council.auto_actions);
@@ -517,7 +529,7 @@ export default function GameContainer() {
     setIsLoading(true);
 
     try {
-      const { council, advisorUpdates } = await doCouncilResult({
+      const { council, advisorUpdates, elapsedMs } = await doCouncilResult({
         type: "approval",
         id: req.id,
         decision,
@@ -525,7 +537,7 @@ export default function GameContainer() {
         advisor: req.advisor,
       });
 
-      await animateCouncilMessages(council.council_messages, false);
+      await animateCouncilMessages(council.council_messages, false, { apiElapsedMs: elapsedMs });
 
       if (council.state_changes) {
         applyPlayerChanges(council.state_changes, addMessage);
@@ -608,7 +620,7 @@ export default function GameContainer() {
         ? `게임이 시작되었다. 첫 번째 참모 회의다. 이벤트 "${ev}"도 포함하여 각 참모가 자율 업무를 수행한 결과를 보고하고, 천하 정세도 간략히 알려라. (도입 서사는 이미 완료됨 — 천하 정세 반복하지 말 것)`
         : "게임이 시작되었다. 첫 번째 참모 회의다. 각 참모가 자율 업무를 수행한 결과를 보고하고, 천하 정세도 간략히 알려라. (도입 서사는 이미 완료됨 — 천하 정세 반복하지 말 것)";
 
-      const { council, advisorUpdates } = await doCouncilMeeting(context);
+      const { council, advisorUpdates, elapsedMs } = await doCouncilMeeting(context);
       updateAdvisorStats(advisorUpdates);
       if (council.state_changes) {
         applyPlayerChanges(council.state_changes, addMessage);
@@ -619,8 +631,8 @@ export default function GameContainer() {
       scrollToBottom();
       await delay(600);
 
-      // 도입 서사 아래에 회의 메시지 이어붙임 (clearFirst = false)
-      await animateCouncilMessages(council.council_messages, false);
+      // 도입 서사 아래에 회의 메시지 이어붙임 (AI 대기 시간만큼 딜레이 차감)
+      await animateCouncilMessages(council.council_messages, false, { apiElapsedMs: elapsedMs });
 
       setAutoActions(council.auto_actions);
       if (council.approval_requests.length > 0) {
@@ -681,7 +693,7 @@ export default function GameContainer() {
       // 쓰레드 내 타이핑 인디케이터
       setThreadTyping({ msgIndex, speaker: msg.speaker });
       scrollToBottom();
-      const typingDuration = Math.max(600, msg.dialogue.length * 50);
+      const typingDuration = Math.max(400, msg.dialogue.length * 30);
       await delay(typingDuration);
 
       // 타이핑 해제 → 메시지 추가
@@ -726,7 +738,7 @@ export default function GameContainer() {
     }
 
     try {
-      const { council, advisorUpdates } = await doCouncilResult({
+      const { council, advisorUpdates, elapsedMs } = await doCouncilResult({
         type: "freetext",
         message: llmMessage,
         replyTo: reply ? reply.msg.speaker : undefined,
@@ -742,8 +754,8 @@ export default function GameContainer() {
         });
         await animateThreadMessages(reply.index, sorted);
       } else {
-        // 일반 응답
-        await animateCouncilMessages(council.council_messages, false);
+        // 일반 응답 (AI 대기 시간만큼 딜레이 차감)
+        await animateCouncilMessages(council.council_messages, false, { apiElapsedMs: elapsedMs });
       }
 
       if (council.state_changes) {
