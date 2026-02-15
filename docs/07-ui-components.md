@@ -24,6 +24,7 @@
 | `--success` | `#4a8c5c` | 성공 (녹색) |
 | `--warning` | `#c9a84c` | 경고 (금색) |
 | `--danger` | `#d4443e` | 위험 (빨강) |
+| `--accent-glow` | `rgba(212, 68, 62, 0.35)` | 강조 글로우 |
 
 ### 애니메이션
 
@@ -34,6 +35,8 @@
 | `pulse` | 로딩 펄스 |
 | `slideIn` | 좌측 슬라이드 인 |
 | `deltaFloat` | 자원 변동 숫자 상승 후 소멸 |
+| `typingDot` | 타이핑 인디케이터 점 바운스 |
+| `recording-pulse` | 음성 녹음 중 박스 쉐도우 펄스 |
 
 ---
 
@@ -45,10 +48,14 @@
 
 **관리하는 상태:**
 - WorldState (세력, 외교)
-- ChatHistory (메시지, 대화 히스토리)
+- ChatHistory (시스템 메시지)
 - Auth (인증)
 - Preferences (LLM 제공자)
-- UI 상태 (로딩, 게임 시작 여부, 선택지, 모달)
+- 참모 회의 (councilMessages, autoActions, approvalRequests)
+- 쓰레드 (threads, threadTyping, replyTarget)
+- 타이핑 인디케이터 (typingIndicator)
+- 정세 브리핑 (briefing)
+- UI 상태 (로딩, 게임 시작 여부, 모달)
 
 **렌더 구조:**
 ```
@@ -56,11 +63,15 @@ GameContainer
 ├── TitleScreen (gameStarted === false)
 └── 게임 화면 (gameStarted === true)
     ├── StatusBar
-    ├── 채팅 영역
-    │   ├── ChatBubble[] (메시지 목록)
-    │   └── 스트리밍 텍스트
-    ├── ChoicePanel (선택지)
-    ├── 입력 바 (텍스트 + 음성 + 다음턴)
+    ├── ChatBubble[] (시스템 메시지)
+    ├── CouncilChat (★ 참모 회의 메인 UI)
+    │   ├── 회의 대사 목록 (클릭 가능)
+    │   ├── 타이핑 인디케이터 (...)
+    │   ├── 쓰레드 (중첩 대화)
+    │   ├── 자율 행동 보고 카드
+    │   └── 결재 요청 카드 (승인/거부)
+    ├── BriefingPanel (Phase 0 긴급 브리핑)
+    ├── 입력 바 (텍스트 + 답장 표시 + 다음턴)
     ├── LLM 토글 + 토큰 표시
     ├── WorldStatus (모달)
     ├── DiplomacyPanel (모달)
@@ -68,6 +79,47 @@ GameContainer
     ├── BattleReport (모달)
     └── GameEndScreen (모달)
 ```
+
+---
+
+### CouncilChat.tsx — 참모 회의 채팅
+
+참모 회의의 메인 UI. 대화, 쓰레드, 자율 행동, 결재 요청을 통합 표시.
+
+**Props:**
+
+| Prop | 타입 | 용도 |
+|------|------|------|
+| messages | CouncilMessage[] | 참모 회의 대사 |
+| advisors | AdvisorState[] | 참모 상태 (아이콘, 색상) |
+| councilNumber | number | 회의 번호 |
+| typingIndicator | { speaker } \| null | 입력 중... 표시 |
+| autoActions | AdvisorAction[] | 자율 행동 보고 |
+| approvalRequests | ApprovalRequest[] | 결재 요청 |
+| threads | Record<number, ThreadMessage[]> | 쓰레드 메시지 |
+| threadTyping | { msgIndex, speaker } \| null | 쓰레드 내 타이핑 |
+| onMessageClick | (msg, index) => void | 대사 클릭 → 답장 |
+| replyTarget | { msg, index } \| null | 현재 답장 대상 |
+| onApprove / onReject | (id) => void | 결재 처리 |
+
+**UI 요소:**
+- 참모 아이콘 + 색상 코드로 발언자 구분
+- 클릭 시 하이라이트 (답장 대상 선택)
+- 타이핑 인디케이터: 3개 점 바운스 애니메이션
+- 쓰레드: 좌측 보더라인 + 들여쓰기
+- 결재 카드: 비용 태그 (양수=녹색, 음수=빨강) + 승인/거부 버튼
+- "유비" 발언자 (👑, 금색)
+
+---
+
+### BriefingPanel.tsx — 정세 브리핑
+
+Phase 0에서 표시되는 정세 브리핑 패널.
+
+| 상황 | 표시 |
+|------|------|
+| 긴급 (isUrgent) | 제갈량 브리핑 + 4개 감정 방향 선택 버튼 |
+| 평상시 | 제갈량 브리핑 + "참모 회의 시작" 버튼 |
 
 ---
 
@@ -93,78 +145,15 @@ GameContainer
 
 ---
 
-### ChatBubble.tsx — 채팅 말풍선
+### ChatBubble.tsx — 시스템 메시지 말풍선
 
-역할별 스타일이 다른 말풍선.
+시스템 알림 메시지 표시 (참모 대화는 CouncilChat에서 처리).
 
 | 역할 | 스타일 |
 |------|--------|
-| assistant | 좌측, 어두운 배경, 감정 아이콘 |
-| user | 우측, 금색 배경 |
 | system | 중앙, 금색 테두리, 시스템 알림 |
 
 숫자 컬러링: 긍정(+, 증가) 녹색, 부정(-, 감소) 빨강.
-
----
-
-### ChoicePanel.tsx — 선택지 패널
-
-AI가 제공한 선택지를 버튼으로 표시.
-
-- 각 선택지: 번호(1,2,3) + 텍스트 + 위험도 표시
-- 위험도: 상/중/하 색상 코딩
-- 예상 결과(preview) 표시
-- fadeInUp 애니메이션으로 순차 등장
-
----
-
-### WorldStatus.tsx — 천하 정세 모달
-
-전체 세력 정보를 한눈에 보여주는 전체화면 모달.
-
-- 4개 세력별: 자원, 도시 목록, 장수 목록
-- 외교 관계 매트릭스
-- 도시 상세 정보 (인구, 수비병, 상업, 농업, 방어)
-
----
-
-### DiplomacyPanel.tsx — 외교 패널
-
-특정 세력과의 외교 행동 UI.
-
-- 현재 관계 표시 (타입, 점수)
-- 활성 조약 목록
-- 6개 외교 행동 버튼 (조건 미충족 시 비활성)
-
----
-
-### TurnNotification.tsx — NPC 턴 요약
-
-NPC 세력들의 턴 행동 요약을 표시.
-
-- 세력 아이콘 + 이름 + 요약 텍스트
-- 슬라이드인 애니메이션
-
----
-
-### BattleReport.tsx — 전투 보고서
-
-전투 결과를 극적으로 표시하는 모달.
-
-- 공격/방어 세력 정보
-- 투입 장수, 병력
-- 피해, 포로, 점령 도시
-- 내러티브 텍스트
-
----
-
-### GameEndScreen.tsx — 승리/패배 화면
-
-게임 종료 시 표시되는 결과 화면.
-
-- 승리/패배 여부 + 이유
-- 게임 통계 (턴, 도시, 장수, 자원)
-- 새 게임 시작 버튼
 
 ---
 
@@ -172,8 +161,14 @@ NPC 세력들의 턴 행동 요약을 표시.
 
 | 컴포넌트 | 용도 |
 |----------|------|
+| WorldStatus | 4개 세력 정보 + 외교 매트릭스 모달 |
+| DiplomacyPanel | 세력별 외교 행동 6종 UI |
+| TurnNotification | NPC 턴 행동 요약 (슬라이드인) |
+| BattleReport | 전투 결과 모달 (장수, 병력, 피해) |
+| GameEndScreen | 승리/패배 화면 + 통계 |
 | TaskPanel | 이벤트 태스크 목록 (긴급도, 남은 턴) |
 | FactionBanner | 세력 아이콘 + 이름 표시 |
-| LoginPanel | 로그인 UI |
 | UserBadge | 로그인 사용자 표시 |
 | SaveLoadPanel | 5슬롯 저장/로드 모달 |
+| LoginPanel | Firebase/Google 로그인 모달 |
+| VoiceSettingsModal | 음성 입출력 설정 모달 |

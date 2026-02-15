@@ -34,6 +34,7 @@ export interface General {
   loyalty: number;
   currentTask: string;
   location: string;
+  advisorRole?: "총괄" | "군사" | "내정" | "외교" | "첩보";
 }
 
 // ===================== 이벤트/태스크 =====================
@@ -180,6 +181,7 @@ export interface SaveData {
   worldState: WorldState;
   chatMessages: { role: string; content: string; emotion?: string }[];
   convHistory: { role: string; content: string }[];
+  advisors?: import("@/types/council").AdvisorState[];
   metadata: {
     turnCount: number;
     playerFactionName: string;

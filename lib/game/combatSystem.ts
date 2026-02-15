@@ -120,12 +120,18 @@ export function resolveBattle(
   };
 }
 
-export function generateBattleNarrative(result: BattleResult, attackerName: string, defenderName: string): string {
+export function generateBattleNarrative(
+  result: BattleResult,
+  attackerName: string,
+  defenderName: string,
+  attackerFactionId: FactionId,
+  defenderFactionId: FactionId,
+): string {
   const typeStr = result.battleType === "야전" ? "야전" : result.battleType === "공성전" ? "공성전" : "매복전";
-  const winnerIsAttacker = result.winner !== result.loser;
+  const winnerName = result.winner === attackerFactionId ? attackerName : defenderName;
 
   let narrative = `⚔️ ${attackerName} vs ${defenderName} — ${typeStr}\n`;
-  narrative += `결과: ${result.winner === result.loser ? "무승부" : `${result.winner === attackerName ? attackerName : defenderName} 승리`}\n`;
+  narrative += `결과: ${winnerName} 승리\n`;
   narrative += `피해: 공격측 -${result.attackerLosses.toLocaleString()}명, 수비측 -${result.defenderLosses.toLocaleString()}명`;
 
   if (result.capturedGenerals.length > 0) {

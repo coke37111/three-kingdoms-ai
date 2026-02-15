@@ -68,10 +68,12 @@ ${factionInstructions}
 }`;
 }
 
+export type NPCActionType = "개발" | "모병" | "공격" | "외교" | "방어" | "대기";
+
 export interface NPCTurnResult {
   factionId: FactionId;
   actions: {
-    action: string;
+    action: NPCActionType;
     target?: string;
     details?: string;
     reasoning?: string;
@@ -79,11 +81,21 @@ export interface NPCTurnResult {
   summary: string;
 }
 
+const VALID_NPC_ACTIONS = new Set<NPCActionType>(["개발", "모병", "공격", "외교", "방어", "대기"]);
+
 export function parseNPCResponse(raw: string): NPCTurnResult[] {
   try {
     const m = raw.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(m ? m[0] : raw);
-    return parsed.factions || [];
+    const factions: NPCTurnResult[] = parsed.factions || [];
+    // LLM 응답의 action 값을 유효한 타입으로 검증
+    for (const f of factions) {
+      f.actions = f.actions.map((a) => ({
+        ...a,
+        action: VALID_NPC_ACTIONS.has(a.action as NPCActionType) ? a.action : "대기" as NPCActionType,
+      }));
+    }
+    return factions;
   } catch {
     return [];
   }

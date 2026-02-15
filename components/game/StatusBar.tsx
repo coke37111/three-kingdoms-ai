@@ -113,21 +113,23 @@ export default function StatusBar({ state, deltas, children }: StatusBarProps) {
             position: "relative",
           }}>
             <span style={{ fontSize: "14px" }}>{s.icon}</span>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: "10px", color: "var(--text-dim)", lineHeight: 1 }}>{s.label}</div>
-              <div style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1.3 }}>
-                {s.value.toLocaleString()}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                <span style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1.3 }}>
+                  {s.value.toLocaleString()}
+                </span>
+                {s.delta !== 0 && (
+                  <span style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: s.delta > 0 ? "var(--success)" : "var(--danger)",
+                  }}>
+                    {s.delta > 0 ? `+${s.delta.toLocaleString()}` : s.delta.toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
-            {s.delta !== 0 && (
-              <span className="delta-anim" style={{
-                color: s.delta > 0 ? "var(--success)" : "var(--danger)",
-                top: "2px",
-                right: "6px",
-              }}>
-                {s.delta > 0 ? `+${s.delta.toLocaleString()}` : s.delta.toLocaleString()}
-              </span>
-            )}
           </div>
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { WorldState, Faction, FactionId, StateChanges, ResourceDeltas } from "@/types/game";
 import type { ChatMessage } from "@/types/chat";
 import { applyStateChanges } from "@/lib/game/stateManager";
@@ -32,27 +32,32 @@ export function useWorldState() {
     });
   }, []);
 
-  // deltas 자동 리셋 (기존 유지)
-  const [, setDeltaTimer] = useState<NodeJS.Timeout | null>(null);
+  // deltas 자동 리셋 — useRef + useEffect cleanup
+  const deltaTimerRef = useRef<NodeJS.Timeout | null>(null);
   const setDeltasWithReset = useCallback((nd: ResourceDeltas) => {
     setDeltas(nd);
-    setDeltaTimer((prev) => {
-      if (prev) clearTimeout(prev);
-      return setTimeout(() => setDeltas(ZERO_DELTAS), 2200);
-    });
+    if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+    deltaTimerRef.current = setTimeout(() => setDeltas(ZERO_DELTAS), 2200);
+  }, []);
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+    };
   }, []);
 
   const getPlayerFaction = useCallback((): Faction => {
-    return worldState.factions.find((f) => f.isPlayer)!;
-  }, [worldState]);
+    return worldStateRef.current.factions.find((f) => f.isPlayer)!;
+  }, []);
 
   const getNPCFactions = useCallback((): Faction[] => {
-    return worldState.factions.filter((f) => !f.isPlayer);
-  }, [worldState]);
+    return worldStateRef.current.factions.filter((f) => !f.isPlayer);
+  }, []);
 
   const getFactionById = useCallback((id: FactionId): Faction | undefined => {
-    return worldState.factions.find((f) => f.id === id);
-  }, [worldState]);
+    return worldStateRef.current.factions.find((f) => f.id === id);
+  }, []);
 
   const updateFaction = useCallback((factionId: FactionId, updater: (f: Faction) => Faction) => {
     setWorldState((prev) => ({

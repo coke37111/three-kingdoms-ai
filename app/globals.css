@@ -76,6 +76,11 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(212, 68, 62, 0); }
 }
 
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
 /* Input placeholder */
 input::placeholder { color: var(--text-dim); }
 input:focus { outline: none; border-color: var(--gold) !important; }

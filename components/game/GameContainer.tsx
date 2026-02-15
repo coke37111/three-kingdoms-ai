@@ -2,24 +2,25 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { GameTask, FactionId, BattleResult, GameEndResult } from "@/types/game";
-import type { Choice, AIResponse, ChatMessage, LLMProvider } from "@/types/chat";
+import type { ChatMessage, ConversationMessage, LLMProvider } from "@/types/chat";
+import type { AdvisorState, CouncilMessage, AdvisorAction, ApprovalRequest, AdvisorStatsDelta, EmotionalDirective, SituationBriefing, ThreadMessage } from "@/types/council";
 import { useWorldState } from "@/hooks/useWorldState";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useWorldTurn } from "@/hooks/useWorldTurn";
 import { useTypewriter } from "@/hooks/useTypewriter";
-import { callLLM, type CallLLMOptions } from "@/lib/api/llmClient";
-import { buildWorldSystemPrompt } from "@/lib/prompts/systemPrompt";
-import { buildFactionAIPrompt, parseNPCResponse } from "@/lib/prompts/factionAIPrompt";
+import { callCouncilLLM, type CallLLMOptions, type CouncilLLMOptions } from "@/lib/api/llmClient";
+import { buildCouncilPrompt, buildCouncilResultPrompt } from "@/lib/prompts/councilPrompt";
+import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
 import { executeDiplomaticAction, updateRelation, getRelationBetween } from "@/lib/game/diplomacySystem";
 import type { DiplomaticAction } from "@/lib/game/diplomacySystem";
-import { resolveBattle, generateBattleNarrative } from "@/lib/game/combatSystem";
 import { autoSave, loadAutoSave, hasAutoSave } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
+import { detectSituation } from "@/lib/game/situationDetector";
 import { FACTION_NAMES } from "@/constants/factions";
+import { INITIAL_ADVISORS } from "@/constants/advisors";
 import { useAuth } from "@/hooks/useAuth";
 import StatusBar from "./StatusBar";
 import ChatBubble from "./ChatBubble";
-import ChoicePanel from "./ChoicePanel";
 import TaskPanel from "./TaskPanel";
 import TitleScreen from "./TitleScreen";
 import WorldStatus from "./WorldStatus";
@@ -28,10 +29,11 @@ import BattleReport from "./BattleReport";
 import DiplomacyPanel from "./DiplomacyPanel";
 import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
+import CouncilChat from "./CouncilChat";
+import BriefingPanel from "./BriefingPanel";
 import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
 
-// delay 헬퍼 — setTimeout 체인을 async/await로 변환
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export default function GameContainer() {
@@ -55,11 +57,9 @@ export default function GameContainer() {
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentChoices, setCurrentChoices] = useState<Choice[] | null>(null);
   const [tasks, setTasks] = useState<GameTask[]>([]);
   const [showTasks, setShowTasks] = useState(false);
   const [started, setStarted] = useState(false);
-  const [waitChoice, setWaitChoice] = useState(false);
   const [hasSave, setHasSave] = useState(false);
   const [tokenUsage, setTokenUsageRaw] = useState<{ input: number; output: number }>(() => {
     if (typeof window === "undefined") return { input: 0, output: 0 };
@@ -76,7 +76,60 @@ export default function GameContainer() {
     });
   }, []);
 
-  // 턴 처리 중 가드 (BUG 3, 4 — 이중 실행 방지)
+  // 참모 상태 — functional updater로 ref 즉시 동기화
+  const [advisors, setAdvisorsRaw] = useState<AdvisorState[]>(INITIAL_ADVISORS);
+  const advisorsRef = useRef<AdvisorState[]>(INITIAL_ADVISORS);
+  const setAdvisors = useCallback((u: AdvisorState[] | ((p: AdvisorState[]) => AdvisorState[])) => {
+    setAdvisorsRaw((prev) => {
+      const next = typeof u === "function" ? u(prev) : u;
+      advisorsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // 참모 회의 메시지 — functional updater로 ref 즉시 동기화
+  const [councilMessages, setCouncilMessagesRaw] = useState<CouncilMessage[]>([]);
+  const councilMsgsRef = useRef<CouncilMessage[]>([]);
+  const setCouncilMessages = useCallback((u: CouncilMessage[] | ((p: CouncilMessage[]) => CouncilMessage[])) => {
+    setCouncilMessagesRaw((prev) => {
+      const next = typeof u === "function" ? u(prev) : u;
+      councilMsgsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const [councilNumber, setCouncilNumberRaw] = useState(0);
+  const councilNumberRef = useRef(0);
+  const setCouncilNumber = useCallback((u: number | ((p: number) => number)) => {
+    setCouncilNumberRaw((prev) => {
+      const next = typeof u === "function" ? u(prev) : u;
+      councilNumberRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const [councilStreamMsg, setCouncilStreamMsg] = useState<{ speaker: string; text: string } | null>(null);
+
+  // 타이핑 인디케이터 (입력 중... 표시)
+  const [typingIndicator, setTypingIndicator] = useState<{ speaker: string } | null>(null);
+
+  // 이전 회의 기록 보존 (최근 1세션)
+  const [prevCouncil, setPrevCouncil] = useState<{ number: number; messages: CouncilMessage[] } | null>(null);
+
+  // 자율 행동 + 결재 요청 상태
+  const [autoActions, setAutoActions] = useState<AdvisorAction[]>([]);
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
+
+  // Phase 0: 정세 브리핑 상태
+  const [briefing, setBriefing] = useState<SituationBriefing | null>(null);
+
+  // 참모 발언 클릭 → 답장 컨텍스트 (인덱스 포함)
+  const [replyTarget, setReplyTarget] = useState<{ msg: CouncilMessage; index: number } | null>(null);
+
+  // 쓰레드: 메시지 인덱스 → 쓰레드 메시지 배열
+  const [threads, setThreads] = useState<Record<number, ThreadMessage[]>>({});
+  const [threadTyping, setThreadTyping] = useState<{ msgIndex: number; speaker: string } | null>(null);
+
   const processingTurnRef = useRef(false);
 
   useEffect(() => {
@@ -90,7 +143,6 @@ export default function GameContainer() {
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
   const [showDiplomacy, setShowDiplomacy] = useState(false);
-  // turnNotifications 상태 제거 — 채팅 메시지로 대체
   const [battleReport, setBattleReport] = useState<BattleResult | null>(null);
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
   const [npcProcessing, setNpcProcessing] = useState(false);
@@ -109,46 +161,44 @@ export default function GameContainer() {
     startListening, stopListening, isListening, partialTranscript,
   } = useVoice();
 
-  // ---- 언마운트 시 타이핑 취소 (BUG 9) ----
   useEffect(() => {
-    return () => {
-      cancelTypewriter();
-    };
+    return () => { cancelTypewriter(); };
   }, [cancelTypewriter]);
 
+  // ---- 참모 열정/충성도 업데이트 ----
+  const updateAdvisorStats = useCallback((updates: AdvisorStatsDelta[]) => {
+    if (updates.length === 0) return;
+    setAdvisors((prev) => {
+      const next = prev.map((a) => {
+        const upd = updates.find((u) => u.name === a.name);
+        if (!upd) return a;
+        return {
+          ...a,
+          enthusiasm: Math.max(0, Math.min(100, a.enthusiasm + (upd.enthusiasm_delta ?? 0))),
+          loyalty: Math.max(0, Math.min(100, a.loyalty + (upd.loyalty_delta ?? 0))),
+        };
+      });
+      advisorsRef.current = next;
+      return next;
+    });
+  }, []);
 
-  // ---- Helper: get player as GameState-like for prompts ----
-  const getPlayerGameState = useCallback(() => {
-    const player = worldStateRef.current.factions.find((f) => f.isPlayer)!;
-    return {
-      rulerName: player.rulerName,
-      gold: player.gold,
-      food: player.food,
-      totalTroops: player.totalTroops,
-      popularity: player.popularity,
-      currentTurn: worldStateRef.current.currentTurn,
-      currentMonth: worldStateRef.current.currentMonth,
-      currentSeason: worldStateRef.current.currentSeason,
-      cities: player.cities,
-      generals: player.generals,
-      recentEvents: player.recentEvents,
-      pendingTasks: player.pendingTasks,
-    };
-  }, [worldStateRef]);
-
-  // ---- API Call wrapper (BUG 2 — convHistoryRef 사용) ----
-  const doCallLLM = useCallback(async (
-    userMsg: string | null,
-    overrideContent?: string,
+  // ---- Phase 1: 참모 회의 실행 (API 1회) ----
+  const doCouncilMeeting = useCallback(async (
+    context: string,
     options?: CallLLMOptions,
-  ): Promise<AIResponse> => {
-    const content = overrideContent || userMsg || "";
-    addToConvHistory("user", content);
+  ) => {
+    const systemPrompt = buildCouncilPrompt(
+      worldStateRef.current,
+      advisorsRef.current,
+      context,
+    );
 
-    // convHistoryRef.current는 addToConvHistory에 의해 이미 즉시 동기화됨
+    addToConvHistory("user", context);
     const trimmedHistory = convHistoryRef.current.slice(-20);
-    const { response, usage } = await callLLM(
-      buildWorldSystemPrompt(worldStateRef.current),
+
+    const { council, advisorUpdates, usage } = await callCouncilLLM(
+      systemPrompt,
       trimmedHistory,
       llmProvider,
       options,
@@ -161,12 +211,91 @@ export default function GameContainer() {
       }));
     }
 
-    const raw = JSON.stringify(response);
-    addToConvHistory("assistant", raw);
-    return response;
-  }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider]);
+    addToConvHistory("assistant", JSON.stringify(council));
+    return { council, advisorUpdates };
+  }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider, setTokenUsage]);
 
-  // ---- NPC Turn Processing (BUG 1 — 반환값 추가) ----
+  // ---- Phase 2: 결재/자유입력 처리 (API 1회) ----
+  const doCouncilResult = useCallback(async (
+    action: { type: "approval"; id: string; decision: "승인" | "거부"; subject: string; advisor: string }
+         | { type: "freetext"; message: string; replyTo?: string },
+  ) => {
+    const systemPrompt = buildCouncilResultPrompt(
+      worldStateRef.current,
+      advisorsRef.current,
+      action,
+    );
+
+    const content = action.type === "approval"
+      ? `결재 ${action.decision}: "${action.subject}" (${action.advisor})`
+      : `자유지시: "${action.message}"`;
+    addToConvHistory("user", content);
+    const trimmedHistory = convHistoryRef.current.slice(-20);
+
+    const replyTo = action.type === "freetext" ? action.replyTo : undefined;
+    const { council, advisorUpdates, usage } = await callCouncilLLM(
+      systemPrompt,
+      trimmedHistory,
+      llmProvider,
+      { replyTo },
+    );
+
+    if (usage) {
+      setTokenUsage((prev) => ({
+        input: prev.input + usage.input_tokens,
+        output: prev.output + usage.output_tokens,
+      }));
+    }
+
+    addToConvHistory("assistant", JSON.stringify(council));
+    return { council, advisorUpdates };
+  }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider, setTokenUsage]);
+
+  // ---- 참모 회의 메시지 애니메이션 ----
+  // options.firstImmediate: 첫 메시지 즉시 표시
+  // options.speedDecay: 메시지마다 속도 배율 (0.8 = 매번 20% 빠르게)
+  const animateCouncilMessages = useCallback(async (
+    msgs: CouncilMessage[],
+    clearFirst = true,
+    options?: { firstImmediate?: boolean; speedDecay?: number; speedMultiplier?: number },
+  ) => {
+    if (clearFirst) {
+      setCouncilMessages([]);
+    }
+
+    for (let i = 0; i < msgs.length; i++) {
+      const msg = msgs[i];
+      // speedDecay 적용: 첫 즉시 표시 시 i-1부터 카운트
+      const decayIndex = options?.firstImmediate ? Math.max(0, i - 1) : i;
+      const baseMultiplier = options?.speedMultiplier ?? 1;
+      const speed = (options?.speedDecay ? Math.pow(options.speedDecay, decayIndex) : 1) * baseMultiplier;
+
+      if (i === 0 && options?.firstImmediate) {
+        // 첫 메시지 즉시 표시 (타이핑 인디케이터 없이)
+        setCouncilMessages((prev) => [...prev, msg]);
+        scrollToBottom();
+      } else {
+        // 입력 중... 표시
+        setTypingIndicator({ speaker: msg.speaker });
+        scrollToBottom();
+        const typingDuration = Math.max(400, msg.dialogue.length * 50 * speed);
+        await delay(typingDuration);
+
+        // 입력 중 해제 → 메시지 표시
+        setTypingIndicator(null);
+        setCouncilMessages((prev) => [...prev, msg]);
+        scrollToBottom();
+      }
+
+      if (i < msgs.length - 1) {
+        // 참모 간 딜레이: 0.5~2초 (속도 보정 적용)
+        const interDelay = (500 + Math.random() * 1500) * speed;
+        await delay(interDelay);
+      }
+    }
+  }, [scrollToBottom]);
+
+  // ---- NPC Turn Processing ----
   const processNPCTurns = useCallback(async (): Promise<TurnNotificationItem[]> => {
     const world = worldStateRef.current;
     const npcFactions = world.factions.filter((f) => !f.isPlayer);
@@ -239,11 +368,10 @@ export default function GameContainer() {
   }, [worldStateRef, addMessage, llmProvider]);
 
   // ---- Apply NPC action locally ----
-  const applyNPCAction = useCallback((factionId: FactionId, action: { action: string; target?: string; details?: string }) => {
+  const applyNPCAction = useCallback((factionId: FactionId, action: { action: NPCActionType; target?: string; details?: string }) => {
     setWorldState((prev) => {
       const factions = prev.factions.map((f) => {
         if (f.id !== factionId) return f;
-
         switch (action.action) {
           case "개발": {
             const city = f.cities[0];
@@ -285,42 +413,6 @@ export default function GameContainer() {
     applyNPCAction(factionId, { action: "개발" });
   }, [applyNPCAction]);
 
-  // ---- Add advisor message with typing animation (BUG 3, 10) ----
-  const addAdvisorMsg = useCallback(async (parsed: AIResponse) => {
-    // setIsLoading(false) 제거 — 호출자가 finally에서 관리
-    setStreamingText("");
-
-    const segments = parsed.dialogue.split("\n\n").filter((s) => s.trim());
-
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i].trim();
-
-      await typeText(seg, (partial) => {
-        setStreamingText(partial);
-        // scrollToBottom() 제거 — useEffect가 streamingText 변경 시 자동 처리
-      });
-
-      addMessage({ role: "assistant", content: seg, emotion: parsed.emotion });
-      setStreamingText("");
-
-      if (i < segments.length - 1) {
-        await delay(500);
-      }
-    }
-
-    if (parsed.state_changes) {
-      applyPlayerChanges(parsed.state_changes, addMessage, parsed.dialogue);
-    }
-
-    if (parsed.choices && parsed.choices.length > 0) {
-      await delay(400);
-      scrollToBottom();
-      setCurrentChoices(parsed.choices);
-      setWaitChoice(true);
-      setTimeout(scrollToBottom, 450);
-    }
-  }, [typeText, setStreamingText, scrollToBottom, addMessage, applyPlayerChanges]);
-
   // ---- Check game end ----
   const doCheckGameEnd = useCallback(() => {
     const result = checkGameEnd(worldStateRef.current);
@@ -331,12 +423,166 @@ export default function GameContainer() {
     return false;
   }, [worldStateRef]);
 
-  // ---- Auto save (BUG 8 — ref 사용) ----
-  const doAutoSave = useCallback(() => {
-    if (uid) {
-      autoSave(worldStateRef.current, messagesRef.current, convHistoryRef.current as any, uid);
+  // ---- Auto save ----
+  const doAutoSave = useCallback(async () => {
+    if (!uid) return;
+    try {
+      await autoSave(worldStateRef.current, messagesRef.current, convHistoryRef.current, uid, advisorsRef.current);
+    } catch (err) {
+      console.warn("자동 저장 실패:", err);
     }
   }, [worldStateRef, messagesRef, convHistoryRef, uid]);
+
+  // ---- 참모 회의 전체 흐름 (Phase 1) ----
+  const runCouncilMeeting = useCallback(async (context: string) => {
+    // 이전 회의 메시지 보존
+    const oldMsgs = councilMsgsRef.current;
+    const oldNum = councilNumberRef.current;
+    if (oldMsgs.length > 0) {
+      setPrevCouncil({ number: oldNum, messages: oldMsgs });
+    }
+
+    setCouncilNumber((n) => n + 1);
+    setCouncilMessages([]);
+    setAutoActions([]);
+    setApprovalRequests([]);
+    setReplyTarget(null);
+    setThreads({});
+    setThreadTyping(null);
+    setIsLoading(true);
+
+    try {
+      const { council, advisorUpdates } = await doCouncilMeeting(context);
+
+      // 참모 열정/충성도 업데이트
+      updateAdvisorStats(advisorUpdates);
+
+      // auto_actions의 state_changes 즉시 적용
+      if (council.state_changes) {
+        applyPlayerChanges(council.state_changes, addMessage);
+      }
+
+      // 참모 회의 메시지 애니메이션
+      await animateCouncilMessages(council.council_messages);
+
+      // 자율 행동 + 결재 요청 표시
+      setAutoActions(council.auto_actions);
+      if (council.approval_requests.length > 0) {
+        await delay(400);
+        setApprovalRequests(council.approval_requests);
+        setTimeout(scrollToBottom, 450);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [doCouncilMeeting, animateCouncilMessages, updateAdvisorStats, applyPlayerChanges, addMessage, scrollToBottom]);
+
+  // ---- 감정 방향 선택 처리 ----
+  const handleDirectiveSelect = useCallback((directive: EmotionalDirective) => {
+    setBriefing(null);
+    const currentBriefing = detectSituation(worldStateRef.current);
+    const directiveContext = `=== 주공의 지시 ===\n주공(유비)이 "${currentBriefing.briefingText}"를 듣고 "${directive.text}"라고 하셨다.\n→ 참모들은 ${directive.effect} 방향으로 업무를 수행하고 보고할 것.\n\n현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 자율 업무를 수행한 결과를 보고하라.`;
+    runCouncilMeeting(directiveContext);
+  }, [worldStateRef, runCouncilMeeting]);
+
+  // ---- 브리핑 건너뛰기 (평상시) ----
+  const handleBriefingSkip = useCallback(() => {
+    setBriefing(null);
+    const ev = checkAndTriggerEvents();
+    const context = ev
+      ? `이벤트: "${ev}". 현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 자율 업무를 수행한 결과를 보고하라.`
+      : "현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 자율 업무를 수행한 결과를 보고하라.";
+    runCouncilMeeting(context);
+  }, [checkAndTriggerEvents, runCouncilMeeting]);
+
+  // ---- 참모 발언 클릭 핸들러 ----
+  const handleMessageClick = useCallback((msg: CouncilMessage, index: number) => {
+    if (isLoading) return;
+    setReplyTarget((prev) =>
+      prev && prev.index === index ? null : { msg, index }
+    );
+  }, [isLoading]);
+
+  // ---- Phase 2A: 결재 승인/거부 통합 ----
+  const handleApprovalDecision = useCallback(async (reqId: string, decision: "승인" | "거부") => {
+    if (processingTurnRef.current) return;
+    processingTurnRef.current = true;
+
+    const req = approvalRequests.find((r) => r.id === reqId);
+    if (!req) { processingTurnRef.current = false; return; }
+
+    const icon = decision === "승인" ? "✅" : "❌";
+    setApprovalRequests((prev) => prev.filter((r) => r.id !== reqId));
+    addMessage({ role: "user", content: `${icon} ${decision}: ${req.subject}` });
+    setIsLoading(true);
+
+    try {
+      const { council, advisorUpdates } = await doCouncilResult({
+        type: "approval",
+        id: req.id,
+        decision,
+        subject: req.subject,
+        advisor: req.advisor,
+      });
+
+      await animateCouncilMessages(council.council_messages, false);
+
+      if (council.state_changes) {
+        applyPlayerChanges(council.state_changes, addMessage);
+      }
+      updateAdvisorStats(advisorUpdates);
+
+      // 남은 결재 요청이 없으면 자동 저장
+      if (approvalRequests.length <= 1) {
+        doAutoSave();
+      }
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [approvalRequests, addMessage, doCouncilResult, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave]);
+
+  const handleApproval = useCallback((reqId: string) => handleApprovalDecision(reqId, "승인"), [handleApprovalDecision]);
+  const handleRejection = useCallback((reqId: string) => handleApprovalDecision(reqId, "거부"), [handleApprovalDecision]);
+
+  // ---- 게임 시작 도입부 생성 ----
+  const buildIntroMessages = useCallback((): CouncilMessage[] => {
+    const ws = worldStateRef.current;
+    const player = ws.factions.find((f) => f.isPlayer)!;
+    const npcs = [...ws.factions.filter((f) => !f.isPlayer)].sort((a, b) => b.totalTroops - a.totalTroops);
+
+    const npcLines = npcs.map((f) => {
+      const troops = Math.round(f.totalTroops / 10000);
+      return `${f.rulerName}이 ${f.cities.length}성에 ${troops}만 대군`;
+    }).join(", ");
+
+    const playerTroops = Math.round(player.totalTroops / 10000);
+    const playerCities = player.cities.map((c) => c.cityName).join("·");
+    const generalNames = player.generals.filter((g) => g.generalName !== "제갈량").map((g) => g.generalName).join(", ");
+
+    return [
+      {
+        speaker: "제갈량",
+        dialogue: `주공, 건안 13년 ${ws.currentMonth}월이옵니다. 이 제갈량, 삼고초려의 은혜에 보답하고자 오늘부터 주공의 곁에서 천하대계를 도모하겠사옵니다.`,
+        emotion: "calm",
+      },
+      {
+        speaker: "제갈량",
+        dialogue: `현재 천하의 정세를 아뢰겠습니다. ${npcLines}을 거느리고 있사옵니다. 특히 조조와 원소는 이미 전쟁 중이니, 이 틈을 놓쳐서는 아니 되옵니다.`,
+        emotion: "thoughtful",
+      },
+      {
+        speaker: "제갈량",
+        dialogue: `우리 유비군은 ${playerCities} 두 성에 병력 ${playerTroops}만... 비록 약소하나, ${generalNames} — 주공 곁에 이만한 인재가 있으니 결코 뜻을 펼치지 못할 바가 아니옵니다.`,
+        emotion: "calm",
+      },
+      {
+        speaker: "제갈량",
+        dialogue: "그러면 첫 참모 회의를 열겠사옵니다. 각 참모의 업무 보고를 들으시고, 필요한 지시가 있으시면 말씀해 주시옵소서.",
+        emotion: "excited",
+      },
+    ];
+  }, [worldStateRef]);
 
   // ---- Actions ----
   const startGame = useCallback(async () => {
@@ -345,22 +591,48 @@ export default function GameContainer() {
     setTokenUsage({ input: 0, output: 0 });
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
-    setIsLoading(true);
-    addMessage({ role: "system", content: "🏯 삼국지 AI — 제갈량이 보고를 올립니다" });
 
     try {
-      const ev = checkAndTriggerEvents();
-      const prompt = ev
-        ? `게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 상황을 보고하고, 이벤트 "${ev}" 도 포함하여 조언하라. 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.`
-        : "게임이 시작되었다. 첫 턴이다. 주공(유비)에게 현재 국가 상황을 보고하고, 천하 정세도 간략히 알려라. 2~3개 선택지를 제시하라.";
+      // Phase 0: 제갈량 도입 서사
+      const introMessages = buildIntroMessages();
+      setCouncilNumber(0);
+      await animateCouncilMessages(introMessages, true, { firstImmediate: true, speedDecay: 0.8, speedMultiplier: 0.7 });
 
-      const parsed = await doCallLLM(null, prompt);
-      await addAdvisorMsg(parsed);
+      // 도입 후 잠시 대기
+      await delay(1000);
+
+      // Phase 1: 첫 참모 회의 — 도입 서사를 유지하며 인라인 처리 (깜빡임 방지)
+      setIsLoading(true);
+      const ev = checkAndTriggerEvents();
+      const context = ev
+        ? `게임이 시작되었다. 첫 번째 참모 회의다. 이벤트 "${ev}"도 포함하여 각 참모가 자율 업무를 수행한 결과를 보고하고, 천하 정세도 간략히 알려라. (도입 서사는 이미 완료됨 — 천하 정세 반복하지 말 것)`
+        : "게임이 시작되었다. 첫 번째 참모 회의다. 각 참모가 자율 업무를 수행한 결과를 보고하고, 천하 정세도 간략히 알려라. (도입 서사는 이미 완료됨 — 천하 정세 반복하지 말 것)";
+
+      const { council, advisorUpdates } = await doCouncilMeeting(context);
+      updateAdvisorStats(advisorUpdates);
+      if (council.state_changes) {
+        applyPlayerChanges(council.state_changes, addMessage);
+      }
+
+      // 도입 서사와 회의 사이에 타이틀 구분선 삽입
+      setCouncilMessages((prev) => [...prev, { speaker: "__council_title__", dialogue: "1", emotion: "calm" as const }]);
+      scrollToBottom();
+      await delay(600);
+
+      // 도입 서사 아래에 회의 메시지 이어붙임 (clearFirst = false)
+      await animateCouncilMessages(council.council_messages, false);
+
+      setAutoActions(council.auto_actions);
+      if (council.approval_requests.length > 0) {
+        await delay(400);
+        setApprovalRequests(council.approval_requests);
+        setTimeout(scrollToBottom, 450);
+      }
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [addMessage, checkAndTriggerEvents, doCallLLM, addAdvisorMsg]);
+  }, [buildIntroMessages, animateCouncilMessages, checkAndTriggerEvents, doCouncilMeeting, updateAdvisorStats, applyPlayerChanges, addMessage, scrollToBottom, setTokenUsage]);
 
   const startFromAutoSave = useCallback(async () => {
     if (!uid) return;
@@ -373,119 +645,185 @@ export default function GameContainer() {
     setTokenUsage({ input: 0, output: 0 });
     loadWorldState(save.worldState);
     setMessages(save.chatMessages as ChatMessage[]);
-    setConvHistory(save.convHistory as any);
+    setConvHistory(save.convHistory as ConversationMessage[]);
+
+    const savedAdvisors = save.advisors;
+    if (Array.isArray(savedAdvisors) && savedAdvisors.length > 0) {
+      setAdvisors(savedAdvisors);
+    }
+
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
-    addMessage({ role: "system", content: `📂 자동 저장을 불러왔습니다 (${save.metadata.turnCount}턴)` });
+    // 자동 저장 불러오기 메시지는 표시하지 않음
     setIsLoading(true);
 
     try {
-      const parsed = await doCallLLM(null, "저장된 게임을 불러왔다. 현재 상황을 간략히 요약하고 2~3개 선택지를 제시하라.");
-      await addAdvisorMsg(parsed);
+      await runCouncilMeeting("저장된 게임을 불러왔다. 현재 상황을 간략히 요약하고 각 참모가 자율 업무를 수행한 결과를 보고하라.");
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid, setTokenUsage, doCallLLM, addAdvisorMsg]);
+  }, [loadWorldState, setMessages, setConvHistory, addMessage, uid, setTokenUsage, runCouncilMeeting]);
 
-  // ---- sendMessage (BUG 4 — processingTurnRef 가드 + try/finally) ----
+  // ---- 쓰레드에 메시지 추가 헬퍼 ----
+  const addThreadMessage = useCallback((msgIndex: number, threadMsg: ThreadMessage) => {
+    setThreads((prev) => ({
+      ...prev,
+      [msgIndex]: [...(prev[msgIndex] || []), threadMsg],
+    }));
+  }, []);
+
+  // ---- 쓰레드 내 응답 애니메이션 ----
+  const animateThreadMessages = useCallback(async (msgIndex: number, msgs: CouncilMessage[]) => {
+    for (let i = 0; i < msgs.length; i++) {
+      const msg = msgs[i];
+
+      // 쓰레드 내 타이핑 인디케이터
+      setThreadTyping({ msgIndex, speaker: msg.speaker });
+      scrollToBottom();
+      const typingDuration = Math.max(600, msg.dialogue.length * 50);
+      await delay(typingDuration);
+
+      // 타이핑 해제 → 메시지 추가
+      setThreadTyping(null);
+      addThreadMessage(msgIndex, {
+        type: "advisor",
+        speaker: msg.speaker,
+        text: msg.dialogue,
+        emotion: msg.emotion,
+      });
+      scrollToBottom();
+
+      if (i < msgs.length - 1) {
+        const interDelay = 500 + Math.random() * 1500;
+        await delay(interDelay);
+      }
+    }
+  }, [addThreadMessage, scrollToBottom]);
+
+  // ---- sendMessage (Phase 2B: 자유 입력) ----
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading || processingTurnRef.current) return;
     processingTurnRef.current = true;
     const text = input.trim();
+    const reply = replyTarget;
     setInput("");
-    addMessage({ role: "user", content: text });
+    setReplyTarget(null);
     setIsLoading(true);
 
-    try {
-      const parsed = await doCallLLM(text);
-      await addAdvisorMsg(parsed);
-      doAutoSave();
-    } finally {
-      setIsLoading(false);
-      processingTurnRef.current = false;
+    // LLM에 보낼 메시지에 답장 맥락 포함
+    const llmMessage = reply
+      ? `${reply.msg.speaker}의 "${reply.msg.dialogue}"에 대해 유비가 말합니다: "${text}"`
+      : text;
+
+    if (reply) {
+      // 쓰레드에 유저 메시지 추가
+      addThreadMessage(reply.index, { type: "user", speaker: "유비", text });
+      scrollToBottom();
+    } else {
+      // 일반 메시지 (답장 대상 없음)
+      addMessage({ role: "user", content: text });
     }
-  }, [input, isLoading, addMessage, doCallLLM, addAdvisorMsg, doAutoSave]);
-
-  // ---- handleChoice 리라이트 (BUG 1, 3, 4, 9) ----
-  const handleChoice = useCallback(async (choice: Choice) => {
-    if (processingTurnRef.current) return;
-    processingTurnRef.current = true;
-
-    setWaitChoice(false);
-    setCurrentChoices(null);
-    addMessage({ role: "user", content: `[${choice.id}] ${choice.text}` });
-    setIsLoading(true);
 
     try {
-      // 1. 선택 결과 보고
-      const prompt = `플레이어가 [${choice.id}] "${choice.text}"을(를) 선택했다. 결과를 보고하라. 반드시 state_changes를 포함하여 수치 변화를 알려라. state_changes: {"gold_delta":숫자,"food_delta":숫자,"troops_delta":숫자,"popularity_delta":숫자,"city_updates":[{"city":"도시명","defense_delta":숫자}],"general_updates":[{"name":"장수명","task":"임무","loyalty_delta":숫자}],"new_events":["설명"],"result_message":"요약"}`;
-      const parsed = await doCallLLM(null, prompt);
-      await addAdvisorMsg(parsed);
+      const { council, advisorUpdates } = await doCouncilResult({
+        type: "freetext",
+        message: llmMessage,
+        replyTo: reply ? reply.msg.speaker : undefined,
+      });
 
-      // 2. NPC 턴 처리
-      await delay(800);
-      const notifications = await processNPCTurns();
+      if (reply) {
+        // replyTo 참모가 맨 앞에 오도록 정렬 (LLM이 순서를 안 지킬 경우 대비)
+        const replyToName = reply.msg.speaker;
+        const sorted = [...council.council_messages].sort((a, b) => {
+          if (a.speaker === replyToName && b.speaker !== replyToName) return -1;
+          if (a.speaker !== replyToName && b.speaker === replyToName) return 1;
+          return 0;
+        });
+        await animateThreadMessages(reply.index, sorted);
+      } else {
+        // 일반 응답
+        await animateCouncilMessages(council.council_messages, false);
+      }
 
-      // 3. 턴 진행
-      advanceWorldTurn();
-
-      if (doCheckGameEnd()) return;
-
-      // 4. 새 턴 보고
-      await delay(1200);
-      const ev = checkAndTriggerEvents();
-      const npcSummary = notifications.length > 0
-        ? `\n타국 동향: ${notifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
-        : "";
-
-      const np = ev
-        ? `이벤트: "${ev}".${npcSummary} 현재 정세를 분석하고 2~3개 선택지를 제시하라.`
-        : `${npcSummary ? npcSummary + " " : ""}현재 정세를 분석하고 2~3개 선택지를 제시하라.`;
-
-      const next = await doCallLLM(null, np);
-      await addAdvisorMsg(next);
+      if (council.state_changes) {
+        applyPlayerChanges(council.state_changes, addMessage);
+      }
+      updateAdvisorStats(advisorUpdates);
 
       doAutoSave();
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [addMessage, doCallLLM, addAdvisorMsg, advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave]);
+  }, [input, isLoading, replyTarget, addMessage, addThreadMessage, animateThreadMessages, doCouncilResult, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
 
-  // ---- handleNextTurn 리라이트 (BUG 1, 3, 4, 9) ----
+  // ---- handleNextTurn (Phase 2C + Phase 3) ----
   const handleNextTurn = useCallback(async () => {
     if (processingTurnRef.current) return;
     processingTurnRef.current = true;
     setIsLoading(true);
 
     try {
-      // NPC 턴 처리
-      const notifications = await processNPCTurns();
+      // 방치형 처리: 미결재 건 자동 처리
+      for (const req of approvalRequests) {
+        if (req.urgency === "routine") {
+          // routine → 자동 승인
+          addMessage({ role: "system", content: `📝 ${req.advisor}의 "${req.subject}" — 자동 승인됨` });
+          if (req.cost) {
+            applyPlayerChanges(req.cost, addMessage);
+          }
+        } else if (req.urgency === "important") {
+          // important → 제갈량 자율 판단 (50%)
+          if (Math.random() > 0.5) {
+            addMessage({ role: "system", content: `📝 제갈량이 ${req.advisor}의 "${req.subject}"을 승인했습니다` });
+            if (req.cost) {
+              applyPlayerChanges(req.cost, addMessage);
+            }
+          } else {
+            addMessage({ role: "system", content: `📝 제갈량이 ${req.advisor}의 "${req.subject}"을 보류했습니다` });
+          }
+        } else {
+          // critical → 보류 (다음 턴 이월 — 여기서는 그냥 알림)
+          addMessage({ role: "system", content: `⚠️ ${req.advisor}의 "${req.subject}" — 결재 없이 보류됨` });
+        }
+      }
+      setApprovalRequests([]);
 
+      // Phase 3: NPC 턴 + 턴 진행
+      const notifications = await processNPCTurns();
       advanceWorldTurn();
 
       if (doCheckGameEnd()) return;
 
+      // Phase 0: 다음 턴 정세 브리핑
       await delay(800);
+      const situation = detectSituation(worldStateRef.current);
       const ev = checkAndTriggerEvents();
-      const npcSummary = notifications.length > 0
-        ? `\n타국 동향: ${notifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
-        : "";
 
-      const np = ev
-        ? `이벤트: "${ev}".${npcSummary} 현재 정세를 분석하고 2~3개 선택지를 제시하라.`
-        : `${npcSummary ? npcSummary + " " : ""}현재 정세를 분석하고 2~3개 선택지를 제시하라.`;
+      if (situation.isUrgent) {
+        setIsLoading(false);
+        setBriefing(situation);
+        doAutoSave();
+      } else {
+        // 평상시 — 바로 참모 회의
+        const npcSummary = notifications.length > 0
+          ? `\n타국 동향: ${notifications.map((n) => `${FACTION_NAMES[n.factionId]}: ${n.summary}`).join(". ")}`
+          : "";
 
-      const next = await doCallLLM(null, np);
-      await addAdvisorMsg(next);
+        const context = ev
+          ? `이벤트: "${ev}".${npcSummary} 현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 자율 업무를 수행한 결과를 보고하라.`
+          : `${npcSummary ? npcSummary + " " : ""}현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 자율 업무를 수행한 결과를 보고하라.`;
 
-      doAutoSave();
+        await runCouncilMeeting(context);
+        doAutoSave();
+      }
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [advanceWorldTurn, checkAndTriggerEvents, doCallLLM, addAdvisorMsg, processNPCTurns, doCheckGameEnd, doAutoSave]);
+  }, [advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave,
+      runCouncilMeeting, approvalRequests, addMessage, applyPlayerChanges, worldStateRef]);
 
   // ---- Diplomacy Handler ----
   const handleDiplomacy = useCallback((targetId: FactionId, action: DiplomaticAction) => {
@@ -507,48 +845,21 @@ export default function GameContainer() {
     doAutoSave();
   }, [worldStateRef, addMessage, setWorldState, doAutoSave]);
 
-
   const handleRestart = useCallback(() => {
     sessionStorage.removeItem("gameActive");
     window.location.reload();
   }, []);
-
-  // ---- Voice choice matching ----
-  const matchVoiceChoice = useCallback((transcript: string): Choice | null => {
-    if (!currentChoices) return null;
-    const t = transcript.trim().toLowerCase();
-
-    const choiceMap: Record<string, string> = {
-      "에이": "A", "a": "A", "1": "A", "첫번째": "A", "첫 번째": "A",
-      "비": "B", "b": "B", "2": "B", "두번째": "B", "두 번째": "B",
-      "씨": "C", "c": "C", "3": "C", "세번째": "C", "세 번째": "C",
-    };
-
-    for (const [keyword, id] of Object.entries(choiceMap)) {
-      if (t.includes(keyword)) {
-        const found = currentChoices.find((c) => c.id === id);
-        if (found) return found;
-      }
-    }
-    return null;
-  }, [currentChoices]);
 
   const handleMicToggle = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
       startListening((text) => {
-        const choice = matchVoiceChoice(text);
-        if (choice) {
-          handleChoice(choice);
-        } else {
-          setInput(text);
-        }
+        setInput(text);
       });
     }
-  }, [isListening, stopListening, startListening, matchVoiceChoice, handleChoice]);
+  }, [isListening, stopListening, startListening]);
 
-  // ---- Google 로그인 (로그인만 수행, 게임 시작은 사용자가 별도 선택) ----
   const handleGoogleLogin = useCallback(async () => {
     await loginWithGoogle();
   }, [loginWithGoogle]);
@@ -574,6 +885,7 @@ export default function GameContainer() {
   }
 
   const playerFaction = getPlayerFaction();
+  const hasApprovalRequests = approvalRequests.length > 0;
 
   return (
     <div style={{
@@ -619,6 +931,7 @@ export default function GameContainer() {
           📋 {tasks.length}
         </button>
       </StatusBar>
+
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
       {/* NPC Processing Indicator */}
@@ -635,7 +948,6 @@ export default function GameContainer() {
           ⏳ 타국 군주들이 행동 중...
         </div>
       )}
-
 
       {/* AI Provider Toggle + Token Usage */}
       <div style={{
@@ -666,32 +978,103 @@ export default function GameContainer() {
         )}
       </div>
 
-      {/* Chat */}
+      {/* Chat Area */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
+        {/* 시스템/유저 메시지 */}
         {messages.map((msg, i) => <ChatBubble key={i} message={msg} />)}
-        {streamingText && (
-          <ChatBubble message={{ role: "assistant", content: streamingText, emotion: "thoughtful" }} isTyping />
+
+        {/* Phase 0: 정세 브리핑 패널 */}
+        {briefing && (
+          <BriefingPanel
+            briefing={briefing}
+            onSelectDirective={handleDirectiveSelect}
+            onSkip={handleBriefingSkip}
+          />
         )}
-        {isLoading && !streamingText && (
+
+        {/* 이전 회의 기록 (읽기 전용) */}
+        {prevCouncil && (
+          <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
+            <CouncilChat
+              messages={prevCouncil.messages}
+              advisors={advisors}
+              councilNumber={prevCouncil.number}
+            />
+          </div>
+        )}
+
+        {/* 현재 참모 회의 채팅 */}
+        {(councilMessages.length > 0 || typingIndicator) && (
+          <CouncilChat
+            messages={councilMessages}
+            advisors={advisors}
+            councilNumber={councilNumber}
+            streamingMessage={councilStreamMsg}
+            typingIndicator={typingIndicator}
+            autoActions={autoActions}
+            approvalRequests={approvalRequests}
+            threads={threads}
+            threadTyping={threadTyping}
+            onApprove={handleApproval}
+            onReject={handleRejection}
+            onMessageClick={handleMessageClick}
+            replyTarget={replyTarget}
+            disabled={isLoading}
+          />
+        )}
+
+        {/* 스트리밍 중 (현재 회의 메시지와 타이핑 인디케이터가 없을 때만) */}
+        {councilMessages.length === 0 && !typingIndicator && councilStreamMsg && (
+          <CouncilChat
+            messages={[]}
+            advisors={advisors}
+            councilNumber={councilNumber}
+            streamingMessage={councilStreamMsg}
+          />
+        )}
+
+        {isLoading && !councilStreamMsg && !typingIndicator && !threadTyping && (
           <div style={{ padding: "8px 56px", fontSize: "12px", color: "var(--text-dim)", animation: "pulse 1.5s infinite" }}>
-            🪶 제갈량이 생각 중...
+            🪶 참모들이 논의 중...
           </div>
         )}
       </div>
 
-      {/* Choices */}
-      <div style={{
-        maxHeight: currentChoices ? "60vh" : "0",
-        overflow: "hidden",
-        transition: "max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-      }}>
-        {currentChoices && <ChoicePanel choices={currentChoices} onSelect={handleChoice} disabled={isLoading} />}
-      </div>
+      {/* 답장 인디케이터 */}
+      {replyTarget && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          padding: "6px 14px",
+          background: "rgba(201,168,76,0.08)",
+          borderTop: "1px solid var(--border)",
+          fontSize: "12px",
+          color: "var(--text-secondary)",
+        }}>
+          <span style={{ color: "var(--gold)", fontWeight: 600 }}>
+            💬 {replyTarget.msg.speaker}
+          </span>
+          <span style={{
+            flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            opacity: 0.7,
+          }}>
+            {replyTarget.msg.dialogue}
+          </span>
+          <button
+            onClick={() => setReplyTarget(null)}
+            style={{
+              background: "none", border: "none", color: "var(--text-dim)",
+              cursor: "pointer", fontSize: "14px", padding: "0 4px", flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div style={{
         display: "flex", gap: "8px", padding: "10px 14px",
-        background: "var(--bg-secondary)", borderTop: "1px solid var(--border)",
+        background: "var(--bg-secondary)", borderTop: replyTarget ? "none" : "1px solid var(--border)",
       }}>
         <button
           onClick={handleMicToggle}
@@ -714,7 +1097,7 @@ export default function GameContainer() {
           value={isListening ? partialTranscript : input}
           onChange={(e) => { if (!isListening) setInput(e.target.value); }}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder={isListening ? "말씀하세요..." : waitChoice ? "위 선택지를 골라주세요..." : "제갈량에게 명을 내리십시오..."}
+          placeholder={isListening ? "말씀하세요..." : hasApprovalRequests ? "결재를 처리하거나, 참모들에게 명을 내리십시오..." : "참모들에게 명을 내리십시오..."}
           disabled={isLoading || isListening}
           style={{
             flex: 1, background: "rgba(255,255,255,0.05)",
@@ -735,7 +1118,7 @@ export default function GameContainer() {
         >
           전송
         </button>
-        {!waitChoice && !isLoading && messages.length > 2 && (
+        {!isLoading && messages.length > 2 && !briefing && (
           <button onClick={handleNextTurn} style={{
             background: "rgba(255,255,255,0.05)", color: "var(--gold)",
             border: "1px solid var(--border)", borderRadius: "8px",

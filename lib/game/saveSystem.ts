@@ -1,5 +1,6 @@
 import type { WorldState, SaveData } from "@/types/game";
 import type { ChatMessage, ConversationMessage } from "@/types/chat";
+import type { AdvisorState } from "@/types/council";
 import {
   cloudSaveGame, cloudLoadGame, cloudAutoSave, cloudLoadAutoSave,
   cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave, cloudHasAutoSave,
@@ -31,6 +32,7 @@ function buildSaveData(
   chatMessages: ChatMessage[],
   convHistory: ConversationMessage[],
   slotName: string,
+  advisors?: AdvisorState[],
 ): SaveData {
   return {
     version: SAVE_VERSION,
@@ -39,6 +41,7 @@ function buildSaveData(
     worldState,
     chatMessages: chatMessages.slice(-50),
     convHistory: convHistory.slice(-20),
+    advisors,
     metadata: getPlayerInfo(worldState),
   };
 }
@@ -50,8 +53,9 @@ export async function saveGame(
   convHistory: ConversationMessage[],
   uid: string,
   slotName?: string,
+  advisors?: AdvisorState[],
 ): Promise<boolean> {
-  const data = buildSaveData(worldState, chatMessages, convHistory, slotName || `저장 ${slotIndex + 1}`);
+  const data = buildSaveData(worldState, chatMessages, convHistory, slotName || `저장 ${slotIndex + 1}`, advisors);
   return cloudSaveGame(uid, slotIndex, data);
 }
 
@@ -64,8 +68,9 @@ export async function autoSave(
   chatMessages: ChatMessage[],
   convHistory: ConversationMessage[],
   uid: string,
+  advisors?: AdvisorState[],
 ): Promise<boolean> {
-  const data = buildSaveData(worldState, chatMessages, convHistory, "자동 저장");
+  const data = buildSaveData(worldState, chatMessages, convHistory, "자동 저장", advisors);
   return cloudAutoSave(uid, data);
 }
 
