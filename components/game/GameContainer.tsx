@@ -11,8 +11,6 @@ import { useTypewriter } from "@/hooks/useTypewriter";
 import { callCouncilLLM, type CallLLMOptions, type CouncilLLMOptions } from "@/lib/api/llmClient";
 import { buildCouncilPrompt, buildCouncilResultPrompt } from "@/lib/prompts/councilPrompt";
 import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
-import { executeDiplomaticAction, updateRelation, getRelationBetween } from "@/lib/game/diplomacySystem";
-import type { DiplomaticAction } from "@/lib/game/diplomacySystem";
 import { autoSave, loadAutoSave, hasAutoSave } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { detectSituation } from "@/lib/game/situationDetector";
@@ -26,7 +24,6 @@ import TitleScreen from "./TitleScreen";
 import WorldStatus from "./WorldStatus";
 import { type TurnNotificationItem } from "./TurnNotification";
 import BattleReport from "./BattleReport";
-import DiplomacyPanel from "./DiplomacyPanel";
 import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
 import CouncilChat from "./CouncilChat";
@@ -142,7 +139,6 @@ export default function GameContainer() {
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
-  const [showDiplomacy, setShowDiplomacy] = useState(false);
   const [battleReport, setBattleReport] = useState<BattleResult | null>(null);
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
   const [npcProcessing, setNpcProcessing] = useState(false);
@@ -840,25 +836,6 @@ export default function GameContainer() {
   }, [advanceWorldTurn, checkAndTriggerEvents, processNPCTurns, doCheckGameEnd, doAutoSave,
       runCouncilMeeting, approvalRequests, addMessage, applyPlayerChanges, worldStateRef]);
 
-  // ---- Diplomacy Handler ----
-  const handleDiplomacy = useCallback((targetId: FactionId, action: DiplomaticAction) => {
-    const player = worldStateRef.current.factions.find((f) => f.isPlayer)!;
-    const target = worldStateRef.current.factions.find((f) => f.id === targetId);
-    if (!target) return;
-
-    const rel = getRelationBetween(worldStateRef.current.relations, player.id, targetId);
-    const result = executeDiplomaticAction(action, player, target, rel);
-
-    addMessage({ role: "system", content: `🏛️ ${result.message}` });
-
-    setWorldState((prev) => ({
-      ...prev,
-      relations: updateRelation(prev.relations, player.id, targetId, result),
-    }));
-
-    setShowDiplomacy(false);
-    doAutoSave();
-  }, [worldStateRef, addMessage, setWorldState, doAutoSave]);
 
   const handleRestart = useCallback(() => {
     sessionStorage.removeItem("gameActive");
@@ -931,12 +908,6 @@ export default function GameContainer() {
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
         }}>
           🗺️
-        </button>
-        <button onClick={() => setShowDiplomacy(true)} style={{
-          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
-          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
-        }}>
-          🏛️
         </button>
         <button onClick={() => setShowTasks(!showTasks)} style={{
           background: tasks.length > 0 ? "rgba(212,68,62,0.2)" : "rgba(255,255,255,0.05)",
@@ -1146,13 +1117,6 @@ export default function GameContainer() {
 
       {/* Modals */}
       <WorldStatus worldState={worldState} show={showWorldStatus} onClose={() => setShowWorldStatus(false)} />
-      <DiplomacyPanel
-        worldState={worldState}
-        show={showDiplomacy}
-        onClose={() => setShowDiplomacy(false)}
-        onAction={handleDiplomacy}
-        disabled={isLoading}
-      />
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}
