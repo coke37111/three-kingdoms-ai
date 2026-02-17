@@ -146,6 +146,7 @@ ${context}
 1. 반드시 아래 JSON 형식으로만 응답할 것. JSON 외의 텍스트를 절대 포함하지 마라.
 2. state_changes는 auto_actions 내 개별 행동의 합산을 최상위에도 포함.
 3. advisor_updates에 각 참모의 열정/충성도 변동을 포함 (±1~5).
+4. ⚠️ 도시를 점령/함락한 경우, state_changes에 "conquered_cities": ["도시명"]을 포함할 것.
 
 === 응답 JSON 형식 ===
 {
@@ -208,7 +209,7 @@ export function buildCouncilResultPrompt(
   }
 
   const speakerOrderRule = replyTo
-    ? `2. ⚠️ **${replyTo}에게 직접 말한 것이므로 council_messages[0].speaker는 반드시 "${replyTo}"**이다. 제갈량이 먼저 답하면 안 된다. ${replyTo}이 먼저 답변하고, 다른 참모는 0~1명만 짧게 첨언.`
+    ? `2. ⚠️ **유비가 ${replyTo}에게 직접 말한 것이다. council_messages[0].speaker는 반드시 "${replyTo}"**이어야 한다. 제갈량이 중간에서 전달하거나 먼저 답하면 안 된다. ${replyTo}이 직접 답변하고, 다른 참모는 0~1명만 짧게 첨언.`
     : "2. 자유 지시인 경우: 주로 **제갈량**이 답변한다. 관련 참모가 1~2명 짧게 반응.";
 
   return `너는 삼국지 시대 유비 진영의 참모 회의 결과를 처리하는 AI다.
@@ -230,6 +231,9 @@ ${speakerOrderRule}
    - 결재 승인: 해당 행동의 비용+결과 반영
    - 결재 거부: state_changes는 null 또는 소폭 변동만
    - 자유 지시: 지시에 따른 수치 변화 반영
+   - ⚠️ **도시 점령/함락 시**: state_changes에 "conquered_cities": ["도시명"] 을 반드시 포함!
+     예: 출격 승인 후 진류 점령 → "conquered_cities": ["진류"]
+     점령하지 못하면 빈 배열이거나 생략.
 6. council_messages는 1~3개 (결과 반응). 모든 참모가 반응할 필요 없다.
 7. 각 dialogue는 50자 이내.
 8. auto_actions와 approval_requests는 빈 배열 []로 설정.
@@ -254,7 +258,8 @@ ${speakerOrderRule}
     "city_updates": [],
     "general_updates": [],
     "new_events": ["진류 방면 출격 개시"],
-    "result_message": "관우가 선봉에 나섭니다"
+    "result_message": "관우가 선봉에 나섭니다",
+    "conquered_cities": ["진류"]
   },
   "advisor_updates": [
     { "name": "관우", "enthusiasm_delta": 8, "loyalty_delta": 2 },

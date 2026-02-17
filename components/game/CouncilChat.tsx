@@ -4,6 +4,7 @@ import type { CouncilMessage, AdvisorAction, ApprovalRequest, ThreadMessage } fr
 import type { AdvisorState } from "@/types/council";
 import type { Emotion } from "@/types/chat";
 import { ZHANGFEI_INFO } from "@/constants/advisors";
+import { renderCityLinks } from "@/lib/utils/cityTextParser";
 
 const EMOTION_EMOJI: Record<Emotion, string> = {
   calm: "😌",
@@ -77,7 +78,7 @@ function TypingDots() {
 }
 
 /** 쓰레드 메시지 렌더링 */
-function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], threadTyping: { speaker: string } | null) {
+function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], threadTyping: { speaker: string } | null, onOpenMap?: (cityName: string) => void) {
   return (
     <div style={{
       marginLeft: "42px",
@@ -127,7 +128,7 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
                 color: "var(--text-primary)",
                 wordBreak: "break-word",
               }}>
-                {tm.text}
+                {renderCityLinks(tm.text, onOpenMap)}
               </div>
             </div>
           </div>
@@ -194,6 +195,7 @@ interface CouncilChatProps {
   onMessageClick?: (msg: CouncilMessage, index: number) => void;
   replyTarget?: { msg: CouncilMessage; index: number } | null;
   disabled?: boolean;
+  onOpenMap?: (cityName: string) => void;
 }
 
 export default function CouncilChat({
@@ -202,6 +204,7 @@ export default function CouncilChat({
   threads, threadTyping,
   onApprove, onReject,
   onMessageClick, replyTarget, disabled,
+  onOpenMap,
 }: CouncilChatProps) {
   // 참모별 자율 행동 매핑 (메시지 옆에 태그 표시)
   const actionByAdvisor = new Map<string, AdvisorAction>();
@@ -268,6 +271,7 @@ export default function CouncilChat({
         const { icon, color, role } = getSpeakerInfo(msg.speaker, advisors);
         const stats = getAdvisorStats(msg.speaker, advisors);
         const isSelected = replyTarget && replyTarget.index === i;
+        const isRuler = msg.speaker === "유비";
 
         // 이 참모의 마지막 메시지인지 확인 (자율 행동 태그 배치 위치)
         const isLastMsgOfSpeaker = !messages.slice(i + 1).some((m) => m.speaker === msg.speaker);
@@ -287,6 +291,7 @@ export default function CouncilChat({
               alignItems: "flex-start",
               gap: "8px",
               margin: "3px 14px",
+              flexDirection: isRuler ? "row-reverse" : "row",
               animation: `fadeInUp 0.3s ease ${i * 0.05}s both`,
             }}>
               {/* 아바타 */}
@@ -294,19 +299,21 @@ export default function CouncilChat({
                 width: "34px",
                 height: "34px",
                 borderRadius: "50%",
-                background: `linear-gradient(135deg, ${color}22, ${color}44)`,
+                background: isRuler
+                  ? "linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.4))"
+                  : `linear-gradient(135deg, ${color}22, ${color}44)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "16px",
                 flexShrink: 0,
-                border: `1.5px solid ${color}66`,
+                border: isRuler ? "1.5px solid rgba(201,168,76,0.6)" : `1.5px solid ${color}66`,
               }}>
                 {icon}
               </div>
 
               {/* 내용 */}
-              <div style={{ maxWidth: "80%", minWidth: "40px", flex: 1 }}>
+              <div style={{ maxWidth: "80%", minWidth: "40px", flex: 1, textAlign: isRuler ? "right" : "left" }}>
                 <div style={{
                   fontSize: "10px",
                   marginBottom: "3px",
@@ -315,11 +322,12 @@ export default function CouncilChat({
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
+                  justifyContent: isRuler ? "flex-end" : "flex-start",
                 }}>
                   <span style={{ color }}>
                     {role && <span style={{ opacity: 0.7 }}>[{role}]</span>} {msg.speaker}
                   </span>
-                  {msg.emotion && (
+                  {msg.emotion && !isRuler && (
                     <span style={{ opacity: 0.6 }}>{EMOTION_EMOJI[msg.emotion] || ""}</span>
                   )}
                   {stats && (
@@ -333,20 +341,22 @@ export default function CouncilChat({
                   )}
                 </div>
                 <div
-                  onClick={() => !disabled && onMessageClick && onMessageClick(msg, i)}
+                  onClick={() => !isRuler && !disabled && onMessageClick && onMessageClick(msg, i)}
                   style={{
-                    background: isSelected ? `${color}22` : "var(--bg-card)",
+                    background: isRuler ? "rgba(201,168,76,0.12)" : isSelected ? `${color}22` : "var(--bg-card)",
                     color: "var(--text-primary)",
                     padding: "8px 12px",
-                    borderRadius: "12px 12px 12px 4px",
+                    borderRadius: isRuler ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
                     fontSize: "13px",
                     lineHeight: 1.6,
-                    border: isSelected ? `1px solid ${color}88` : `1px solid ${color}33`,
+                    border: isRuler ? "1px solid rgba(201,168,76,0.35)" : isSelected ? `1px solid ${color}88` : `1px solid ${color}33`,
                     wordBreak: "break-word",
-                    cursor: onMessageClick && !disabled ? "pointer" : "default",
+                    cursor: !isRuler && onMessageClick && !disabled ? "pointer" : "default",
                     transition: "all 0.2s ease",
+                    display: "inline-block",
+                    textAlign: "left",
                   }}>
-                  {msg.dialogue}
+                  {renderCityLinks(msg.dialogue, onOpenMap)}
                 </div>
 
                 {/* 이 참모의 자율 행동 결과 태그 */}
@@ -355,7 +365,7 @@ export default function CouncilChat({
             </div>
 
             {/* 쓰레드 (이 메시지 아래에 중첩) */}
-            {(msgThreads || msgThreadTyping) && renderThread(msgThreads || [], advisors, msgThreadTyping)}
+            {(msgThreads || msgThreadTyping) && renderThread(msgThreads || [], advisors, msgThreadTyping, onOpenMap)}
           </div>
         );
       })}

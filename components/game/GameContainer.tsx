@@ -28,6 +28,8 @@ import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
 import CouncilChat from "./CouncilChat";
 import BriefingPanel from "./BriefingPanel";
+import MapPopup from "./map/MapPopup";
+import MapSidebar from "./map/MapSidebar";
 import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
 
@@ -136,6 +138,52 @@ export default function GameContainer() {
       setHasSave(false);
     }
   }, [uid]);
+
+  // 와이드스크린 감지 (가로 > 세로 && 최소 900px)
+  const [isWideScreen, setIsWideScreen] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      setIsWideScreen(window.innerWidth > window.innerHeight && window.innerWidth >= 900);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // 지도 사이드바 리사이즈 (% 기반, 최소 20% ~ 최대 80%)
+  const [mapPanelPct, setMapPanelPct] = useState(38);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleResizeStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const handleResizeMove = useCallback((e: React.PointerEvent) => {
+    if (!isResizing || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const pct = ((rect.right - e.clientX) / rect.width) * 100;
+    setMapPanelPct(Math.max(20, Math.min(80, pct)));
+  }, [isResizing]);
+
+  const handleResizeEnd = useCallback(() => { setIsResizing(false); }, []);
+
+  // 지도 팝업 상태
+  const [showMap, setShowMap] = useState(false);
+  const [mapFocusCity, setMapFocusCity] = useState<string | null>(null);
+
+  const handleOpenMap = useCallback((cityName?: string) => {
+    if (isWideScreen) {
+      // 와이드스크린: 사이드바에 포커스만 변경
+      setMapFocusCity(cityName || null);
+    } else {
+      // 좁은 화면: 팝업 열기
+      setMapFocusCity(cityName || null);
+      setShowMap(true);
+    }
+  }, [isWideScreen]);
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
@@ -722,25 +770,35 @@ export default function GameContainer() {
     setReplyTarget(null);
     setIsLoading(true);
 
+    // 메시지 본문에서 참모 이름 감지 (답장 대상이 없을 때)
+    const ADVISOR_NAMES = ["관우", "미축", "간옹", "조운", "제갈량", "장비"];
+    const detectedAdvisor = !reply
+      ? ADVISOR_NAMES.find((name) => text.includes(name))
+      : undefined;
+
     // LLM에 보낼 메시지에 답장 맥락 포함
     const llmMessage = reply
       ? `${reply.msg.speaker}의 "${reply.msg.dialogue}"에 대해 유비가 말합니다: "${text}"`
       : text;
+
+    // replyTo: 쓰레드 답장 > 본문 참모 감지
+    const effectiveReplyTo = reply ? reply.msg.speaker : detectedAdvisor;
 
     if (reply) {
       // 쓰레드에 유저 메시지 추가
       addThreadMessage(reply.index, { type: "user", speaker: "유비", text });
       scrollToBottom();
     } else {
-      // 일반 메시지 (답장 대상 없음)
-      addMessage({ role: "user", content: text });
+      // 일반 메시지 → 참모 회의 채팅 영역에 유비 발언으로 추가
+      setCouncilMessages((prev) => [...prev, { speaker: "유비", dialogue: text, emotion: "calm" as const }]);
+      scrollToBottom();
     }
 
     try {
       const { council, advisorUpdates, elapsedMs } = await doCouncilResult({
         type: "freetext",
         message: llmMessage,
-        replyTo: reply ? reply.msg.speaker : undefined,
+        replyTo: effectiveReplyTo,
       });
 
       if (reply) {
@@ -753,8 +811,16 @@ export default function GameContainer() {
         });
         await animateThreadMessages(reply.index, sorted);
       } else {
-        // 일반 응답 (AI 대기 시간만큼 딜레이 차감)
-        await animateCouncilMessages(council.council_messages, false, { apiElapsedMs: elapsedMs });
+        // 본문에서 감지된 참모가 맨 앞에 오도록 정렬
+        let msgs = council.council_messages;
+        if (detectedAdvisor) {
+          msgs = [...msgs].sort((a, b) => {
+            if (a.speaker === detectedAdvisor && b.speaker !== detectedAdvisor) return -1;
+            if (a.speaker !== detectedAdvisor && b.speaker === detectedAdvisor) return 1;
+            return 0;
+          });
+        }
+        await animateCouncilMessages(msgs, false, { apiElapsedMs: elapsedMs });
       }
 
       if (council.state_changes) {
@@ -880,14 +946,22 @@ export default function GameContainer() {
   const hasApprovalRequests = approvalRequests.length > 0;
 
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       height: "100dvh",
       display: "flex",
-      flexDirection: "column",
+      flexDirection: "row",
       background: "var(--bg-primary)",
       position: "relative",
       overflow: "hidden",
     }}>
+      {/* 좌측: 메뉴 + 자원 + 채팅 전체 */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        minHeight: 0,
+      }}>
       <StatusBar state={{
         rulerName: playerFaction.rulerName,
         gold: playerFaction.gold,
@@ -903,6 +977,12 @@ export default function GameContainer() {
         pendingTasks: playerFaction.pendingTasks,
       }} deltas={deltas}>
         <UserBadge user={user} onLogin={() => {}} onLogout={logout} />
+        <button onClick={() => handleOpenMap()} style={{
+          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
+          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
+        }}>
+          📍
+        </button>
         <button onClick={() => setShowWorldStatus(true)} style={{
           background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
@@ -920,206 +1000,256 @@ export default function GameContainer() {
 
       <TaskPanel tasks={tasks} show={showTasks} onToggle={() => setShowTasks(false)} />
 
-      {/* NPC Processing Indicator */}
-      {npcProcessing && (
-        <div style={{
-          padding: "6px 14px",
-          background: "rgba(201,168,76,0.1)",
-          borderBottom: "1px solid var(--border)",
-          textAlign: "center",
-          fontSize: "11px",
-          color: "var(--gold)",
-          animation: "pulse 1.5s infinite",
-        }}>
-          ⏳ 타국 군주들이 행동 중...
-        </div>
-      )}
+      {/* 메인 컨텐츠 영역 */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
 
-      {/* AI Provider Toggle + Token Usage */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-        padding: "2px 8px", fontSize: "10px",
-        color: "var(--text-dim)", borderBottom: "1px solid var(--border)",
-        background: "var(--bg-secondary)", letterSpacing: "0.5px",
-      }}>
-        <button
-          onClick={() => setLlmProvider(llmProvider === "openai" ? "claude" : "openai")}
-          disabled={isLoading || prefsLoading}
-          style={{
-            background: llmProvider === "claude" ? "rgba(204,120,50,0.15)" : "rgba(100,180,100,0.15)",
-            border: `1px solid ${llmProvider === "claude" ? "rgba(204,120,50,0.4)" : "rgba(100,180,100,0.4)"}`,
-            borderRadius: "10px", padding: "1px 8px", fontSize: "10px",
-            color: llmProvider === "claude" ? "#cc7832" : "#64b464",
-            cursor: isLoading || prefsLoading ? "not-allowed" : "pointer",
-            opacity: isLoading || prefsLoading ? 0.5 : 1,
-            fontWeight: 600,
-          }}
-        >
-          {llmProvider === "claude" ? "Claude" : "GPT-4o"}
-        </button>
-        {(tokenUsage.input > 0 || tokenUsage.output > 0) && (
-          <span>
-            턴당 ▲{Math.round(tokenUsage.input / Math.max(1, worldState.currentTurn)).toLocaleString()} ▼{Math.round(tokenUsage.output / Math.max(1, worldState.currentTurn)).toLocaleString()}
-          </span>
-        )}
-      </div>
+          {/* NPC Processing Indicator */}
+          {npcProcessing && (
+            <div style={{
+              padding: "6px 14px",
+              background: "rgba(201,168,76,0.1)",
+              borderBottom: "1px solid var(--border)",
+              textAlign: "center",
+              fontSize: "11px",
+              color: "var(--gold)",
+              animation: "pulse 1.5s infinite",
+            }}>
+              ⏳ 타국 군주들이 행동 중...
+            </div>
+          )}
 
-      {/* Chat Area */}
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
-        {/* 시스템/유저 메시지 */}
-        {messages.map((msg, i) => <ChatBubble key={i} message={msg} />)}
+          {/* AI Provider Toggle + Token Usage */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+            padding: "2px 8px", fontSize: "10px",
+            color: "var(--text-dim)", borderBottom: "1px solid var(--border)",
+            background: "var(--bg-secondary)", letterSpacing: "0.5px",
+          }}>
+            <button
+              onClick={() => setLlmProvider(llmProvider === "openai" ? "claude" : "openai")}
+              disabled={isLoading || prefsLoading}
+              style={{
+                background: llmProvider === "claude" ? "rgba(204,120,50,0.15)" : "rgba(100,180,100,0.15)",
+                border: `1px solid ${llmProvider === "claude" ? "rgba(204,120,50,0.4)" : "rgba(100,180,100,0.4)"}`,
+                borderRadius: "10px", padding: "1px 8px", fontSize: "10px",
+                color: llmProvider === "claude" ? "#cc7832" : "#64b464",
+                cursor: isLoading || prefsLoading ? "not-allowed" : "pointer",
+                opacity: isLoading || prefsLoading ? 0.5 : 1,
+                fontWeight: 600,
+              }}
+            >
+              {llmProvider === "claude" ? "Claude" : "GPT-4o"}
+            </button>
+            {(tokenUsage.input > 0 || tokenUsage.output > 0) && (
+              <span>
+                턴당 ▲{Math.round(tokenUsage.input / Math.max(1, worldState.currentTurn)).toLocaleString()} ▼{Math.round(tokenUsage.output / Math.max(1, worldState.currentTurn)).toLocaleString()}
+              </span>
+            )}
+          </div>
 
-        {/* Phase 0: 정세 브리핑 패널 */}
-        {briefing && (
-          <BriefingPanel
-            briefing={briefing}
-            onSelectDirective={handleDirectiveSelect}
-            onSkip={handleBriefingSkip}
-          />
-        )}
+          {/* Chat Area */}
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
+            {/* 시스템/유저 메시지 */}
+            {messages.map((msg, i) => <ChatBubble key={i} message={msg} />)}
 
-        {/* 이전 회의 기록 (읽기 전용) */}
-        {prevCouncil && (
-          <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
-            <CouncilChat
-              messages={prevCouncil.messages}
-              advisors={advisors}
-              councilNumber={prevCouncil.number}
+            {/* Phase 0: 정세 브리핑 패널 */}
+            {briefing && (
+              <BriefingPanel
+                briefing={briefing}
+                onSelectDirective={handleDirectiveSelect}
+                onSkip={handleBriefingSkip}
+              />
+            )}
+
+            {/* 이전 회의 기록 (읽기 전용) */}
+            {prevCouncil && (
+              <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
+                <CouncilChat
+                  messages={prevCouncil.messages}
+                  advisors={advisors}
+                  councilNumber={prevCouncil.number}
+                  onOpenMap={handleOpenMap}
+                />
+              </div>
+            )}
+
+            {/* 현재 참모 회의 채팅 */}
+            {(councilMessages.length > 0 || typingIndicator) && (
+              <CouncilChat
+                messages={councilMessages}
+                advisors={advisors}
+                councilNumber={councilNumber}
+                streamingMessage={councilStreamMsg}
+                typingIndicator={typingIndicator}
+                autoActions={autoActions}
+                approvalRequests={approvalRequests}
+                threads={threads}
+                threadTyping={threadTyping}
+                onApprove={handleApproval}
+                onReject={handleRejection}
+                onMessageClick={handleMessageClick}
+                replyTarget={replyTarget}
+                disabled={isLoading}
+                onOpenMap={handleOpenMap}
+              />
+            )}
+
+            {/* 스트리밍 중 (현재 회의 메시지와 타이핑 인디케이터가 없을 때만) */}
+            {councilMessages.length === 0 && !typingIndicator && councilStreamMsg && (
+              <CouncilChat
+                messages={[]}
+                advisors={advisors}
+                councilNumber={councilNumber}
+                streamingMessage={councilStreamMsg}
+                onOpenMap={handleOpenMap}
+              />
+            )}
+
+            {isLoading && !councilStreamMsg && !typingIndicator && !threadTyping && (
+              <div style={{ padding: "8px 56px", fontSize: "12px", color: "var(--text-dim)", animation: "pulse 1.5s infinite" }}>
+                🪶 참모들이 논의 중...
+              </div>
+            )}
+          </div>
+
+          {/* 답장 인디케이터 */}
+          {replyTarget && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              padding: "6px 14px",
+              background: "rgba(201,168,76,0.08)",
+              borderTop: "1px solid var(--border)",
+              fontSize: "12px",
+              color: "var(--text-secondary)",
+            }}>
+              <span style={{ color: "var(--gold)", fontWeight: 600 }}>
+                💬 {replyTarget.msg.speaker}
+              </span>
+              <span style={{
+                flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                opacity: 0.7,
+              }}>
+                {replyTarget.msg.dialogue}
+              </span>
+              <button
+                onClick={() => setReplyTarget(null)}
+                style={{
+                  background: "none", border: "none", color: "var(--text-dim)",
+                  cursor: "pointer", fontSize: "14px", padding: "0 4px", flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Input */}
+          <div style={{
+            display: "flex", gap: "8px", padding: "10px 14px",
+            background: "var(--bg-secondary)", borderTop: replyTarget ? "none" : "1px solid var(--border)",
+          }}>
+            <button
+              onClick={handleMicToggle}
+              disabled={isLoading}
+              style={{
+                background: isListening ? "rgba(212,68,62,0.2)" : "rgba(255,255,255,0.05)",
+                border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
+                borderRadius: "8px",
+                padding: "10px 12px",
+                fontSize: "14px",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                color: isListening ? "var(--danger)" : "var(--text-secondary)",
+                animation: isListening ? "recording-pulse 1.5s infinite" : "none",
+                flexShrink: 0,
+              }}
+            >
+              🎤
+            </button>
+            <input
+              value={isListening ? partialTranscript : input}
+              onChange={(e) => { if (!isListening) setInput(e.target.value); }}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={isListening ? "말씀하세요..." : hasApprovalRequests ? "결재를 처리하거나, 참모들에게 명을 내리십시오..." : "참모들에게 명을 내리십시오..."}
+              disabled={isLoading || isListening}
+              style={{
+                flex: 1, background: "rgba(255,255,255,0.05)",
+                border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
+                borderRadius: "8px",
+                padding: "10px 14px", color: "var(--text-primary)", fontSize: "13.5px",
+              }}
             />
+            <button
+              onClick={sendMessage}
+              disabled={isLoading || !input.trim()}
+              style={{
+                background: isLoading || !input.trim() ? "rgba(201,168,76,0.15)" : "var(--gold)",
+                color: isLoading || !input.trim() ? "var(--text-dim)" : "var(--bg-primary)",
+                border: "none", borderRadius: "8px", padding: "10px 16px",
+                fontSize: "13px", cursor: isLoading ? "not-allowed" : "pointer", fontWeight: 700,
+              }}
+            >
+              전송
+            </button>
+            {!isLoading && (messages.length + councilMessages.length) > 2 && !briefing && (
+              <button onClick={handleNextTurn} style={{
+                background: "rgba(255,255,255,0.05)", color: "var(--gold)",
+                border: "1px solid var(--border)", borderRadius: "8px",
+                padding: "10px 12px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600,
+              }}>
+                다음턴
+              </button>
+            )}
           </div>
-        )}
 
-        {/* 현재 참모 회의 채팅 */}
-        {(councilMessages.length > 0 || typingIndicator) && (
-          <CouncilChat
-            messages={councilMessages}
-            advisors={advisors}
-            councilNumber={councilNumber}
-            streamingMessage={councilStreamMsg}
-            typingIndicator={typingIndicator}
-            autoActions={autoActions}
-            approvalRequests={approvalRequests}
-            threads={threads}
-            threadTyping={threadTyping}
-            onApprove={handleApproval}
-            onReject={handleRejection}
-            onMessageClick={handleMessageClick}
-            replyTarget={replyTarget}
-            disabled={isLoading}
-          />
-        )}
-
-        {/* 스트리밍 중 (현재 회의 메시지와 타이핑 인디케이터가 없을 때만) */}
-        {councilMessages.length === 0 && !typingIndicator && councilStreamMsg && (
-          <CouncilChat
-            messages={[]}
-            advisors={advisors}
-            councilNumber={councilNumber}
-            streamingMessage={councilStreamMsg}
-          />
-        )}
-
-        {isLoading && !councilStreamMsg && !typingIndicator && !threadTyping && (
-          <div style={{ padding: "8px 56px", fontSize: "12px", color: "var(--text-dim)", animation: "pulse 1.5s infinite" }}>
-            🪶 참모들이 논의 중...
-          </div>
-        )}
-      </div>
-
-      {/* 답장 인디케이터 */}
-      {replyTarget && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "8px",
-          padding: "6px 14px",
-          background: "rgba(201,168,76,0.08)",
-          borderTop: "1px solid var(--border)",
-          fontSize: "12px",
-          color: "var(--text-secondary)",
-        }}>
-          <span style={{ color: "var(--gold)", fontWeight: 600 }}>
-            💬 {replyTarget.msg.speaker}
-          </span>
-          <span style={{
-            flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            opacity: 0.7,
-          }}>
-            {replyTarget.msg.dialogue}
-          </span>
-          <button
-            onClick={() => setReplyTarget(null)}
-            style={{
-              background: "none", border: "none", color: "var(--text-dim)",
-              cursor: "pointer", fontSize: "14px", padding: "0 4px", flexShrink: 0,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Input */}
-      <div style={{
-        display: "flex", gap: "8px", padding: "10px 14px",
-        background: "var(--bg-secondary)", borderTop: replyTarget ? "none" : "1px solid var(--border)",
-      }}>
-        <button
-          onClick={handleMicToggle}
-          disabled={isLoading}
-          style={{
-            background: isListening ? "rgba(212,68,62,0.2)" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
-            borderRadius: "8px",
-            padding: "10px 12px",
-            fontSize: "14px",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            color: isListening ? "var(--danger)" : "var(--text-secondary)",
-            animation: isListening ? "recording-pulse 1.5s infinite" : "none",
-            flexShrink: 0,
-          }}
-        >
-          🎤
-        </button>
-        <input
-          value={isListening ? partialTranscript : input}
-          onChange={(e) => { if (!isListening) setInput(e.target.value); }}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder={isListening ? "말씀하세요..." : hasApprovalRequests ? "결재를 처리하거나, 참모들에게 명을 내리십시오..." : "참모들에게 명을 내리십시오..."}
-          disabled={isLoading || isListening}
-          style={{
-            flex: 1, background: "rgba(255,255,255,0.05)",
-            border: `1px solid ${isListening ? "var(--danger)" : "var(--border)"}`,
-            borderRadius: "8px",
-            padding: "10px 14px", color: "var(--text-primary)", fontSize: "13.5px",
-          }}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={isLoading || !input.trim()}
-          style={{
-            background: isLoading || !input.trim() ? "rgba(201,168,76,0.15)" : "var(--gold)",
-            color: isLoading || !input.trim() ? "var(--text-dim)" : "var(--bg-primary)",
-            border: "none", borderRadius: "8px", padding: "10px 16px",
-            fontSize: "13px", cursor: isLoading ? "not-allowed" : "pointer", fontWeight: 700,
-          }}
-        >
-          전송
-        </button>
-        {!isLoading && messages.length > 2 && !briefing && (
-          <button onClick={handleNextTurn} style={{
-            background: "rgba(255,255,255,0.05)", color: "var(--gold)",
-            border: "1px solid var(--border)", borderRadius: "8px",
-            padding: "10px 12px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600,
-          }}>
-            다음턴
-          </button>
-        )}
-      </div>
+      </div>{/* 메인 컨텐츠 영역 끝 */}
 
       {/* Modals */}
       <WorldStatus worldState={worldState} show={showWorldStatus} onClose={() => setShowWorldStatus(false)} />
+      <MapPopup
+        worldState={worldState}
+        show={showMap}
+        onClose={() => setShowMap(false)}
+        focusCity={mapFocusCity}
+      />
       {battleReport && (
         <BattleReport result={battleReport} onClose={() => setBattleReport(null)} />
       )}
+
+      </div>{/* 좌측 컬럼 끝 */}
+
+      {/* 리사이즈 드래그 핸들 */}
+      {isWideScreen && (
+        <div
+          onPointerDown={handleResizeStart}
+          onPointerMove={handleResizeMove}
+          onPointerUp={handleResizeEnd}
+          onPointerLeave={handleResizeEnd}
+          style={{
+            width: "6px",
+            cursor: "col-resize",
+            background: isResizing ? "var(--gold)" : "var(--border)",
+            opacity: isResizing ? 0.8 : 0.5,
+            transition: isResizing ? "none" : "opacity 0.2s, background 0.2s",
+            flexShrink: 0,
+            zIndex: 5,
+          }}
+          onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "0.8"; }}
+          onMouseLeave={(e) => { if (!isResizing) (e.target as HTMLElement).style.opacity = "0.5"; }}
+        />
+      )}
+
+      {/* 우측: 상시 지도 사이드바 (와이드스크린 전용, 전체 높이) */}
+      {isWideScreen && (
+        <div style={{
+          width: `${mapPanelPct}%`,
+          flexShrink: 0,
+          height: "100%",
+          userSelect: isResizing ? "none" : "auto",
+        }}>
+          <MapSidebar worldState={worldState} focusCity={mapFocusCity} />
+        </div>
+      )}
+
     </div>
   );
 }

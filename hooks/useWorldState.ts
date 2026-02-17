@@ -3,6 +3,7 @@ import type { WorldState, Faction, FactionId, StateChanges, ResourceDeltas } fro
 import type { ChatMessage } from "@/types/chat";
 import { applyStateChanges } from "@/lib/game/stateManager";
 import { INITIAL_FACTIONS, INITIAL_RELATIONS } from "@/constants/factions";
+import { ALL_CITY_NAMES } from "@/constants/mapPositions";
 
 const ZERO_DELTAS: ResourceDeltas = { gold: 0, food: 0, troops: 0, popularity: 0 };
 
@@ -99,9 +100,43 @@ export function useWorldState() {
         pendingMessage = resultMessage;
       }
 
+      // 점령 도시 감지: conquered_cities 또는 이벤트/메시지에서 자동 추출
+      let conqueredNames = changes.conquered_cities || [];
+
+      // 폴백: conquered_cities 없으면 new_events/result_message에서 도시명+점령 키워드 감지
+      if (conqueredNames.length === 0) {
+        const conquestKeywords = ["점령", "함락", "확보", "탈취", "장악"];
+        const textSources = [
+          ...(changes.new_events || []),
+          changes.result_message || "",
+        ].join(" ");
+        if (conquestKeywords.some((kw) => textSources.includes(kw))) {
+          const detected = ALL_CITY_NAMES.filter(
+            (name) => textSources.includes(name) && !player.cities.some((c) => c.cityName === name)
+          );
+          if (detected.length > 0) conqueredNames = detected;
+        }
+      }
+
+      const conqueredCities: typeof player.cities = [];
+
+      let updatedFactions = prev.factions;
+      if (conqueredNames.length > 0) {
+        updatedFactions = updatedFactions.map((f) => {
+          if (f.isPlayer) return f; // 플레이어는 아래서 별도 처리
+          const lost = f.cities.filter((c) => conqueredNames.includes(c.cityName));
+          if (lost.length === 0) return f;
+          conqueredCities.push(...lost);
+          return {
+            ...f,
+            cities: f.cities.filter((c) => !conqueredNames.includes(c.cityName)),
+          };
+        });
+      }
+
       return {
         ...prev,
-        factions: prev.factions.map((f) =>
+        factions: updatedFactions.map((f) =>
           f.isPlayer
             ? {
                 ...f,
@@ -109,7 +144,7 @@ export function useWorldState() {
                 food: nextState.food,
                 totalTroops: nextState.totalTroops,
                 popularity: nextState.popularity,
-                cities: nextState.cities,
+                cities: [...nextState.cities, ...conqueredCities.map((c) => ({ ...c, garrison: Math.min(c.garrison, 10000) }))],
                 generals: nextState.generals,
                 recentEvents: nextState.recentEvents,
               }

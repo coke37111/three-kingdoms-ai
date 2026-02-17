@@ -77,6 +77,7 @@ export interface StateChanges {
   general_updates?: GeneralUpdate[];
   new_events?: string[];
   result_message?: string;
+  conquered_cities?: string[];
 }
 
 export interface ResourceDeltas {
