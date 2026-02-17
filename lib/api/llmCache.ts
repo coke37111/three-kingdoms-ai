@@ -78,9 +78,9 @@ export function getCached(key: string): NormalizedLLMResponse | null {
     return null;
   }
 
-  // LRU: 접근된 항목을 맨 뒤로 이동
+  // LRU: 접근된 항목을 맨 뒤로 이동 + timestamp 갱신
   cache.delete(key);
-  cache.set(key, entry);
+  cache.set(key, { ...entry, timestamp: Date.now() });
   return entry.data;
 }
 

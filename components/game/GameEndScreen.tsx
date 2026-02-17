@@ -51,10 +51,8 @@ export default function GameEndScreen({ result, onRestart }: GameEndScreenProps)
         marginBottom: "24px",
         letterSpacing: "2px",
       }}>
-        {result.reason === "천하통일" && "모든 영토를 정복하였습니다"}
-        {result.reason === "천명" && "천명을 받아 천하를 통치합니다"}
-        {result.reason === "멸망" && "모든 영토를 잃었습니다"}
-        {result.reason === "파산" && "자원이 고갈되었습니다"}
+        {result.reason === "천하통일" && "모든 적 본성을 함락하였습니다"}
+        {result.reason === "멸망" && "본성을 빼앗겼습니다"}
       </div>
 
       <div style={{
@@ -74,8 +72,7 @@ export default function GameEndScreen({ result, onRestart }: GameEndScreenProps)
 
         {[
           { label: "총 턴수", value: `${result.stats.totalTurns}턴` },
-          { label: "보유 도시", value: `${result.stats.citiesOwned}개` },
-          { label: "보유 장수", value: `${result.stats.generalsRecruited}명` },
+          { label: "보유 성채", value: `${result.stats.castlesOwned}개` },
           { label: "전투 승리", value: `${result.stats.battlesWon}회` },
           { label: "전투 패배", value: `${result.stats.battlesLost}회` },
         ].map((s, i) => (
@@ -83,7 +80,7 @@ export default function GameEndScreen({ result, onRestart }: GameEndScreenProps)
             display: "flex",
             justifyContent: "space-between",
             padding: "4px 0",
-            borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.05)" : "none",
+            borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.05)" : "none",
           }}>
             <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>{s.label}</span>
             <span style={{ fontSize: "12px", fontWeight: 700 }}>{s.value}</span>

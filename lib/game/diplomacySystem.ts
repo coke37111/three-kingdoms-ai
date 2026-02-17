@@ -1,164 +1,117 @@
-import type { DiplomaticRelation, FactionId, RelationType, Faction, Treaty } from "@/types/game";
+import type { DiplomaticRelation, FactionId, Faction } from "@/types/game";
 
-export type DiplomaticAction =
-  | "동맹_제안"
-  | "교역_제안"
-  | "불가침_조약"
-  | "선전포고"
-  | "공물_요구"
-  | "관계_개선";
+export type DiplomaticAction = "관계_개선" | "관계_악화" | "지원_요청" | "무역";
 
 export interface DiplomacyResult {
   success: boolean;
   message: string;
-  relationChange: number;
-  newRelationType?: RelationType;
-  newTreaty?: Treaty;
+  scoreChange: number;
+  dpCost: number;
+  ipGain?: number;  // 무역 시 IP 획득
 }
 
-function getRelation(relations: DiplomaticRelation[], a: FactionId, b: FactionId): DiplomaticRelation | undefined {
-  return relations.find(
-    (r) => (r.factionA === a && r.factionB === b) || (r.factionA === b && r.factionB === a),
-  );
-}
-
-function scoreToRelationType(score: number): RelationType {
-  if (score >= 60) return "동맹";
-  if (score >= 20) return "우호";
-  if (score >= -20) return "중립";
-  if (score >= -60) return "적대";
-  return "전쟁";
-}
-
+/** 관계 조회 */
 export function getRelationBetween(
   relations: DiplomaticRelation[],
   a: FactionId,
   b: FactionId,
 ): DiplomaticRelation {
-  const existing = getRelation(relations, a, b);
+  const existing = relations.find(
+    r => (r.factionA === a && r.factionB === b) || (r.factionA === b && r.factionB === a),
+  );
   if (existing) return existing;
-  return { factionA: a, factionB: b, type: "중립", score: 0, treaties: [] };
+  return { factionA: a, factionB: b, score: 0 };
 }
 
+/** 관계 점수 → 텍스트 */
+export function scoreToLabel(score: number): string {
+  if (score >= 7) return "동맹";
+  if (score >= 3) return "우호";
+  if (score >= -3) return "중립";
+  if (score >= -7) return "적대";
+  return "전쟁";
+}
+
+/** 외교 행동 실행 */
 export function executeDiplomaticAction(
   action: DiplomaticAction,
   initiator: Faction,
   target: Faction,
   relation: DiplomaticRelation,
 ): DiplomacyResult {
-  const currentScore = relation.score;
+  const dpAvailable = initiator.points.dp;
 
   switch (action) {
-    case "동맹_제안": {
-      if (currentScore < 30) {
-        return { success: false, message: `${target.rulerName}이(가) 동맹을 거절했습니다. 관계가 충분하지 않습니다.`, relationChange: -5 };
+    case "관계_개선": {
+      if (dpAvailable < 2) {
+        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
-      const acceptChance = Math.min(0.9, (currentScore + target.personality.diplomacy) / 200);
-      if (Math.random() < acceptChance) {
-        return {
-          success: true,
-          message: `${target.rulerName}이(가) 동맹을 수락했습니다!`,
-          relationChange: 20,
-          newRelationType: "동맹",
-          newTreaty: { type: "군사동맹", turnsRemaining: 10 },
-        };
-      }
-      return { success: false, message: `${target.rulerName}이(가) 동맹을 정중히 거절했습니다.`, relationChange: -3 };
-    }
-
-    case "교역_제안": {
-      if (currentScore < -30) {
-        return { success: false, message: `${target.rulerName}이(가) 교역을 거부했습니다.`, relationChange: 0 };
-      }
-      const acceptChance = Math.min(0.85, (currentScore + 50 + target.personality.diplomacy) / 200);
-      if (Math.random() < acceptChance) {
-        return {
-          success: true,
-          message: `${target.rulerName}과(와) 교역 협정을 맺었습니다.`,
-          relationChange: 10,
-          newTreaty: { type: "교역", turnsRemaining: 5 },
-        };
-      }
-      return { success: false, message: `${target.rulerName}이(가) 교역을 거절했습니다.`, relationChange: -2 };
-    }
-
-    case "불가침_조약": {
-      if (currentScore < -10) {
-        return { success: false, message: `${target.rulerName}이(가) 불가침 조약을 거부했습니다.`, relationChange: 0 };
-      }
-      const acceptChance = Math.min(0.8, (currentScore + 40 + target.personality.diplomacy) / 200);
-      if (Math.random() < acceptChance) {
-        return {
-          success: true,
-          message: `${target.rulerName}과(와) 불가침 조약을 체결했습니다.`,
-          relationChange: 15,
-          newTreaty: { type: "불가침", turnsRemaining: 8 },
-        };
-      }
-      return { success: false, message: `${target.rulerName}이(가) 불가침 조약을 거절했습니다.`, relationChange: -3 };
-    }
-
-    case "선전포고": {
+      const change = 1 + (Math.random() < 0.3 ? 1 : 0);
       return {
         success: true,
-        message: `${initiator.rulerName}이(가) ${target.rulerName}에게 선전포고했습니다!`,
-        relationChange: -50,
-        newRelationType: "전쟁",
+        message: `${target.rulerName}과(와)의 관계가 개선되었습니다. (+${change})`,
+        scoreChange: change,
+        dpCost: 2,
       };
     }
 
-    case "공물_요구": {
-      if (currentScore > 20 || initiator.totalTroops < target.totalTroops * 0.5) {
-        return { success: false, message: `${target.rulerName}이(가) 공물 요구를 무시했습니다.`, relationChange: -15 };
+    case "관계_악화": {
+      if (dpAvailable < 2) {
+        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
-      const fearFactor = (initiator.totalTroops / target.totalTroops) * 100;
-      const acceptChance = Math.min(0.6, (fearFactor - 50) / 100 * (1 - target.personality.riskTolerance / 100));
-      if (Math.random() < acceptChance) {
-        return {
-          success: true,
-          message: `${target.rulerName}이(가) 공물을 바쳤습니다.`,
-          relationChange: -20,
-          newTreaty: { type: "공물", turnsRemaining: 3 },
-        };
-      }
-      return { success: false, message: `${target.rulerName}이(가) 공물 요구를 거부했습니다!`, relationChange: -25 };
-    }
-
-    case "관계_개선": {
-      const improvement = 5 + Math.floor(Math.random() * 10);
       return {
         success: true,
-        message: `${target.rulerName}과(와)의 관계가 개선되었습니다.`,
-        relationChange: improvement,
+        message: `${target.rulerName}에 대한 이간계를 펼쳤습니다. (-2)`,
+        scoreChange: -2,
+        dpCost: 2,
+      };
+    }
+
+    case "지원_요청": {
+      if (dpAvailable < 3) {
+        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+      }
+      const success = relation.score >= 3 && Math.random() < 0.6;
+      return {
+        success,
+        message: success
+          ? `${target.rulerName}이(가) 원군을 보냈습니다!`
+          : `${target.rulerName}이(가) 요청을 거절했습니다.`,
+        scoreChange: success ? 0 : -1,
+        dpCost: 3,
+      };
+    }
+
+    case "무역": {
+      if (dpAvailable < 1) {
+        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+      }
+      if (relation.score < -3) {
+        return { success: false, message: `${target.rulerName}이(가) 무역을 거부했습니다.`, scoreChange: 0, dpCost: 0 };
+      }
+      const ipGain = 10 + Math.floor(Math.random() * 10);
+      return {
+        success: true,
+        message: `${target.rulerName}과(와) 무역으로 내정포인트 ${ipGain}를 획득했습니다.`,
+        scoreChange: 1,
+        dpCost: 1,
+        ipGain,
       };
     }
   }
 }
 
-export function updateRelation(
+/** 관계 점수 업데이트 */
+export function updateRelationScore(
   relations: DiplomaticRelation[],
   a: FactionId,
   b: FactionId,
-  result: DiplomacyResult,
+  change: number,
 ): DiplomaticRelation[] {
-  return relations.map((r) => {
+  return relations.map(r => {
     if ((r.factionA === a && r.factionB === b) || (r.factionA === b && r.factionB === a)) {
-      const newScore = Math.max(-100, Math.min(100, r.score + result.relationChange));
-      const newType = result.newRelationType || scoreToRelationType(newScore);
-      const newTreaties = result.newTreaty
-        ? [...r.treaties, result.newTreaty]
-        : r.treaties;
-      return { ...r, score: newScore, type: newType, treaties: newTreaties };
+      return { ...r, score: Math.max(-10, Math.min(10, r.score + change)) };
     }
     return r;
   });
-}
-
-export function advanceTreaties(relations: DiplomaticRelation[]): DiplomaticRelation[] {
-  return relations.map((r) => ({
-    ...r,
-    treaties: r.treaties
-      .map((t) => ({ ...t, turnsRemaining: t.turnsRemaining - 1 }))
-      .filter((t) => t.turnsRemaining > 0),
-  }));
 }

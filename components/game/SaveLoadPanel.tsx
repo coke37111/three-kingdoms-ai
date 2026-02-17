@@ -92,7 +92,7 @@ export default function SaveLoadPanel({ show, mode, onClose, onSave, onLoad, uid
                       ☁️ {slot.name}
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-dim)", marginTop: "2px" }}>
-                      {slot.playerFactionName} · {slot.turnCount}턴 · {slot.playerCityCount}도시 · {new Date(slot.timestamp).toLocaleString("ko-KR")}
+                      {slot.playerFactionName} · {slot.turnCount}턴 · {slot.playerCastleCount}성채 · {new Date(slot.timestamp).toLocaleString("ko-KR")}
                     </div>
                   </>
                 )}

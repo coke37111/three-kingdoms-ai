@@ -43,7 +43,7 @@ export default function FactionBanner({ faction, compact }: FactionBannerProps) 
           {faction.rulerName}
         </div>
         <div style={{ fontSize: "10px", color: "var(--text-dim)" }}>
-          {faction.cities.length}도시 · ⚔️ {faction.totalTroops.toLocaleString()}
+          🏯 {faction.castles.length}성채 · ⚔️ 군사 {faction.points.mp.toLocaleString()}
         </div>
       </div>
     </div>

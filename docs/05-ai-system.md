@@ -4,9 +4,9 @@
 
 게임은 세 가지 AI 호출을 사용한다:
 
-1. **참모 회의 AI** — 5인 참모가 자율 행동 보고 + 회의 대화 (Phase 1)
-2. **참모 반응 AI** — 결재/자유입력에 대한 참모 반응 (Phase 2)
-3. **NPC AI** — 3개 NPC 세력의 턴 행동 결정 (Phase 3, 배치 처리)
+1. **Phase 1+3 통합 AI** — 4인 참모가 상태 보고 + 계획 보고 (callCouncilLLM)
+2. **Phase 2/4 반응 AI** — 군주 발언에 대한 참모 반응 (callReactionLLM)
+3. **NPC AI** — 2개 NPC 세력의 턴 행동 결정 (Phase 5, 배치 처리)
 
 ---
 
@@ -40,34 +40,34 @@
 
 ---
 
-## 참모 회의 AI (Phase 1)
+## Phase 1+3 통합 AI
 
-> 파일: `lib/prompts/councilPrompt.ts` → `buildCouncilPrompt()`
+> 파일: `lib/prompts/councilPrompt.ts` → `buildPhase1And3Prompt()`
 
 ### 프롬프트 구조
 
 ```
 [역할 정의]
-- 삼국지 전략 게임의 참모 시스템
-- 5인 참모가 각자 역할에 맞게 자율 행동
+- 삼국지 전략 게임의 4인 참모 시스템
+- 5-Phase 회의의 Phase 1(상태보고) + Phase 3(계획보고) 동시 생성
 
 [참모 목록]
+- 제갈량(전략), 관우(군사), 방통(외교), 미축(내정)
 - 이름, 역할, 성격, 충성도, 열정
 
 [현재 세력 상황]
-- 플레이어 자원, 도시, 장수 (JSON)
+- 포인트 (AP/SP/MP/IP/DP)
+- 성채 목록, 시설 레벨, 군주 레벨
+- 부상병 현황
 
 [천하 정세]
-- NPC 세력별 자원/도시/장수 요약
-- 외교 관계
-
-[회의 컨텍스트]
-- 이벤트, 상황 설명
+- NPC 세력별 포인트/성채 요약
+- 외교 관계 (-10~+10)
 
 [응답 규칙]
-- council_messages: 3~5개 (제갈량 + 1~2명)
-- auto_actions: 참모별 자율 행동 보고 (state_changes 포함)
-- approval_requests: 0~2개 (중대 사안만)
+- council_messages: Phase 1 대사 + Phase 3 대사 (phase 필드로 구분)
+- status_reports: 참모별 현황 보고
+- plan_reports: 참모별 계획 보고
 - advisor_updates: 충성도/열정 변동
 ```
 
@@ -76,83 +76,80 @@
 ```json
 {
   "council_messages": [
-    { "speaker": "제갈량", "dialogue": "주공, ...", "emotion": "calm" },
-    { "speaker": "미축", "dialogue": "금 수입이...", "emotion": "thoughtful" }
+    { "speaker": "제갈량", "dialogue": "주공, 현 정세를...", "emotion": "calm", "phase": 1 },
+    { "speaker": "미축", "dialogue": "내정 보고를...", "emotion": "thoughtful", "phase": 1 },
+    { "speaker": "관우", "dialogue": "군사 계획을...", "emotion": "excited", "phase": 3 }
   ],
-  "auto_actions": [
-    {
-      "advisor": "미축",
-      "role": "내정",
-      "action": "세금 징수",
-      "result": "금 320 확보",
-      "state_changes": { "gold_delta": 320 }
-    }
+  "status_reports": [
+    { "speaker": "미축", "report": "IP 30 확보, 시설 운영 정상", "point_changes": { "ip_delta": 5 } }
   ],
-  "approval_requests": [
-    {
-      "id": "req_01",
-      "advisor": "관우",
-      "subject": "대규모 모병",
-      "description": "신야 1만 모집",
-      "cost": { "gold_delta": -3000, "troops_delta": 10000 },
-      "benefit": "군사력 증강",
-      "urgency": "important"
-    }
+  "plan_reports": [
+    { "speaker": "관우", "plan": "양양 방면 정찰 강화", "expected_points": { "mp_troops_delta": 5000 } }
   ],
-  "state_changes": { "gold_delta": 320 },
+  "state_changes": { "point_deltas": { "ip_delta": 5 } },
   "advisor_updates": [
     { "name": "관우", "enthusiasm_delta": 5, "loyalty_delta": 0 }
   ]
 }
 ```
 
-### 발언자 제한
+### 발언자 다양성
 
-- 매 회의 **제갈량 + 1~2명**만 발언 (동시 5명 금지)
-- 역할 관련 참모가 우선 발언
+- `ensureSpeakerDiversity()`: 모든 메시지가 같은 참모일 경우 키워드 기반으로 재배정
+- ADVISOR_KEYWORDS: 제갈량(전략/스킬), 관우(군사/전투), 미축(내정/시설), 방통(외교/동맹)
 
 ---
 
-## 참모 반응 AI (Phase 2)
+## Phase 2/4 반응 AI
 
-> 파일: `lib/prompts/councilPrompt.ts` → `buildCouncilResultPrompt()`
+> 파일: `lib/prompts/councilPrompt.ts` → `buildPhase2Prompt()`, `buildPhase4Prompt()`
 
-### 두 가지 입력 유형
+### 호출 조건
 
-**결재 처리:**
-```typescript
-{ type: "approval", id: string, decision: "승인" | "거부", subject: string, advisor: string }
-```
-
-**자유 입력 (+ 쓰레드 답장):**
-```typescript
-{ type: "freetext", message: string, replyTo?: string }
-```
+- 플레이어 발언 시 AP 1 소비
+- AP 0이면 발언 불가
 
 ### replyTo 처리
 
 `replyTo`가 있으면 해당 참모가 반드시 **첫 번째 발언자**가 되도록:
-1. 프롬프트에 ⚠️ 경고 포함: "council_messages[0].speaker는 반드시 ${replyTo}"
+1. 프롬프트에 경고 포함: "council_messages[0].speaker는 반드시 ${replyTo}"
 2. 코드 레벨 정렬: 응답의 council_messages를 replyTo 참모 우선으로 sort
+
+### AP 실패 복구
+
+API 호출 실패 시 소비한 AP를 복구하고 오류 메시지 표시.
+
+### 응답 형식 (CouncilReactionResponse)
+
+```json
+{
+  "council_messages": [
+    { "speaker": "관우", "dialogue": "주공의 뜻에 따르겠습니다!", "emotion": "excited" }
+  ],
+  "state_changes": null,
+  "boosted_plans": ["관우"]
+}
+```
 
 ---
 
-## NPC AI (Phase 3)
+## NPC AI (Phase 5)
 
 > 파일: `lib/prompts/factionAIPrompt.ts`
 
-3개 NPC 세력의 상황을 한 프롬프트에 배치하여 API 비용 절감.
+2개 NPC 세력의 상황을 한 프롬프트에 배치하여 API 비용 절감.
 
 ### NPC 행동 종류
 
 | 행동 | 설명 |
 |------|------|
-| develop | 도시 개발 (상업/농업/방어) |
-| recruit | 모병 |
-| attack | 타 세력 공격 |
-| diplomacy | 외교 행동 |
-| defend | 방어 강화 |
-| wait | 대기 |
+| 개발 | 시설 건설/업그레이드 (IP 소비) |
+| 모병 | 병력 충원 (IP 소비) |
+| 훈련 | 훈련도 향상 (IP 소비) |
+| 공격 | 타 세력 성채 공격 (MP 소비) |
+| 외교 | 외교 행동 (DP 소비) |
+| 방어 | 방어 강화 |
+| 스킬 | 스킬 트리 해금 (SP 소비) |
 
 ### 결정론적 폴백 (AI 실패 시)
 
@@ -191,11 +188,11 @@
 
 ## JSON 파싱 복구
 
-AI 응답이 유효하지 않은 JSON일 경우 3단계 복구 시도:
+AI 응답이 유효하지 않은 JSON일 경우 복구 시도:
 
-1. **괄호 균형 맞추기** — 누락된 `}`, `]` 추가
-2. **후행 쉼표 제거** — `,}`, `,]` 패턴 정리
-3. **Regex 추출** — `{...}` 패턴을 찾아 파싱 재시도
+1. **Regex 추출** — `{...}` 패턴을 찾아 파싱 시도
+2. **괄호 균형 맞추기** — 누락된 `}`, `]` 추가
+3. **후행 쉼표 제거** — `,}`, `,]` 패턴 정리
 
 ---
 

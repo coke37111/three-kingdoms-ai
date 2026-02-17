@@ -13,7 +13,7 @@
 | 스타일 | 인라인 스타일 + CSS 변수 (`globals.css`) |
 | 폰트 | Noto Sans KR, Noto Serif KR (Google Fonts) |
 
-> **참고**: webpack 대신 Turbopack 사용. webpack HMR의 서버 캐시 깨짐 문제(`MODULE_NOT_FOUND ./948.js`) 방지.
+> **참고**: webpack 대신 Turbopack 사용. webpack HMR의 서버 캐시 깨짐 문제 방지.
 
 ## 디렉토리 구조
 
@@ -29,35 +29,31 @@ three-kingdoms-ai/
 │       └── tts/route.ts      # Text-to-Speech API
 │
 ├── types/                    # 타입 정의
-│   ├── game.ts               # 게임 상태, 세력, 외교, 전투 등
+│   ├── game.ts               # 포인트, 성채, 세력, 전투, 외교
 │   ├── chat.ts               # AI 응답, 메시지, 감정
-│   └── council.ts            # ★ 참모 회의, 결재, 쓰레드, 브리핑
+│   └── council.ts            # 참모 회의, 쓰레드, Phase 시스템
 │
 ├── constants/                # 상수 데이터
-│   ├── factions.ts           # 4개 세력 초기 데이터
-│   ├── advisors.ts           # ★ 5인 참모 초기 상태 + 장비 정보
-│   ├── worldMap.ts           # 20개 도시 맵 (인접, 지형, 방어)
-│   ├── gameConstants.ts      # 계절, 식량 배율, 병량 소모
-│   ├── events.ts             # 랜덤 이벤트 5종
-│   └── initialState.ts       # (레거시) 단일 세력 초기값
+│   ├── factions.ts           # 3개 세력 초기 데이터 (유비/조조/손권)
+│   ├── advisors.ts           # 4인 참모 초기 상태
+│   ├── castles.ts            # ~34개 성채 (삼각 라인 배치)
+│   ├── skills.ts             # 스킬 트리 (13노드, 4카테고리)
+│   └── gameConstants.ts      # 턴 제한, AP 이월률, 전투/시설 상수
 │
 ├── lib/                      # 순수 로직
 │   ├── game/                 # 게임 시스템
-│   │   ├── combatSystem.ts   # 전투 해결
-│   │   ├── diplomacySystem.ts# 외교 행동
-│   │   ├── resourceCalculator.ts # 자원 계산
-│   │   ├── stateManager.ts   # 상태 변경 적용
-│   │   ├── eventSystem.ts    # 랜덤 이벤트
-│   │   ├── victorySystem.ts  # 승패 판정
-│   │   ├── situationDetector.ts # ★ 정세 감지 (긴급/평상시)
+│   │   ├── pointCalculator.ts # 매턴 포인트 충전, 부상 회복
+│   │   ├── combatSystem.ts   # MP 기반 전투 해결
+│   │   ├── diplomacySystem.ts# -10~+10 점수 기반 외교
+│   │   ├── stateManager.ts   # PointDeltas 기반 상태 변경
+│   │   ├── victorySystem.ts  # 본성 함락 기반 승패 판정
 │   │   └── saveSystem.ts     # 저장/로드 (Firebase)
 │   ├── api/
-│   │   ├── llmClient.ts      # LLM 호출 클라이언트 (council 전용)
+│   │   ├── llmClient.ts      # callCouncilLLM() + callReactionLLM()
 │   │   └── llmCache.ts       # 서버 측 응답 캐시 (영구 저장)
 │   ├── prompts/
-│   │   ├── councilPrompt.ts  # ★ 참모 회의 프롬프트 (메인)
-│   │   ├── factionAIPrompt.ts# NPC 세력 행동 프롬프트
-│   │   └── systemPrompt.ts   # (레거시) 제갈량 1:1 프롬프트
+│   │   ├── councilPrompt.ts  # Phase 1+3, Phase 2, Phase 4 프롬프트
+│   │   └── factionAIPrompt.ts# NPC 세력 행동 프롬프트
 │   ├── firebase/
 │   │   ├── config.ts         # Firebase 앱 싱글톤
 │   │   ├── auth.ts           # Google 인증
@@ -71,30 +67,25 @@ three-kingdoms-ai/
 │       └── textFormatter.tsx  # 숫자 컬러링 등
 │
 ├── hooks/                    # React 커스텀 훅
-│   ├── useWorldState.ts      # 다수 세력 상태 (현재 사용)
-│   ├── useWorldTurn.ts       # 턴 진행, 자원 계산
+│   ├── useWorldState.ts      # WorldState 관리 (PointDeltas 기반)
+│   ├── useWorldTurn.ts       # 턴 진행, 포인트 충전, 부상 회복
 │   ├── useChatHistory.ts     # 채팅/대화 히스토리
 │   ├── useAuth.ts            # Firebase 인증 상태
 │   ├── usePreferences.ts     # 사용자 설정 (LLM 제공자)
 │   ├── useTypewriter.ts      # 타이핑 애니메이션
-│   ├── useVoice.ts           # 음성 입력
-│   ├── useGameState.ts       # (레거시) 단일 세력 상태
-│   └── useTurnSystem.ts      # (레거시) 단일 세력 턴
+│   └── useVoice.ts           # 음성 입력
 │
 ├── components/game/          # UI 컴포넌트
-│   ├── GameContainer.tsx     # ★ 메인 오케스트레이터
-│   ├── CouncilChat.tsx       # ★ 참모 회의 채팅 (쓰레드/타이핑)
-│   ├── BriefingPanel.tsx     # ★ 정세 브리핑 패널 (Phase 0)
+│   ├── GameContainer.tsx     # ★ 메인 오케스트레이터 (5-Phase)
+│   ├── CouncilChat.tsx       # ★ 참모 회의 채팅 (쓰레드/타이핑/Phase 배지)
+│   ├── WorldStatus.tsx       # 천하 정세 모달 (포인트/성채/전선)
 │   ├── TitleScreen.tsx       # 타이틀 화면
-│   ├── StatusBar.tsx         # 자원 표시 바
 │   ├── ChatBubble.tsx        # 시스템 메시지 말풍선
-│   ├── WorldStatus.tsx       # 천하 정세 모달
-│   ├── DiplomacyPanel.tsx    # 외교 패널
 │   ├── TurnNotification.tsx  # NPC 턴 요약
-│   ├── BattleReport.tsx      # 전투 보고서
+│   ├── BattleReport.tsx      # 전투 보고서 (부상병 포함)
 │   ├── GameEndScreen.tsx     # 승리/패배 화면
-│   ├── TaskPanel.tsx         # 이벤트 태스크
 │   ├── FactionBanner.tsx     # 세력 아이콘/이름
+│   ├── AdvisorBar.tsx        # 참모 충성도/열정 표시
 │   ├── UserBadge.tsx         # 사용자 배지
 │   ├── LoginPanel.tsx        # 로그인 모달
 │   ├── VoiceSettingsModal.tsx# 음성 설정 모달
@@ -104,54 +95,48 @@ three-kingdoms-ai/
 └── plans/                    # 계획 문서
 ```
 
-## 데이터 흐름 (참모 회의 시스템)
+## 데이터 흐름 (5-Phase 회의 시스템)
 
 ```
 [게임 시작]
        ↓
-  Phase 0: 도입 서사 (첫 턴) / 정세 브리핑 (이후 턴)
+  Phase 1: 상태 보고 — API 1회 (Phase 3과 합산)
+       ├─ buildPhase1And3Prompt() → callCouncilLLM()
+       ├─ 응답: CouncilResponse (회의 대사 + status_reports + plan_reports)
+       ├─ Phase 1 메시지 애니메이션 + status_reports 표시
+       └─ state_changes 적용 (applyPlayerChanges)
        ↓
-  Phase 1: 참모 회의 — API 1회
-       ├─ buildCouncilPrompt() → callCouncilLLM()
-       ├─ 응답: CouncilResponse (회의 대사 + 자율 행동 + 결재 요청)
-       ├─ auto_actions 즉시 적용 (applyPlayerChanges)
-       └─ animateCouncilMessages() → 타이핑 인디케이터 + 순차 표시
+  Phase 2: 군주 토론 — AP 1 소비/발언, API 0~N회
+       ├─ buildPhase2Prompt() → callReactionLLM()
+       ├─ 자유 입력 / 쓰레드 답장 (replyTo → 해당 참모 우선 응답)
+       └─ "다음" 버튼 → Phase 3
        ↓
-  Phase 2: 플레이어 입력 — 선택적 API 1회
-       ├─ 결재 승인/거부 → buildCouncilResultPrompt()
-       ├─ 자유 입력 (일반/쓰레드 답장) → buildCouncilResultPrompt()
-       └─ 다음 턴 버튼 → Phase 3으로
+  Phase 3: 계획 보고 — API 0회 (Phase 1과 함께 생성됨)
+       ├─ Phase 3 메시지 애니메이션 + plan_reports 표시
+       └─ 기대 포인트값 UI 표시
        ↓
-  Phase 3: NPC 턴 — API 1회
-       ├─ processNPCTurns() → buildFactionAIPrompt()
-       ├─ 행동 적용 + 알림 표시
-       └─ advanceWorldTurn() → 자원/계절/조약 갱신
+  Phase 4: 군주 피드백 — AP 1 소비/발언, API 0~N회
+       ├─ buildPhase4Prompt() → callReactionLLM()
+       ├─ boost 가능, AP 0이면 스킵
+       └─ "실행" 버튼 → Phase 5
        ↓
-  checkGameEnd() → 승패 판정
-       ↓
-  Phase 0으로 복귀 (다음 턴)
+  Phase 5: 턴 실행 — API 1회
+       ├─ 계획 실행 + NPC턴 (buildFactionAIPrompt → 배치 처리)
+       ├─ advanceWorldTurn() → 포인트 충전, 부상 회복
+       ├─ checkGameEnd() → 승패 판정
+       └─ autoSave() → Phase 1 복귀
 ```
 
 ## 핵심 설계 원칙
 
 1. **WorldState 중심**: 모든 게임 데이터는 `WorldState` 객체에 집중
-2. **참모 자율 행동**: A/B/C 선택지 대신, 참모가 자율적으로 행동하고 보고
-3. **결재 시스템**: 중대 사안만 플레이어에게 결재 요청 (routine/important/critical)
-4. **쓰레드 대화**: 참모 발언 클릭 → 해당 주제로 쓰레드 대화
-5. **순수 함수 분리**: `lib/game/` 내 함수들은 부작용 없는 순수 함수
-6. **AI 프록시**: 클라이언트 → Next.js API Route → 외부 AI API (API 키 보호)
-7. **NPC 배치 처리**: 3개 NPC 세력의 AI 결정을 한 번의 API 호출로 처리
-8. **결정론적 폴백**: AI 호출 실패 시 안전한 기본 행동 (개발) 적용
-9. **자동 저장**: 매 턴 Firebase에 자동 저장
-10. **Stale Closure 방지**: `useRef`로 최신 값 유지 (React 18 batching 대응)
+2. **5-Phase 회의**: 상태보고→토론→계획→피드백→실행 사이클
+3. **포인트 시스템**: AP(행동)/SP(전략)/MP(군사)/IP(내정)/DP(외교) 5종
+4. **성채 체인**: 삼각 라인 배치 (~34개 성채), 본성 함락이 승패 조건
+5. **쓰레드 대화**: 참모 발언 클릭 → 해당 주제로 쓰레드 대화
+6. **순수 함수 분리**: `lib/game/` 내 함수들은 부작용 없는 순수 함수
+7. **AI 프록시**: 클라이언트 → Next.js API Route → 외부 AI API (API 키 보호)
+8. **NPC 배치 처리**: 2개 NPC 세력의 AI 결정을 한 번의 API 호출로 처리
+9. **결정론적 폴백**: AI 호출 실패 시 안전한 기본 행동 (개발) 적용
+10. **자동 저장**: 매 턴 Firebase에 자동 저장
 11. **인라인 스타일**: CSS 모듈 없이 `style={{}}` + CSS 변수 조합
-
-## 레거시 코드
-
-아래 파일들은 Phase B (단일 세력, A/B/C 선택지) 시절의 코드로, 현재 사용되지 않지만 호환성을 위해 유지:
-
-- `hooks/useGameState.ts` — 단일 세력 상태 훅
-- `hooks/useTurnSystem.ts` — 단일 세력 턴 시스템
-- `constants/initialState.ts` — 단일 세력 초기값
-- `lib/prompts/systemPrompt.ts`의 `buildSystemPrompt()` 함수 (현재는 `buildCouncilPrompt()` 사용)
-- `components/game/ChoicePanel.tsx` — A/B/C 선택지 패널 (삭제됨, 결재 시스템으로 대체)

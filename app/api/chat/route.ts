@@ -15,6 +15,9 @@ async function callClaude(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
+  // Claude에 JSON 응답 강제 지시 추가
+  const jsonSystem = system + "\n\n⚠️ 반드시 유효한 JSON 객체로만 응답하라. 마크다운 코드블록이나 설명 텍스트 없이 { 로 시작하고 } 로 끝나는 순수 JSON만 출력하라.";
+
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -25,7 +28,7 @@ async function callClaude(
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2048,
-      system,
+      system: jsonSystem,
       messages,
     }),
   });

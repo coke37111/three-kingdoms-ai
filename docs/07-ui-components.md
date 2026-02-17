@@ -24,19 +24,14 @@
 | `--success` | `#4a8c5c` | 성공 (녹색) |
 | `--warning` | `#c9a84c` | 경고 (금색) |
 | `--danger` | `#d4443e` | 위험 (빨강) |
-| `--accent-glow` | `rgba(212, 68, 62, 0.35)` | 강조 글로우 |
 
 ### 애니메이션
 
 | 이름 | 용도 |
 |------|------|
 | `fadeInUp` | 요소 등장 (위로 슬라이드) |
-| `blink` | 커서 깜빡임 |
-| `pulse` | 로딩 펄스 |
-| `slideIn` | 좌측 슬라이드 인 |
-| `deltaFloat` | 자원 변동 숫자 상승 후 소멸 |
 | `typingDot` | 타이핑 인디케이터 점 바운스 |
-| `recording-pulse` | 음성 녹음 중 박스 쉐도우 펄스 |
+| `recording-pulse` | 음성 녹음 중 펄스 |
 
 ---
 
@@ -44,17 +39,17 @@
 
 ### GameContainer.tsx — 메인 오케스트레이터
 
-게임 전체의 상태 관리와 이벤트 처리를 담당하는 최상위 컴포넌트.
+5-Phase 게임 루프의 전체 상태 관리와 이벤트 처리를 담당하는 최상위 컴포넌트.
 
 **관리하는 상태:**
-- WorldState (세력, 외교)
+- WorldState (세력, 성채, 외교, 포인트)
 - ChatHistory (시스템 메시지)
 - Auth (인증)
 - Preferences (LLM 제공자)
-- 참모 회의 (councilMessages, autoActions, approvalRequests)
+- 참모 회의 (councilMessages, statusReports, planReports)
 - 쓰레드 (threads, threadTyping, replyTarget)
 - 타이핑 인디케이터 (typingIndicator)
-- 정세 브리핑 (briefing)
+- Phase 상태 (meetingPhase: 1~5)
 - UI 상태 (로딩, 게임 시작 여부, 모달)
 
 **렌더 구조:**
@@ -62,20 +57,16 @@
 GameContainer
 ├── TitleScreen (gameStarted === false)
 └── 게임 화면 (gameStarted === true)
-    ├── StatusBar
+    ├── AdvisorBar (참모 충성도/열정)
     ├── ChatBubble[] (시스템 메시지)
     ├── CouncilChat (★ 참모 회의 메인 UI)
-    │   ├── 회의 대사 목록 (클릭 가능)
+    │   ├── Phase 구분선 (__phase_divider__)
+    │   ├── 회의 대사 목록 (클릭 가능, Phase 배지)
     │   ├── 타이핑 인디케이터 (...)
-    │   ├── 쓰레드 (중첩 대화)
-    │   ├── 자율 행동 보고 카드
-    │   └── 결재 요청 카드 (승인/거부)
-    ├── BriefingPanel (Phase 0 긴급 브리핑)
-    ├── 입력 바 (텍스트 + 답장 표시 + 다음턴)
+    │   └── 쓰레드 (중첩 대화)
+    ├── 입력 바 (텍스트 + 답장 표시 + 다음/실행)
     ├── LLM 토글 + 토큰 표시
-    ├── WorldStatus (모달)
-    ├── DiplomacyPanel (모달)
-    ├── TaskPanel (모달)
+    ├── WorldStatus (모달: 포인트, 성채, 전선 현황)
     ├── BattleReport (모달)
     └── GameEndScreen (모달)
 ```
@@ -84,7 +75,7 @@ GameContainer
 
 ### CouncilChat.tsx — 참모 회의 채팅
 
-참모 회의의 메인 UI. 대화, 쓰레드, 자율 행동, 결재 요청을 통합 표시.
+참모 회의의 메인 UI. 대화, 쓰레드, Phase 구분을 통합 표시.
 
 **Props:**
 
@@ -94,38 +85,39 @@ GameContainer
 | advisors | AdvisorState[] | 참모 상태 (아이콘, 색상) |
 | councilNumber | number | 회의 번호 |
 | typingIndicator | { speaker } \| null | 입력 중... 표시 |
-| autoActions | AdvisorAction[] | 자율 행동 보고 |
-| approvalRequests | ApprovalRequest[] | 결재 요청 |
 | threads | Record<number, ThreadMessage[]> | 쓰레드 메시지 |
 | threadTyping | { msgIndex, speaker } \| null | 쓰레드 내 타이핑 |
 | onMessageClick | (msg, index) => void | 대사 클릭 → 답장 |
 | replyTarget | { msg, index } \| null | 현재 답장 대상 |
-| onApprove / onReject | (id) => void | 결재 처리 |
+| disabled | boolean | 입력 비활성화 |
 
 **UI 요소:**
 - 참모 아이콘 + 색상 코드로 발언자 구분
+- Phase 배지 (P1, P2, P3, P4, P5)
+- Phase 구분선 (`__phase_divider__` speaker)
 - 클릭 시 하이라이트 (답장 대상 선택)
 - 타이핑 인디케이터: 3개 점 바운스 애니메이션
 - 쓰레드: 좌측 보더라인 + 들여쓰기
-- 결재 카드: 비용 태그 (양수=녹색, 음수=빨강) + 승인/거부 버튼
-- "유비" 발언자 (👑, 금색)
+- "유비" 발언: 우측 정렬, 금색 말풍선
 
 ---
 
-### BriefingPanel.tsx — 정세 브리핑
+### WorldStatus.tsx — 천하 정세
 
-Phase 0에서 표시되는 정세 브리핑 패널.
+전체 세력 정보를 모달로 표시.
 
-| 상황 | 표시 |
-|------|------|
-| 긴급 (isUrgent) | 제갈량 브리핑 + 4개 감정 방향 선택 버튼 |
-| 평상시 | 제갈량 브리핑 + "참모 회의 시작" 버튼 |
+**표시 내용:**
+- 세력별 포인트 (AP/SP/MP/IP/DP)
+- 병력/훈련/사기 상세
+- 시설 레벨 (시장/논/은행)
+- 군주 레벨 + 배치 상한
+- 보유 성채 목록
+- 외교 관계 (-10~+10, 라벨 표시)
+- 전선 현황 (라인별 성채 소유 비율)
 
 ---
 
 ### TitleScreen.tsx — 타이틀 화면
-
-금색 그라데이션 배경의 시작 화면.
 
 | 상태 | 표시 |
 |------|------|
@@ -135,39 +127,16 @@ Phase 0에서 표시되는 정세 브리핑 패널.
 
 ---
 
-### StatusBar.tsx — 자원 표시
-
-상단 바에 현재 세력의 자원, 턴/월/계절 정보 표시.
-
-- 금, 식량, 병력, 민심 아이콘 + 숫자
-- 자원 변동 시 `deltaFloat` 애니메이션 (+ 녹색, - 빨강)
-- 천하정세, 외교, 이벤트 버튼
-
----
-
-### ChatBubble.tsx — 시스템 메시지 말풍선
-
-시스템 알림 메시지 표시 (참모 대화는 CouncilChat에서 처리).
-
-| 역할 | 스타일 |
-|------|--------|
-| system | 중앙, 금색 테두리, 시스템 알림 |
-
-숫자 컬러링: 긍정(+, 증가) 녹색, 부정(-, 감소) 빨강.
-
----
-
 ### 기타 컴포넌트
 
 | 컴포넌트 | 용도 |
 |----------|------|
-| WorldStatus | 4개 세력 정보 + 외교 매트릭스 모달 |
-| DiplomacyPanel | 세력별 외교 행동 6종 UI |
+| ChatBubble | 시스템 메시지 말풍선 (중앙, 금색 테두리) |
 | TurnNotification | NPC 턴 행동 요약 (슬라이드인) |
-| BattleReport | 전투 결과 모달 (장수, 병력, 피해) |
-| GameEndScreen | 승리/패배 화면 + 통계 |
-| TaskPanel | 이벤트 태스크 목록 (긴급도, 남은 턴) |
-| FactionBanner | 세력 아이콘 + 이름 표시 |
+| BattleReport | 전투 결과 모달 (부상병 포함) |
+| GameEndScreen | 승리/패배 화면 + 통계 (성채 수, 전투 승/패) |
+| FactionBanner | 세력 아이콘 + 이름 + 성채/MP 표시 |
+| AdvisorBar | 참모 충성도/열정 바 |
 | UserBadge | 로그인 사용자 표시 |
 | SaveLoadPanel | 5슬롯 저장/로드 모달 |
 | LoginPanel | Firebase/Google 로그인 모달 |

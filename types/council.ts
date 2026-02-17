@@ -1,9 +1,11 @@
 import type { Emotion } from "./chat";
-import type { StateChanges } from "./game";
+import type { StateChanges, PointDeltas } from "./game";
 
 // ===================== 참모 역할/상태 =====================
 
-export type AdvisorRole = "총괄" | "군사" | "내정" | "외교" | "첩보";
+export type AdvisorRole = "전략" | "군사" | "외교" | "내정";
+
+export type MeetingPhase = 1 | 2 | 3 | 4 | 5;
 
 export interface AdvisorState {
   name: string;
@@ -15,39 +17,46 @@ export interface AdvisorState {
   personality: string;  // AI 프롬프트에 사용할 성격 키워드
 }
 
-// ===================== 참모 회의 응답 =====================
+// ===================== 회의 메시지 =====================
 
 export interface CouncilMessage {
   speaker: string;
   dialogue: string;
   emotion: Emotion;
+  phase?: MeetingPhase;
 }
 
-/** 참모 자율 행동 보고 */
-export interface AdvisorAction {
-  advisor: string;
-  role: AdvisorRole;
-  action: string;           // "세금 징수", "병사 훈련" 등
-  result: string;           // "금 320 확보" 등
-  state_changes: StateChanges | null;
+// ===================== Phase 1: 상태 보고 =====================
+
+export interface StatusReport {
+  speaker: string;
+  report: string;           // 보고 내용
+  point_changes?: PointDeltas;  // 보고에 따른 포인트 변동
 }
 
-/** 결재 요청 */
-export interface ApprovalRequest {
-  id: string;
-  advisor: string;
-  subject: string;          // "대규모 모병 계획"
-  description: string;
-  cost: StateChanges | null;
-  benefit: string;
-  urgency: "routine" | "important" | "critical";
+// ===================== Phase 3: 계획 보고 =====================
+
+export interface PlanReport {
+  speaker: string;
+  plan: string;             // 계획 설명
+  expected_points?: PointDeltas;  // 기대 포인트 변동
 }
+
+// ===================== Phase 1+3 통합 응답 =====================
 
 export interface CouncilResponse {
   council_messages: CouncilMessage[];
-  auto_actions: AdvisorAction[];        // 자율 행동 보고
-  approval_requests: ApprovalRequest[]; // 결재 요청 (0~2개)
-  state_changes: StateChanges | null;   // auto_actions 합산
+  status_reports: StatusReport[];
+  plan_reports: PlanReport[];
+  state_changes: StateChanges | null;
+}
+
+// ===================== Phase 2/4 반응 응답 =====================
+
+export interface CouncilReactionResponse {
+  council_messages: CouncilMessage[];
+  state_changes: StateChanges | null;
+  boosted_plans?: string[];  // Phase 4에서 boost된 계획 참모 이름
 }
 
 // ===================== 쓰레드 메시지 =====================
@@ -65,26 +74,4 @@ export interface AdvisorStatsDelta {
   name: string;
   enthusiasm_delta?: number;
   loyalty_delta?: number;
-}
-
-// ===================== Phase 0: 정세 브리핑 =====================
-
-/** 긴급 상황 유형 */
-export type UrgentEventType = "invasion" | "famine" | "betrayal" | "city_lost" | "general_defect";
-
-/** 감정 방향 선택지 */
-export interface EmotionalDirective {
-  id: string;
-  icon: string;
-  text: string;          // 유비의 대사
-  tone: "aggressive" | "cooperative" | "delegating" | "anxious";
-  effect: string;        // UI 힌트 (예: "공격적 방향 — 관우 적극, 미축 걱정")
-}
-
-/** 정세 브리핑 데이터 */
-export interface SituationBriefing {
-  isUrgent: boolean;
-  briefingText: string;           // 제갈량의 브리핑 대사
-  urgentType?: UrgentEventType;
-  directives?: EmotionalDirective[];  // isUrgent=true일 때만
 }

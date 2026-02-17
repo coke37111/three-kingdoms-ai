@@ -6,7 +6,7 @@ import {
   cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave, cloudHasAutoSave,
 } from "@/lib/firebase/firestore";
 
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 export interface SaveSlotInfo {
   index: number;
@@ -14,7 +14,7 @@ export interface SaveSlotInfo {
   timestamp: number;
   turnCount: number;
   playerFactionName: string;
-  playerCityCount: number;
+  playerCastleCount: number;
   isEmpty: boolean;
 }
 
@@ -23,7 +23,7 @@ function getPlayerInfo(world: WorldState) {
   return {
     turnCount: world.currentTurn,
     playerFactionName: player?.rulerName ?? "유비",
-    playerCityCount: player?.cities.length ?? 0,
+    playerCastleCount: player?.castles.length ?? 0,
   };
 }
 

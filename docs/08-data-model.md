@@ -3,9 +3,9 @@
 ## 타입 체계
 
 타입은 세 파일에 정의되어 있다:
-- `types/game.ts` — 게임 상태, 세력, 외교, 전투
+- `types/game.ts` — 포인트, 성채, 세력, 전투, 외교
 - `types/chat.ts` — AI 응답, 메시지, 감정
-- `types/council.ts` — 참모 회의, 결재, 쓰레드, 브리핑
+- `types/council.ts` — 참모 회의, 쓰레드, Phase 시스템
 
 ---
 
@@ -16,12 +16,11 @@
 ```typescript
 interface WorldState {
   currentTurn: number;       // 현재 턴 (1부터)
-  currentMonth: number;      // 현재 월 (3~14, 15→3으로 순환)
-  currentSeason: Season;     // 현재 계절
-  factions: Faction[];       // 4개 세력 배열
+  maxTurns: number;          // 120
+  factions: Faction[];       // 3개 세력 배열
+  castles: Castle[];         // 35개 성채
   relations: DiplomaticRelation[];  // 외교 관계
   turnOrder: FactionId[];    // 턴 순서
-  currentFactionIndex: number; // 현재 행동 중 세력
 }
 ```
 
@@ -29,53 +28,71 @@ interface WorldState {
 
 ```typescript
 interface Faction {
-  id: FactionId;             // "liu_bei" | "cao_cao" | "sun_quan" | "yuan_shao"
+  id: FactionId;             // "liu_bei" | "cao_cao" | "sun_quan"
   rulerName: string;         // 군주명
   isPlayer: boolean;         // 플레이어 여부
-  gold: number;              // 금
-  food: number;              // 식량
-  totalTroops: number;       // 총 병력
-  popularity: number;        // 민심 (0~100)
-  cities: City[];            // 보유 도시
-  generals: General[];       // 보유 장수
+  points: FactionPoints;     // 5종 포인트
+  castles: string[];         // 소유 성채 이름 목록
+  facilities: Facilities;    // 시설 레벨
+  rulerLevel: RulerLevel;    // 군주 레벨/경험치
+  skills: string[];          // 해금된 스킬 id 목록
+  woundedPool: WoundedPool[];// 부상병 풀
   recentEvents: string[];    // 최근 이벤트 (최대 5개)
-  pendingTasks: GameTask[];  // 진행 중 태스크
   personality: FactionPersonality;  // AI 성격
   color: string;             // 세력 색상
   icon: string;              // 세력 아이콘
 }
 ```
 
-### City — 도시
+### FactionPoints — 5종 포인트
 
 ```typescript
-interface City {
-  cityName: string;          // 도시명
-  population: number;        // 인구
-  defense: number;           // 방어력
-  commerce: number;          // 상업
-  agriculture: number;       // 농업
-  garrison: number;          // 수비 병력
-  governor?: string;         // 태수 (장수명)
-  terrain: TerrainType;      // 지형
-  adjacentCities: string[];  // 인접 도시
+interface FactionPoints {
+  ap: number;          // 행동 포인트 (현재)
+  ap_max: number;      // AP 최대치
+  ap_regen: number;    // 매턴 AP 충전량
+
+  sp: number;          // 전략 포인트
+
+  mp: number;          // 군사 포인트 (산출값)
+  mp_troops: number;   // 병력 수
+  mp_training: number; // 훈련도 (0.0~1.0)
+  mp_morale: number;   // 사기 (0.8~1.2)
+
+  ip: number;          // 내정 포인트 (현재)
+  ip_cap: number;      // IP 최대치
+  ip_regen: number;    // 매턴 IP 충전량
+
+  dp: number;          // 외교 포인트
 }
 ```
 
-### General — 장수
+### PointDeltas — 포인트 변동값
 
 ```typescript
-interface General {
-  generalName: string;       // 장수명
-  warfare: number;           // 무력 (0~100)
-  intelligence: number;      // 지력
-  leadership: number;        // 통솔
-  politics: number;          // 정치
-  charm: number;             // 매력
-  loyalty: number;           // 충성도 (0~100)
-  currentTask: string;       // 현재 임무
-  location: string;          // 위치 (도시명)
-  advisorRole?: AdvisorRole; // 참모 역할 (있으면)
+interface PointDeltas {
+  ap_delta?: number;
+  sp_delta?: number;
+  mp_troops_delta?: number;
+  mp_training_delta?: number;
+  mp_morale_delta?: number;
+  ip_delta?: number;
+  dp_delta?: number;
+}
+```
+
+### Castle — 성채
+
+```typescript
+interface Castle {
+  name: string;
+  grade: CastleGrade;           // "본성" | "요새" | "일반"
+  owner: FactionId;
+  garrison: number;             // 주둔 병력
+  defenseMultiplier: number;    // 방어 배율
+  maxGarrison: number;
+  adjacentCastles: string[];    // 인접 성채 (양방향)
+  lineId: string;               // "liu_cao" | "liu_sun" | "sun_cao"
 }
 ```
 
@@ -83,14 +100,29 @@ interface General {
 
 ```typescript
 interface StateChanges {
-  gold_delta?: number;          // 금 증감
-  food_delta?: number;          // 식량 증감
-  troops_delta?: number;        // 병력 증감
-  popularity_delta?: number;    // 민심 증감
-  city_updates?: CityUpdate[];  // 도시 업데이트
-  general_updates?: GeneralUpdate[];  // 장수 업데이트
-  new_events?: string[];        // 새 이벤트
-  result_message?: string;      // 결과 메시지 (UI 표시용)
+  point_deltas?: PointDeltas;
+  castle_updates?: CastleUpdate[];
+  conquered_castles?: string[];
+  facility_upgrades?: { type: keyof Facilities; levels: number }[];
+  skill_unlocks?: string[];
+  xp_gain?: number;
+  result_message?: string;
+}
+```
+
+### BattleResult — 전투 결과
+
+```typescript
+interface BattleResult {
+  winner: FactionId;
+  loser: FactionId;
+  battleType: BattleType;     // "야전" | "공성" | "수성"
+  attackerLosses: number;
+  defenderLosses: number;
+  attackerWounded: number;
+  defenderWounded: number;
+  castleConquered: string | null;
+  narrative: string;
 }
 ```
 
@@ -103,7 +135,7 @@ interface StateChanges {
 ```typescript
 interface AdvisorState {
   name: string;
-  role: AdvisorRole;       // "총괄" | "군사" | "내정" | "외교" | "첩보"
+  role: AdvisorRole;       // "전략" | "군사" | "외교" | "내정"
   loyalty: number;         // 0~100 충성도
   enthusiasm: number;      // 0~100 열정
   icon: string;
@@ -119,43 +151,48 @@ interface CouncilMessage {
   speaker: string;
   dialogue: string;
   emotion: Emotion;
+  phase?: MeetingPhase;    // 1 | 2 | 3 | 4 | 5
 }
 ```
 
-### AdvisorAction — 자율 행동 보고
+### StatusReport — 상태 보고 (Phase 1)
 
 ```typescript
-interface AdvisorAction {
-  advisor: string;
-  role: AdvisorRole;
-  action: string;           // "세금 징수", "병사 훈련" 등
-  result: string;           // "금 320 확보" 등
-  state_changes: StateChanges | null;
+interface StatusReport {
+  speaker: string;
+  report: string;
+  point_changes?: PointDeltas;
 }
 ```
 
-### ApprovalRequest — 결재 요청
+### PlanReport — 계획 보고 (Phase 3)
 
 ```typescript
-interface ApprovalRequest {
-  id: string;
-  advisor: string;
-  subject: string;          // "대규모 모병 계획"
-  description: string;
-  cost: StateChanges | null;  // 순변화량 (양수=증가, 음수=감소)
-  benefit: string;
-  urgency: "routine" | "important" | "critical";
+interface PlanReport {
+  speaker: string;
+  plan: string;
+  expected_points?: PointDeltas;
 }
 ```
 
-### CouncilResponse — 참모 회의 API 응답
+### CouncilResponse — Phase 1+3 통합 응답
 
 ```typescript
 interface CouncilResponse {
   council_messages: CouncilMessage[];
-  auto_actions: AdvisorAction[];
-  approval_requests: ApprovalRequest[];  // 0~2개
-  state_changes: StateChanges | null;    // auto_actions 합산
+  status_reports: StatusReport[];
+  plan_reports: PlanReport[];
+  state_changes: StateChanges | null;
+}
+```
+
+### CouncilReactionResponse — Phase 2/4 반응 응답
+
+```typescript
+interface CouncilReactionResponse {
+  council_messages: CouncilMessage[];
+  state_changes: StateChanges | null;
+  boosted_plans?: string[];
 }
 ```
 
@@ -180,29 +217,6 @@ interface AdvisorStatsDelta {
 }
 ```
 
-### SituationBriefing — 정세 브리핑
-
-```typescript
-interface SituationBriefing {
-  isUrgent: boolean;
-  briefingText: string;           // 제갈량의 브리핑 대사
-  urgentType?: UrgentEventType;
-  directives?: EmotionalDirective[];  // isUrgent=true일 때만
-}
-```
-
-### EmotionalDirective — 감정 방향 선택지
-
-```typescript
-interface EmotionalDirective {
-  id: string;
-  icon: string;
-  text: string;          // 유비의 대사
-  tone: "aggressive" | "cooperative" | "delegating" | "anxious";
-  effect: string;        // UI 힌트
-}
-```
-
 ---
 
 ## 채팅 타입 (`types/chat.ts`)
@@ -217,12 +231,14 @@ interface ChatMessage {
 }
 ```
 
-### ConversationMessage — API 대화
+### FactionAIAction — NPC 행동
 
 ```typescript
-interface ConversationMessage {
-  role: "user" | "assistant";
-  content: string;
+interface FactionAIAction {
+  action: "개발" | "모병" | "훈련" | "공격" | "외교" | "방어" | "스킬";
+  target?: string;
+  details?: string;
+  reasoning?: string;
 }
 ```
 
@@ -231,15 +247,15 @@ interface ConversationMessage {
 ## 열거형 타입
 
 ```typescript
-type Season = "봄" | "여름" | "가을" | "겨울";
-type FactionId = "liu_bei" | "cao_cao" | "sun_quan" | "yuan_shao";
-type TerrainType = "평원" | "산지" | "강" | "요새";
-type RelationType = "동맹" | "우호" | "중립" | "적대" | "전쟁";
-type BattleType = "야전" | "공성전" | "매복";
+type FactionId = "liu_bei" | "cao_cao" | "sun_quan";
+type CastleGrade = "본성" | "요새" | "일반";
+type BattleType = "야전" | "공성" | "수성";
 type Emotion = "calm" | "worried" | "excited" | "angry" | "thoughtful";
 type LLMProvider = "claude" | "openai";
-type AdvisorRole = "총괄" | "군사" | "내정" | "외교" | "첩보";
-type UrgentEventType = "invasion" | "famine" | "betrayal" | "city_lost" | "general_defect";
+type AdvisorRole = "전략" | "군사" | "외교" | "내정";
+type MeetingPhase = 1 | 2 | 3 | 4 | 5;
+type VictoryType = "천하통일";
+type DefeatType = "멸망";
 ```
 
 ---
@@ -248,44 +264,37 @@ type UrgentEventType = "invasion" | "famine" | "betrayal" | "city_lost" | "gener
 
 ### 초기 세력 (`constants/factions.ts`)
 
-| 세력 | 도시 | 장수 | 병력 | 금 | 식량 |
-|------|------|------|------|------|------|
-| 유비 | 신야, 하비 (2) | 6명 | 8만 | 10,000 | 20,000 |
-| 조조 | 허창, 업, 낙양, 진류, 장안 (5) | 6명 | 150만 | 80,000 | 120,000 |
-| 손권 | 건업, 시상, 여강 (3) | 5명 | 80만 | 50,000 | 70,000 |
-| 원소 | 남피, 기주, 유주 (3) | 5명 | 110만 | 60,000 | 90,000 |
+| 세력 | 성채 | 병력 | AP | SP | IP | DP | 군주 레벨 |
+|------|------|------|------|------|------|------|-----------|
+| 유비 | 2 | 5만 | 1.5 | 0 | 30 | 0 | 2 |
+| 조조 | 24 | 60만 | 3 | 30 | 200 | 5 | 20 |
+| 손권 | 9 | 20만 | 2 | 10 | 80 | 3 | 8 |
 
 ### 초기 참모 (`constants/advisors.ts`)
 
-| 참모 | 역할 | 충성도 | 열정 | 아이콘 |
-|------|------|--------|------|--------|
-| 제갈량 | 총괄 | 100 | 95 | 🪶 |
-| 관우 | 군사 | 100 | 80 | ⚔️ |
-| 미축 | 내정 | 88 | 70 | 💰 |
-| 간옹 | 외교 | 85 | 78 | 🤝 |
-| 조운 | 첩보 | 95 | 82 | 🔍 |
-
-특수: **장비** (🔥) — 비정규 참모, 가끔 끼어들기
+| 참모 | 역할 | 충성도 | 열정 | 아이콘 | 색상 |
+|------|------|--------|------|--------|------|
+| 제갈량 | 전략 | 100 | 95 | 🪶 | #DAA520 |
+| 관우 | 군사 | 100 | 80 | ⚔️ | #C0392B |
+| 방통 | 외교 | 85 | 88 | 🦅 | #2980B9 |
+| 미축 | 내정 | 88 | 70 | 💰 | #27AE60 |
 
 ### 초기 외교 관계 (`constants/factions.ts`)
 
-| 관계 | 타입 | 점수 |
-|------|------|------|
-| 유비 ↔ 조조 | 적대 | -40 |
-| 유비 ↔ 손권 | 우호 | 30 |
-| 유비 ↔ 원소 | 중립 | 0 |
-| 조조 ↔ 손권 | 적대 | -30 |
-| 조조 ↔ 원소 | 전쟁 | -70 |
-| 손권 ↔ 원소 | 중립 | 10 |
+| 관계 | 점수 |
+|------|------|
+| 유비 ↔ 조조 | -5 |
+| 유비 ↔ 손권 | +3 |
+| 손권 ↔ 조조 | -3 |
 
-### 세계 지도 (`constants/worldMap.ts`)
+### 성채 배치 (`constants/castles.ts`)
 
-20개 도시, 4개 지형 타입:
+35개 성채, 3개 라인으로 삼각형 배치:
 
-| 영역 | 도시 | 지형 |
-|------|------|------|
-| 유비 | 신야, 하비 | 평원 |
-| 조조 | 허창, 업, 진류 (평원), 낙양, 장안 (요새) | 혼합 |
-| 손권 | 건업, 시상, 여강 | 강 |
-| 원소 | 남피, 기주 (평원), 유주 (산지) | 혼합 |
-| 중립 | 완, 소패, 서주, 장사 (평원), 한중 (산지), 강릉 (강) | 혼합 |
+| 라인 | 방향 | 성채 수 | 주요 거점 |
+|------|------|---------|----------|
+| liu_cao | 유비↔조조 | 17 | 양양(요새), 소패(요새), 업(요새), 기주(요새) |
+| liu_sun | 유비↔손권 | 5 | 강하(요새), 건업(본성) |
+| sun_cao | 손권↔조조 | 13 | 합비(요새), 강릉(요새), 장안(요새) |
+
+본성: 신야(유비), 허창(조조), 건업(손권)

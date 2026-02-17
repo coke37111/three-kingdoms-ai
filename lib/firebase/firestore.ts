@@ -79,7 +79,7 @@ export async function cloudListSaveSlots(uid: string): Promise<SaveSlotInfo[]> {
           timestamp: data.timestamp,
           turnCount: data.metadata.turnCount,
           playerFactionName: data.metadata.playerFactionName,
-          playerCityCount: data.metadata.playerCityCount,
+          playerCastleCount: data.metadata.playerCastleCount,
           isEmpty: false,
         });
       } else {
@@ -89,7 +89,7 @@ export async function cloudListSaveSlots(uid: string): Promise<SaveSlotInfo[]> {
           timestamp: 0,
           turnCount: 0,
           playerFactionName: "",
-          playerCityCount: 0,
+          playerCastleCount: 0,
           isEmpty: true,
         });
       }

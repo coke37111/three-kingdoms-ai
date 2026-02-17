@@ -1,5 +1,5 @@
-import type { AIResponse, LLMResult, LLMProvider } from "@/types/chat";
-import type { CouncilResponse, CouncilMessage, AdvisorStatsDelta } from "@/types/council";
+import type { LLMProvider } from "@/types/chat";
+import type { CouncilResponse, CouncilReactionResponse, CouncilMessage, AdvisorStatsDelta } from "@/types/council";
 
 export interface CouncilLLMResult {
   council: CouncilResponse;
@@ -7,65 +7,15 @@ export interface CouncilLLMResult {
   usage: { input_tokens: number; output_tokens: number } | null;
 }
 
-export interface CallLLMOptions {
-  skipCache?: boolean;
+export interface ReactionLLMResult {
+  reaction: CouncilReactionResponse;
+  advisorUpdates: AdvisorStatsDelta[];
+  usage: { input_tokens: number; output_tokens: number } | null;
 }
 
-export async function callLLM(
-  system: string,
-  messages: { role: string; content: string }[],
-  provider: LLMProvider = "openai",
-  options?: CallLLMOptions,
-): Promise<LLMResult> {
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system, messages, provider, skipCache: options?.skipCache }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    const raw: string = data.text || "";
-    const usage = data.cached ? null : (data.usage ?? null);
-
-    let response: AIResponse;
-    try {
-      const m = raw.match(/\{[\s\S]*\}/);
-      let jsonStr = m ? m[0] : raw;
-
-      try {
-        response = JSON.parse(jsonStr);
-      } catch {
-        response = JSON.parse(repairJSON(jsonStr));
-      }
-    } catch {
-      const dMatch = raw.match(/"dialogue"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      const eMatch = raw.match(/"emotion"\s*:\s*"(\w+)"/);
-
-      response = {
-        speaker: "제갈량",
-        dialogue: dMatch ? dMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') : raw,
-        emotion: (eMatch?.[1] as AIResponse["emotion"]) || "calm",
-        choices: null,
-        state_changes: null,
-      };
-    }
-
-    return { response, usage };
-  } catch (err) {
-    console.error("API error:", err);
-    return {
-      response: {
-        speaker: "제갈량",
-        dialogue: "소신이 잠시 생각을 정리하고 있사옵니다... (연결 오류가 발생했습니다)",
-        emotion: "thoughtful",
-        choices: null,
-        state_changes: null,
-      },
-      usage: null,
-    };
-  }
+export interface CallLLMOptions {
+  skipCache?: boolean;
+  replyTo?: string;
 }
 
 function repairJSON(jsonStr: string): string {
@@ -90,22 +40,27 @@ function repairJSON(jsonStr: string): string {
   return repaired;
 }
 
-// 참모 역할별 키워드 매핑 (speaker 재분배용)
+function parseJSON<T>(raw: string): T {
+  const m = raw.match(/\{[\s\S]*\}/);
+  const jsonStr = m ? m[0] : raw;
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return JSON.parse(repairJSON(jsonStr));
+  }
+}
+
+// 4인 참모 키워드 매핑
 const ADVISOR_KEYWORDS: Record<string, string[]> = {
-  "관우": ["군사", "공격", "출격", "전투", "병력", "선봉", "무력", "싸움", "방어", "훈련"],
-  "미축": ["내정", "금", "식량", "자원", "경제", "상업", "농업", "재정", "개발", "비용"],
-  "간옹": ["외교", "동맹", "화친", "교섭", "관계", "교역", "손권", "조조", "협상", "사신"],
-  "조운": ["정보", "첩보", "정찰", "동향", "탐색", "감시", "보고", "분석", "적진", "수색"],
+  "제갈량": ["전략", "SP", "스킬", "계략", "계획", "전체", "종합", "큰 그림", "대세", "천하"],
+  "관우": ["군사", "공격", "출격", "전투", "병력", "선봉", "무력", "방어", "훈련", "모병"],
+  "미축": ["내정", "IP", "시설", "경제", "상업", "시장", "논", "은행", "재정", "비용"],
+  "방통": ["외교", "DP", "동맹", "관계", "교섭", "이간", "손권", "조조", "사신"],
 };
 
-/**
- * AI 응답의 council_messages에서 speaker 다양성을 보장.
- * 모든 speaker가 동일인이면 키워드 기반으로 재분배.
- */
 function ensureSpeakerDiversity(msgs: CouncilMessage[], replyTo?: string): CouncilMessage[] {
   if (msgs.length <= 1) return msgs;
-
-  const speakers = new Set(msgs.map((m) => m.speaker));
+  const speakers = new Set(msgs.map(m => m.speaker));
   if (speakers.size >= 2) return msgs;
 
   const result: CouncilMessage[] = [];
@@ -113,9 +68,7 @@ function ensureSpeakerDiversity(msgs: CouncilMessage[], replyTo?: string): Counc
 
   for (let i = 0; i < msgs.length; i++) {
     const msg = msgs[i];
-
     if (i === 0 || i === msgs.length - 1) {
-      // replyTo 지정 시 첫 메시지 speaker 보존
       const speaker = (i === 0 && replyTo) ? replyTo : "제갈량";
       result.push({ ...msg, speaker });
       continue;
@@ -124,7 +77,7 @@ function ensureSpeakerDiversity(msgs: CouncilMessage[], replyTo?: string): Counc
     let bestAdvisor = "";
     let bestScore = 0;
     for (const [advisor, keywords] of Object.entries(ADVISOR_KEYWORDS)) {
-      const score = keywords.filter((kw) => msg.dialogue.includes(kw)).length;
+      const score = keywords.filter(kw => msg.dialogue.includes(kw)).length;
       if (score > bestScore && !usedAdvisors.has(advisor)) {
         bestScore = score;
         bestAdvisor = advisor;
@@ -132,8 +85,8 @@ function ensureSpeakerDiversity(msgs: CouncilMessage[], replyTo?: string): Counc
     }
 
     if (!bestAdvisor) {
-      const advisorList = ["관우", "미축", "간옹", "조운"];
-      bestAdvisor = advisorList.find((a) => !usedAdvisors.has(a)) || advisorList[i % advisorList.length];
+      const advisorList = ["제갈량", "관우", "미축", "방통"];
+      bestAdvisor = advisorList.find(a => !usedAdvisors.has(a)) || advisorList[i % advisorList.length];
     }
 
     usedAdvisors.add(bestAdvisor);
@@ -143,15 +96,23 @@ function ensureSpeakerDiversity(msgs: CouncilMessage[], replyTo?: string): Counc
   return result;
 }
 
-export interface CouncilLLMOptions extends CallLLMOptions {
-  replyTo?: string;
+/** replyTo 참모가 첫 발언자가 되도록 정렬 */
+function ensureReplyToFirst(msgs: CouncilMessage[], replyTo?: string): CouncilMessage[] {
+  if (!replyTo || msgs.length <= 1) return msgs;
+  if (msgs[0].speaker === replyTo) return msgs;
+  const idx = msgs.findIndex(m => m.speaker === replyTo);
+  if (idx <= 0) return msgs;
+  const [target] = msgs.splice(idx, 1);
+  msgs.unshift(target);
+  return msgs;
 }
 
+/** Phase 1+3 통합 호출 */
 export async function callCouncilLLM(
   system: string,
   messages: { role: string; content: string }[],
   provider: LLMProvider = "openai",
-  options?: CouncilLLMOptions,
+  options?: CallLLMOptions,
 ): Promise<CouncilLLMResult> {
   try {
     const res = await fetch("/api/chat", {
@@ -167,59 +128,38 @@ export async function callCouncilLLM(
 
     let parsed: CouncilResponse & { advisor_updates?: AdvisorStatsDelta[] };
     try {
-      const m = raw.match(/\{[\s\S]*\}/);
-      const jsonStr = m ? m[0] : raw;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch {
-        parsed = JSON.parse(repairJSON(jsonStr));
-      }
+      parsed = parseJSON(raw);
     } catch {
-      // 폴백: 수치 변화 없는 안전한 응답
       parsed = {
         council_messages: [
-          { speaker: "제갈량", dialogue: "주공, 잠시 생각을 정리하고 있사옵니다...", emotion: "thoughtful" },
+          { speaker: "제갈량", dialogue: "주공, 잠시 생각을 정리하겠습니다...", emotion: "thoughtful" },
         ],
-        auto_actions: [],
-        approval_requests: [],
+        status_reports: [],
+        plan_reports: [],
         state_changes: null,
       };
     }
 
-    // council_messages 유효성 보장
     if (!Array.isArray(parsed.council_messages) || parsed.council_messages.length === 0) {
       parsed.council_messages = [
         { speaker: "제갈량", dialogue: "주공, 현 정세를 살펴봅시다.", emotion: "calm" },
       ];
     }
 
-    // auto_actions 유효성 보장
-    if (!Array.isArray(parsed.auto_actions)) {
-      parsed.auto_actions = [];
-    }
+    if (!Array.isArray(parsed.status_reports)) parsed.status_reports = [];
+    if (!Array.isArray(parsed.plan_reports)) parsed.plan_reports = [];
 
-    // approval_requests 유효성 보장
-    if (!Array.isArray(parsed.approval_requests)) {
-      parsed.approval_requests = [];
-    }
-
-    // auto_actions가 있을 때 speaker 다양성 보장
-    if (parsed.auto_actions.length > 0) {
-      parsed.council_messages = ensureSpeakerDiversity(parsed.council_messages, options?.replyTo);
-    }
-
-    const advisorUpdates: AdvisorStatsDelta[] = Array.isArray(parsed.advisor_updates)
-      ? parsed.advisor_updates
-      : [];
+    parsed.council_messages = ensureSpeakerDiversity(parsed.council_messages, options?.replyTo);
+    parsed.council_messages = ensureReplyToFirst(parsed.council_messages, options?.replyTo);
 
     return {
       council: {
         council_messages: parsed.council_messages,
-        auto_actions: parsed.auto_actions,
-        approval_requests: parsed.approval_requests,
+        status_reports: parsed.status_reports,
+        plan_reports: parsed.plan_reports,
         state_changes: parsed.state_changes ?? null,
       },
-      advisorUpdates,
+      advisorUpdates: Array.isArray(parsed.advisor_updates) ? parsed.advisor_updates : [],
       usage,
     };
   } catch (err) {
@@ -229,8 +169,72 @@ export async function callCouncilLLM(
         council_messages: [
           { speaker: "제갈량", dialogue: "소신이 잠시 생각을 정리하고 있사옵니다... (연결 오류)", emotion: "thoughtful" },
         ],
-        auto_actions: [],
-        approval_requests: [],
+        status_reports: [],
+        plan_reports: [],
+        state_changes: null,
+      },
+      advisorUpdates: [],
+      usage: null,
+    };
+  }
+}
+
+/** Phase 2/4 반응 호출 */
+export async function callReactionLLM(
+  system: string,
+  messages: { role: string; content: string }[],
+  provider: LLMProvider = "openai",
+  options?: CallLLMOptions,
+): Promise<ReactionLLMResult> {
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, messages, provider, skipCache: options?.skipCache }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const raw: string = data.text || "";
+    const usage = data.cached ? null : (data.usage ?? null);
+
+    let parsed: CouncilReactionResponse & { advisor_updates?: AdvisorStatsDelta[] };
+    try {
+      parsed = parseJSON(raw);
+    } catch {
+      parsed = {
+        council_messages: [
+          { speaker: "제갈량", dialogue: "주공의 말씀을 새기겠습니다.", emotion: "calm" },
+        ],
+        state_changes: null,
+      };
+    }
+
+    if (!Array.isArray(parsed.council_messages) || parsed.council_messages.length === 0) {
+      parsed.council_messages = [
+        { speaker: "제갈량", dialogue: "알겠습니다, 주공.", emotion: "calm" },
+      ];
+    }
+
+    parsed.council_messages = ensureSpeakerDiversity(parsed.council_messages, options?.replyTo);
+    parsed.council_messages = ensureReplyToFirst(parsed.council_messages, options?.replyTo);
+
+    return {
+      reaction: {
+        council_messages: parsed.council_messages,
+        state_changes: parsed.state_changes ?? null,
+        boosted_plans: parsed.boosted_plans,
+      },
+      advisorUpdates: Array.isArray(parsed.advisor_updates) ? parsed.advisor_updates : [],
+      usage,
+    };
+  } catch (err) {
+    console.error("Reaction API error:", err);
+    return {
+      reaction: {
+        council_messages: [
+          { speaker: "제갈량", dialogue: "소신이 잠시 생각을 정리하고 있사옵니다... (연결 오류)", emotion: "thoughtful" },
+        ],
         state_changes: null,
       },
       advisorUpdates: [],

@@ -67,16 +67,18 @@
 
 ```typescript
 interface SaveData {
-  version: number;              // SAVE_VERSION = 1
+  version: number;              // SAVE_VERSION = 2
   timestamp: number;            // Date.now()
-  worldState: WorldState;       // 전체 게임 상태
+  slotName: string;             // 슬롯 이름 ("자동 저장" 등)
+  worldState: WorldState;       // 전체 게임 상태 (포인트/성채/외교)
   chatMessages: ChatMessage[];  // UI 메시지 (최근 50개)
   convHistory: ConversationMessage[];  // API 히스토리 (최근 20개)
-  metadata?: {
-    slotName?: string;          // 슬롯 이름
-    turnNumber?: number;        // 턴 번호
-    playerFaction?: string;     // 플레이어 세력명
-  }
+  advisors?: AdvisorState[];    // 참모 상태
+  metadata: {
+    turnCount: number;          // 턴 번호
+    playerFactionName: string;  // 플레이어 세력명
+    playerCastleCount: number;  // 보유 성채 수
+  };
 }
 ```
 
@@ -84,9 +86,9 @@ interface SaveData {
 
 | 함수 | 설명 |
 |------|------|
-| `saveGame(slot, world, msgs, conv, uid, name?)` | 수동 슬롯 저장 |
+| `saveGame(slot, world, msgs, conv, uid, name?, advisors?)` | 수동 슬롯 저장 |
 | `loadGame(slot, uid)` | 수동 슬롯 로드 |
-| `autoSave(world, msgs, conv, uid)` | 자동 저장 |
+| `autoSave(world, msgs, conv, uid, advisors?)` | 자동 저장 |
 | `loadAutoSave(uid)` | 자동 저장 로드 |
 | `deleteSave(slot, uid)` | 슬롯 삭제 |
 | `listSaveSlots(uid)` | 5개 슬롯 정보 조회 |
@@ -94,9 +96,9 @@ interface SaveData {
 
 ### 자동 저장 시점
 
-- 플레이어 선택 처리 후 (`handleChoice`)
-- 턴 진행 후 (`handleNextTurn`)
-- 외교 행동 후 (`handleDiplomacy`)
+- 플레이어 발언 처리 후 (sendMessage)
+- 턴 실행 후 (Phase 5)
+- 게임 시작/이어하기 직후
 
 ### 저장 크기 제한
 
