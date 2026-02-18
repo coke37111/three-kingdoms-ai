@@ -9,3 +9,5 @@ node_modules/
 app/api/debug-env/
 app/debug/
 nul
+.vscode/
+test_game_*.js
