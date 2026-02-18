@@ -9,7 +9,7 @@
 import type { CaseDefinition, GameSituation } from "./types";
 
 // =====================================================================
-//  제갈량 (전략/개회) — 30개 케이스
+//  제갈량 (전략/개회) — 42개 케이스
 //  항상 1개 발언. 회의 시작과 전반적 정세 분석 담당.
 // =====================================================================
 
@@ -354,10 +354,152 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "예상치 못한 사건이 있었습니다. 보고를 들어봅시다.", emotion: "worried" },
     ],
   },
+
+  // ─── 추가 전략 분석 ───
+
+  {
+    id: "zhuge_two_weak_enemies",
+    advisor: "제갈량",
+    priority: 40,
+    condition: (s) => s.strategic.weakestEnemy !== null &&
+      s.military.mp > s.strategic.weakestEnemy.mp * 1.5 &&
+      s.strategic.overallStrength !== "disadvantage" &&
+      s.strategic.overallStrength !== "critical",
+    variations: [
+      {
+        dialogue: (s) => `${s.strategic.weakestEnemy!.name}이 우리보다 약합니다. 먼저 약한 적을 쓰러뜨린 뒤 강한 적에 집중합시다.`,
+        emotion: "thoughtful",
+      },
+      { dialogue: "약한 적부터 각개격파하는 것이 상책입니다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "zhuge_sp_accumulating",
+    advisor: "제갈량",
+    priority: 29,
+    condition: (s) => s.strategic.sp >= 10 && !s.strategic.spCanUnlock,
+    variations: [
+      {
+        dialogue: (s) => `전략포인트가 ${s.strategic.sp}이나 쌓여 있습니다. 새 스킬 연구를 검토하시옵소서.`,
+        emotion: "thoughtful",
+      },
+    ],
+  },
+  {
+    id: "zhuge_we_are_weakest",
+    advisor: "제갈량",
+    priority: 36,
+    condition: (s) => {
+      const threats = [s.strategic.biggestThreat, s.strategic.weakestEnemy].filter(Boolean);
+      return threats.length === 2 && threats.every(e => e!.mp > s.military.mp);
+    },
+    variations: [
+      { dialogue: "솔직히 우리가 삼국 중 가장 약합니다. 그러나 역사상 약자가 이긴 사례가 많습니다. 방도를 찾읍시다.", emotion: "thoughtful" },
+      { dialogue: "형세가 불리하나 낙담하지 마십시오. 지략으로 역전할 수 있습니다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "zhuge_mid_stable_progress",
+    advisor: "제갈량",
+    priority: 17,
+    condition: (s) => s.gamePhase === "mid" && s.strategic.overallStrength === "balanced" && s.economy.highIncome,
+    variations: [
+      { dialogue: "중반부에 접어들었으나 내실이 탄탄합니다. 이 기세를 이어갑시다.", emotion: "calm" },
+      { dialogue: "균형 잡힌 성장세입니다. 여기서 한 수를 더 두어야 합니다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "zhuge_castle_5_to_9",
+    advisor: "제갈량",
+    priority: 28,
+    condition: (s) => s.strategic.castleCount >= 5 && s.strategic.castleCount < 10,
+    variations: [
+      {
+        dialogue: (s) => `성채 ${s.strategic.castleCount}개를 보유하고 있습니다. 착실히 성장하고 있사옵니다.`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `${s.strategic.castleCount}개 성채... 중원 패권이 가까워지고 있습니다.`,
+        emotion: "thoughtful",
+      },
+    ],
+  },
+  {
+    id: "zhuge_near_enemy_but_weak_army",
+    advisor: "제갈량",
+    priority: 62,
+    condition: (s) => s.strategic.nearEnemyCapital && s.military.troopShortage,
+    variations: [
+      { dialogue: "적 본성이 눈앞이나 병력이 부족합니다. 무리한 공격은 위험합니다. 먼저 모병하십시오.", emotion: "worried" },
+      { dialogue: "기회가 왔으나 준비가 덜 됐습니다. 욕심 내지 말고 전력을 갖춘 뒤 공략합시다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "zhuge_after_strategy_fail",
+    advisor: "제갈량",
+    priority: 54,
+    condition: (s) => s.strategic.consecutiveLosses === 2,
+    variations: [
+      { dialogue: "두 번 연패... 전략 자체를 재고해야 합니다. 보고를 들어봅시다.", emotion: "worried" },
+      { dialogue: "패인을 분석해야 합니다. 같은 실수를 반복해선 안 됩니다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "zhuge_dominant_last_push",
+    advisor: "제갈량",
+    priority: 38,
+    condition: (s) => s.strategic.overallStrength === "dominant" && s.strategic.castleCount >= 12,
+    variations: [
+      { dialogue: "거의 다 왔습니다. 마지막 일격만 남았사옵니다. 긴장을 놓지 마십시오.", emotion: "excited" },
+      { dialogue: "대업이 목전입니다! 전력을 집중하여 마무리합시다.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "zhuge_high_sp_can_unlock",
+    advisor: "제갈량",
+    priority: 34,
+    condition: (s) => s.strategic.sp >= 8 && s.strategic.spCanUnlock,
+    variations: [
+      {
+        dialogue: (s) => `전략포인트 ${s.strategic.sp}, 연구 가능합니다. 지금이 스킬 투자의 적기입니다.`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "zhuge_mid_turning_point",
+    advisor: "제갈량",
+    priority: 41,
+    condition: (s) => s.turn >= 40 && s.turn <= 50 && s.gamePhase === "mid",
+    variations: [
+      { dialogue: "중원의 형세가 갈림길에 서 있습니다. 이 시기의 선택이 판도를 결정합니다.", emotion: "thoughtful" },
+      { dialogue: "이 구간이 천하 삼분의 분기점입니다. 신중한 한 수가 필요합니다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "zhuge_allied_strong",
+    advisor: "제갈량",
+    priority: 31,
+    condition: (s) => s.diplomacy.anyAllied && s.strategic.overallStrength !== "critical",
+    variations: [
+      { dialogue: "동맹이 있으니 두 방면에서 협공이 가능합니다. 이를 전략에 활용합시다.", emotion: "thoughtful" },
+      { dialogue: "동맹국과의 협력이 강점입니다. 연계 전략을 구상해 봅시다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "zhuge_good_economy_expand",
+    advisor: "제갈량",
+    priority: 19,
+    condition: (s) => s.economy.highIncome && s.economy.ipRich && s.strategic.overallStrength !== "critical",
+    variations: [
+      { dialogue: "내정이 탄탄합니다. 이 경제력을 바탕으로 군비를 더 강화합시다.", emotion: "excited" },
+      { dialogue: "경제 기반이 굳건합니다. 이제 군사력을 키울 여유가 생겼습니다.", emotion: "calm" },
+    ],
+  },
 ];
 
 // =====================================================================
-//  관우 (군사) — 35개 케이스
+//  관우 (군사) — 48개 케이스
 //  군사적 이슈가 있을 때 발언. 이슈 없으면 생략 가능.
 // =====================================================================
 
@@ -779,10 +921,152 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "조용한 날이오. 전방에 이상 없소.", emotion: "calm" },
     ],
   },
+
+  // ─── 추가 군사 보고 ───
+
+  {
+    id: "guan_full_force_ready",
+    advisor: "관우",
+    priority: 32,
+    condition: (s) => s.military.troopsAbundant && s.military.highTraining && s.military.highMorale,
+    variations: [
+      { dialogue: "병력, 훈련, 사기 삼박자가 맞았소! 지금 당장 출격해도 두렵지 않소!", emotion: "excited" },
+      { dialogue: "만반의 준비가 되었소. 어느 적도 당할 수 없소!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_near_capital_ready",
+    advisor: "관우",
+    priority: 58,
+    condition: (s) => s.strategic.nearEnemyCapital && s.military.troopsAbundant && s.military.highTraining,
+    variations: [
+      { dialogue: "적 본성이 눈앞이오! 이 관우, 선봉에 서겠소. 결전의 날이 왔소!", emotion: "excited" },
+      { dialogue: "최후의 일격이오. 병력도 훈련도 만반이오. 돌격합시다!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_morale_normal",
+    advisor: "관우",
+    priority: 9,
+    condition: (s) => !s.military.lowMorale && !s.military.highMorale,
+    variations: [
+      { dialogue: "병사들의 사기는 보통 수준이오. 뭔가 계기가 있으면 올릴 수 있소.", emotion: "calm" },
+      { dialogue: "사기가 나쁘진 않소. 현 상태를 유지합시다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "guan_solo_front",
+    advisor: "관우",
+    priority: 11,
+    condition: (s) => s.strategic.adjacentEnemyCastles.length === 1,
+    variations: [
+      {
+        dialogue: (s) => `전선이 ${s.strategic.adjacentEnemyCastles[0]} 한 곳이오. 집중 대응이 가능하오.`,
+        emotion: "calm",
+      },
+      { dialogue: "전선이 하나로 집중되어 있소. 효율적으로 방어할 수 있소.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "guan_dominant_military",
+    advisor: "관우",
+    priority: 27,
+    condition: (s) => s.strategic.weakestEnemy !== null && s.military.mp >= s.strategic.weakestEnemy.mp * 2,
+    variations: [
+      {
+        dialogue: (s) => `우리 병력이 ${s.strategic.weakestEnemy!.name}의 두 배요! 마음만 먹으면 언제든 쓸 수 있소.`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "guan_mass_wounded_warning",
+    advisor: "관우",
+    priority: 44,
+    condition: (s) => s.military.woundedRecovering > 20000,
+    variations: [
+      {
+        dialogue: (s) => `부상병이 ${Math.round(s.military.woundedRecovering / 10000)}만 명이오. 전력이 크게 줄었소. 당분간 수비에 집중해야 하오.`,
+        emotion: "worried",
+      },
+    ],
+  },
+  {
+    id: "guan_two_win_streak",
+    advisor: "관우",
+    priority: 47,
+    condition: (s) => s.strategic.consecutiveWins === 2,
+    variations: [
+      { dialogue: "2연승이오! 이 기세를 이어가야 하오. 다음 전투도 반드시 이기겠소!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_late_game_resolution",
+    advisor: "관우",
+    priority: 39,
+    condition: (s) => s.gamePhase === "late" && !s.military.troopShortage,
+    variations: [
+      { dialogue: "결전이 가까워졌소. 이 관우, 마지막까지 최선을 다하겠소!", emotion: "excited" },
+      { dialogue: "이제 끝을 내야 할 때요. 전군의 사기가 최고조에 달했소!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_high_train_low_troops",
+    advisor: "관우",
+    priority: 36,
+    condition: (s) => s.military.maxTraining && s.military.troopShortage,
+    variations: [
+      { dialogue: "한 명 한 명이 정예 중의 정예요. 수는 적어도 실력은 뒤지지 않소!", emotion: "calm" },
+      { dialogue: "훈련은 완벽하오. 모병만 이루어지면 천하를 상대할 수 있소!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_hostile_strategic_comment",
+    advisor: "관우",
+    priority: 20,
+    condition: (s) => s.diplomacy.allHostile && s.military.troopsAdequate,
+    variations: [
+      { dialogue: "사방이 적이오. 하나 이 관우가 지키는 한 무너지지 않겠소.", emotion: "angry" },
+      { dialogue: "양면 전쟁이 두렵지 않소. 방통이 외교로 한쪽을 잡는 동안 내가 전선을 지키겠소.", emotion: "angry" },
+    ],
+  },
+  {
+    id: "guan_mid_game_stable",
+    advisor: "관우",
+    priority: 7,
+    condition: (s) => s.gamePhase === "mid" && !s.military.troopShortage && !s.military.lowTraining,
+    variations: [
+      { dialogue: "중반부로 접어들었소. 군사적으로 안정적이오.", emotion: "calm" },
+      { dialogue: "지금은 힘을 유지하면서 기회를 노릴 때요.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "guan_enthusiasm_high",
+    advisor: "관우",
+    priority: 16,
+    condition: (s) => {
+      const mood = s.advisorMood["관우"];
+      return !!mood && mood.isEnthusiastic;
+    },
+    variations: [
+      { dialogue: "오늘따라 전의가 불타오르오! 주공의 명이라면 어디든 달려가겠소!", emotion: "excited" },
+      { dialogue: "의욕이 넘치오. 지금 당장이라도 출격할 수 있소!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "guan_win_streak_caution",
+    advisor: "관우",
+    priority: 51,
+    condition: (s) => s.strategic.consecutiveWins >= 2 && s.military.lowMorale,
+    variations: [
+      { dialogue: "연승 중이나 병사들의 피로가 쌓였소. 쉬게 해줘야 하오.", emotion: "thoughtful" },
+      { dialogue: "이겼으나 무리했소. 사기가 떨어진 걸 보니 휴식이 필요하오.", emotion: "worried" },
+    ],
+  },
 ];
 
 // =====================================================================
-//  미축 (내정) — 30개 케이스
+//  미축 (내정) — 42개 케이스
 //  재정/시설 관련 보고. 매턴 수입 보고가 기본.
 // =====================================================================
 
@@ -1105,6 +1389,135 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     ],
   },
 
+  // ─── 추가 내정 보고 ───
+
+  {
+    id: "mi_balanced_facilities",
+    advisor: "미축",
+    priority: 19,
+    condition: (s) => s.economy.marketLv >= 2 && s.economy.farmLv >= 2 &&
+      Math.abs(s.economy.marketLv - s.economy.farmLv) <= 1 && !s.economy.facilityImbalance,
+    variations: [
+      {
+        dialogue: (s) => `시장 Lv${s.economy.marketLv}, 논 Lv${s.economy.farmLv}로 균형 잡혀 있습니다. 안정적인 수입이 기대됩니다.`,
+        emotion: "calm",
+      },
+    ],
+  },
+  {
+    id: "mi_all_max_facilities",
+    advisor: "미축",
+    priority: 27,
+    condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 && s.economy.bankLv >= 3,
+    variations: [
+      { dialogue: "시장, 논, 은행 모두 최고 수준입니다! 이 수입이면 전쟁도 내정도 두렵지 않습니다.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "mi_income_growing",
+    advisor: "미축",
+    priority: 21,
+    condition: (s) => s.economy.ipRegen >= 15 && s.economy.ipRegen < 20,
+    variations: [
+      {
+        dialogue: (s) => `매턴 내정포인트 ${s.economy.ipRegen} 확보 중입니다. 투자 효과가 나타나고 있습니다.`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "mi_post_military_spend",
+    advisor: "미축",
+    priority: 38,
+    condition: (s) => s.economy.ipLow && !s.economy.ipCritical && s.strategic.recentBattle,
+    variations: [
+      { dialogue: "전비로 내정포인트가 줄었습니다. 아껴 쓰겠습니다.", emotion: "thoughtful" },
+      { dialogue: "군사 지출이 있었습니다. 재정이 빠듯하니 현명하게 운영하겠습니다.", emotion: "worried" },
+    ],
+  },
+  {
+    id: "mi_peace_growth",
+    advisor: "미축",
+    priority: 16,
+    condition: (s) => !s.strategic.recentBattle && s.economy.ipAdequate && !s.strategic.enemyNearCapital,
+    variations: [
+      { dialogue: "전쟁이 없으니 내정에 집중할 수 있습니다. 좋은 기회입니다.", emotion: "calm" },
+      { dialogue: "평화로운 시기에 투자해 두는 것이 현명합니다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "mi_bank_completed",
+    advisor: "미축",
+    priority: 23,
+    condition: (s) => s.economy.bankLv >= 3 && s.economy.ipCap >= 200,
+    variations: [
+      {
+        dialogue: (s) => `은행 Lv${s.economy.bankLv}으로 상한이 ${s.economy.ipCap}까지 늘었습니다. 비축이 충분합니다.`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "mi_castle_expansion_opportunity",
+    advisor: "미축",
+    priority: 37,
+    condition: (s) => s.strategic.recentCastleGained && s.economy.ipRich,
+    variations: [
+      { dialogue: "새 영토 확보와 동시에 투자 여력도 있습니다. 즉시 경제 기반을 구축할 수 있습니다.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "mi_near_enemy_capital_funds",
+    advisor: "미축",
+    priority: 46,
+    condition: (s) => s.strategic.nearEnemyCapital && s.economy.ipRich,
+    variations: [
+      { dialogue: "결전 자금이 충분합니다. 관우 장군, 마음 놓고 공략하시오!", emotion: "excited" },
+      { dialogue: "전쟁 보급에 차질이 없습니다. 전비는 걱정 마십시오.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "mi_upgrade_cost_info",
+    advisor: "미축",
+    priority: 14,
+    condition: (s) => s.economy.canUpgrade && s.economy.ipAdequate,
+    variations: [
+      {
+        dialogue: (s) => `시설 업그레이드 가능합니다. 시장 업그레이드에 내정포인트 ${s.economy.marketUpgradeCost}이 필요합니다.`,
+        emotion: "calm",
+      },
+    ],
+  },
+  {
+    id: "mi_late_rich",
+    advisor: "미축",
+    priority: 26,
+    condition: (s) => s.gamePhase === "late" && s.economy.ipRich && s.economy.highIncome,
+    variations: [
+      { dialogue: "후반부에도 재정이 탄탄합니다. 결전을 위한 자금은 충분합니다.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "mi_mid_investment_timing",
+    advisor: "미축",
+    priority: 18,
+    condition: (s) => s.gamePhase === "mid" && s.economy.canUpgrade && s.economy.ipAdequate,
+    variations: [
+      { dialogue: "중반부 투자의 적기입니다. 지금 시설을 키워 두면 후반에 큰 이득이 됩니다.", emotion: "thoughtful" },
+      { dialogue: "지금 투자하면 수익이 배로 돌아옵니다. 과감하게 투자합시다.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "mi_early_growth",
+    advisor: "미축",
+    priority: 13,
+    condition: (s) => s.gamePhase === "early" && s.economy.ipAdequate,
+    variations: [
+      { dialogue: "초반에 시설 기반을 빨리 갖춰야 후에 여유가 생깁니다.", emotion: "thoughtful" },
+      { dialogue: "기초 내정을 잘 닦으면 이후 발전이 빠릅니다. 차근차근 쌓아가겠습니다.", emotion: "calm" },
+    ],
+  },
+
   // ─── 안정 (기본) ───
 
   {
@@ -1142,7 +1555,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
 ];
 
 // =====================================================================
-//  방통 (외교) — 30개 케이스
+//  방통 (외교) — 43개 케이스
 //  외교 관계와 기회 분석. 변동이 없으면 생략 가능.
 // =====================================================================
 
@@ -1465,6 +1878,165 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "별다른 외교 동향은 없소. 지켜보겠소.", emotion: "calm" },
       { dialogue: "외교 정세에 변동 없소. 각국 동향을 주시하고 있소.", emotion: "calm" },
       { dialogue: "적의 외교 동향을 살피고 있소. 아직은 잠잠하오.", emotion: "calm" },
+    ],
+  },
+
+  // ─── 추가 외교 보고 ───
+
+  {
+    id: "pang_cao_hostile_sun_neutral",
+    advisor: "방통",
+    priority: 38,
+    condition: (s) => {
+      const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
+      const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
+      return !!cao && !!sun && cao.isHostile && (sun.isNeutral || sun.isFriendly);
+    },
+    variations: [
+      { dialogue: "조조와는 적이지만 손권과는 소통이 가능하오. 손권과 먼저 손을 잡읍시다.", emotion: "thoughtful" },
+      { dialogue: "손권이 중립이니 외교 공세로 우리 편으로 끌어들일 수 있소.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "pang_sun_hostile_cao_neutral",
+    advisor: "방통",
+    priority: 38,
+    condition: (s) => {
+      const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
+      const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
+      return !!cao && !!sun && sun.isHostile && (cao.isNeutral || cao.isFriendly);
+    },
+    variations: [
+      { dialogue: "손권과 갈등이 있으나 조조와는 여지가 있소. 조조와의 관계를 먼저 다져봅시다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "pang_sun_allied_cao_hostile",
+    advisor: "방통",
+    priority: 33,
+    condition: (s) => {
+      const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
+      const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
+      return !!cao && !!sun && sun.isAllied && cao.isHostile;
+    },
+    variations: [
+      { dialogue: "손권과 동맹 중이니 조조에 집중할 수 있소. 손권과 함께 조조를 압박합시다!", emotion: "excited" },
+    ],
+  },
+  {
+    id: "pang_cao_allied_sun_hostile",
+    advisor: "방통",
+    priority: 33,
+    condition: (s) => {
+      const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
+      const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
+      return !!cao && !!sun && cao.isAllied && sun.isHostile;
+    },
+    variations: [
+      { dialogue: "조조와 동맹이니 손권 쪽에 집중합시다. 조조의 협력을 기대할 수 있소.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "pang_both_friendly",
+    advisor: "방통",
+    priority: 36,
+    condition: (s) => s.diplomacy.relations.every(r => r.isFriendly || r.isAllied),
+    variations: [
+      { dialogue: "양쪽 모두 우호적이오! 이 외교적 우위를 십분 활용해야 하오.", emotion: "excited" },
+      { dialogue: "천하에 적이 없는 상태요. 이를 발판으로 내실을 더 다져야 하오.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "pang_dp_high_accumulate",
+    advisor: "방통",
+    priority: 29,
+    condition: (s) => s.diplomacy.dp >= 6,
+    variations: [
+      {
+        dialogue: (s) => `외교포인트가 ${s.diplomacy.dp}나 됩니다! 대규모 외교 행동을 취할 수 있소.`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "pang_enemy_divide_success",
+    advisor: "방통",
+    priority: 42,
+    condition: (s) => {
+      const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
+      const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
+      return !!cao && !!sun && !s.diplomacy.enemiesFriendly && cao.score <= 0 && sun.score <= 0;
+    },
+    variations: [
+      { dialogue: "조조와 손권 사이가 틀어져 있소. 이간의 효과가 있는 것 같소. 우리에게 유리하오.", emotion: "excited" },
+    ],
+  },
+  {
+    id: "pang_big_threat_diplomacy",
+    advisor: "방통",
+    priority: 40,
+    condition: (s) => s.strategic.biggestThreat !== null &&
+      s.strategic.biggestThreat.mp > s.military.mp * 1.8 && s.diplomacy.dpAdequate,
+    variations: [
+      {
+        dialogue: (s) => `${s.strategic.biggestThreat!.name}이 너무 강하오. 외교로 시간을 벌어야 하오.`,
+        emotion: "thoughtful",
+      },
+    ],
+  },
+  {
+    id: "pang_weak_enemy_surrender",
+    advisor: "방통",
+    priority: 39,
+    condition: (s) => s.strategic.weakestEnemy !== null &&
+      s.strategic.weakestEnemy.castles <= 2 && s.diplomacy.dpAdequate,
+    variations: [
+      {
+        dialogue: (s) => `${s.strategic.weakestEnemy!.name}이 겨우 성채 ${s.strategic.weakestEnemy!.castles}개뿐이오. 외교적 압박으로 굴복시킬 수 있소!`,
+        emotion: "excited",
+      },
+    ],
+  },
+  {
+    id: "pang_mid_game_diplomacy",
+    advisor: "방통",
+    priority: 24,
+    condition: (s) => s.gamePhase === "mid" && !s.diplomacy.allHostile,
+    variations: [
+      { dialogue: "중반부 외교 정세를 정비해야 할 때요. 후반을 위한 포석을 깔겠소.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "pang_late_game_seal",
+    advisor: "방통",
+    priority: 37,
+    condition: (s) => s.gamePhase === "late" && s.diplomacy.dpRich,
+    variations: [
+      { dialogue: "결전을 앞두고 외교적으로 유리한 위치를 확보해야 하오. 이 봉추의 마지막 계략을 보여드리겠소.", emotion: "excited" },
+      { dialogue: "후반부 외교 봉쇄에 들어갑시다. 적이 지원받지 못하게 차단하겠소.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "pang_post_victory_diplomacy",
+    advisor: "방통",
+    priority: 45,
+    condition: (s) => s.strategic.recentBattleWon && s.diplomacy.dpAdequate,
+    variations: [
+      { dialogue: "승전으로 우리의 위세가 높아졌소. 이 기세에 외교도 유리합니다.", emotion: "excited" },
+      { dialogue: "승리 후 상대방이 태도를 바꿀 수 있소. 외교적 접촉을 시도합시다.", emotion: "thoughtful" },
+    ],
+  },
+  {
+    id: "pang_enthusiasm_high",
+    advisor: "방통",
+    priority: 17,
+    condition: (s) => {
+      const mood = s.advisorMood["방통"];
+      return !!mood && mood.isEnthusiastic;
+    },
+    variations: [
+      { dialogue: "오늘따라 계략이 넘쳐흐르오! 주공, 이 봉추의 책략에 주목하시오!", emotion: "excited" },
+      { dialogue: "좋은 구상이 떠올랐소. 이번 회의가 기대되오!", emotion: "excited" },
     ],
   },
 ];

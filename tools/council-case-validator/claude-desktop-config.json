@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "council-case-validator": {
+      "command": "node",
+      "args": [
+        "C:/Projects/three-kingdoms-ai/tools/council-case-validator/dist/index.js"
+      ],
+      "cwd": "C:/Projects/three-kingdoms-ai"
+    }
+  }
+}

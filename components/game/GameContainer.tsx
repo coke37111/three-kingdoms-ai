@@ -11,7 +11,7 @@ import { useTypewriter } from "@/hooks/useTypewriter";
 import { callCouncilLLM, callReactionLLM, type CallLLMOptions } from "@/lib/api/llmClient";
 import { buildPhase1And3Prompt, buildPhase2Prompt, buildPhase4Prompt } from "@/lib/prompts/councilPrompt";
 import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
-import { autoSave, loadAutoSave, hasAutoSave } from "@/lib/game/saveSystem";
+import { autoSave, loadAutoSave, hasAutoSave, loadChatLog } from "@/lib/game/saveSystem";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { resolveBattle, generateBattleNarrative, resolveRetreat } from "@/lib/game/combatSystem";
 import { createWoundedPool } from "@/lib/game/pointCalculator";
@@ -139,6 +139,7 @@ export default function GameContainer() {
 
   const processingTurnRef = useRef(false);
   const pendingInvasionsRef = useRef<PendingInvasion[]>([]);
+  const pendingCasePlanReportsRef = useRef<import("@/types/council").PlanReport[]>([]);
 
   // 침공 대응 모달
   const [pendingInvasion, setPendingInvasion] = useState<PendingInvasion | null>(null);
@@ -544,7 +545,7 @@ export default function GameContainer() {
   const doAutoSave = useCallback(async () => {
     if (!uid) return;
     try {
-      await autoSave(worldStateRef.current, messagesRef.current, convHistoryRef.current, uid, advisorsRef.current);
+      await autoSave(worldStateRef.current, messagesRef.current, convHistoryRef.current, uid, advisorsRef.current, councilMsgsRef.current);
     } catch (err) {
       console.warn("자동 저장 실패:", err);
     }
@@ -592,6 +593,9 @@ export default function GameContainer() {
       if (council.state_changes) {
         const { result_message: _, ...changesOnly } = council.state_changes;
         applyPlayerChanges(changesOnly, addMsgToCouncil);
+      } else {
+        // 케이스 모드: planReports를 Phase 5에서 실행
+        pendingCasePlanReportsRef.current = council.plan_reports;
       }
 
       // Phase 1 메시지 애니메이션
@@ -726,7 +730,20 @@ export default function GameContainer() {
     pendingInvasionsRef.current = [];
 
     try {
-      // ① NPC 턴 (플레이어 공격은 pendingInvasions로 수집)
+      // ① 케이스 기반 planReport 실행 (state_changes가 null이었던 경우)
+      if (pendingCasePlanReportsRef.current.length > 0) {
+        for (const planReport of pendingCasePlanReportsRef.current) {
+          if (planReport.expected_points || planReport.facility_upgrades) {
+            applyPlayerChanges({
+              point_deltas: planReport.expected_points,
+              facility_upgrades: planReport.facility_upgrades,
+            }, addMsgToCouncil);
+          }
+        }
+        pendingCasePlanReportsRef.current = [];
+      }
+
+      // ② NPC 턴 (플레이어 공격은 pendingInvasions로 수집)
       const npcResults = await processNPCTurns();
       if (npcResults.length > 0) setTurnNotifications(npcResults);
 
@@ -973,6 +990,11 @@ export default function GameContainer() {
     if (Array.isArray(save.advisors) && save.advisors.length > 0) {
       setAdvisors(save.advisors);
     }
+
+    // 채팅 로그 복원: 이전 회의 기록을 councilMessages에 복원하면
+    // runMeetingPhase1And3에서 prevCouncil로 이동하여 위로 스크롤 시 확인 가능
+    const chatLog = loadChatLog("auto");
+    if (chatLog.length > 0) setCouncilMessages(chatLog);
 
     // councilNumber 복원: runMeetingPhase1And3 내부에서 +1 되므로 턴-1로 설정
     setCouncilNumber(Math.max(0, save.worldState.currentTurn - 1));

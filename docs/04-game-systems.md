@@ -27,12 +27,16 @@ Phase 4: 군주 피드백 (AP 1 소비/발언, API 0~N회)
   └─ "실행" 버튼 → Phase 5
 
 Phase 5: 턴 실행 (자동)
-  ├─ 계획 실행 + NPC 턴 (API 1회, 배치 처리)
+  ├─ [케이스 모드] pendingCasePlanReports 적용 (IP 차감, 시설 업그레이드 등)
+  ├─ NPC 턴 (API 1회, 배치 처리)
   ├─ advanceWorldTurn(): 포인트 충전, 부상 회복
   ├─ checkGameEnd(): 승패 판정
   ├─ autoSave(): Firebase 자동 저장
   └─ Phase 1 복귀
 ```
+
+> Phase 3 계획 실행 타이밍: LLM 모드는 Phase 1 응답 즉시, 케이스 모드는 Phase 5 시작 시.
+> 자세한 내용: `docs/11-case-system.md`
 
 ---
 
