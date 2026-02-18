@@ -1,0 +1,33 @@
+{
+  "name": "council-case-validator",
+  "version": "1.0.0",
+  "description": "MCP 서버 - Three Kingdoms AI 참모 케이스 검증 도구",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "council-case-validator": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "node dist/test.js",
+    "test:mcp": "npm run build && node dist/mcp-test.js",
+    "report": "npm run build && node dist/report.js"
+  },
+  "keywords": [
+    "mcp",
+    "validator",
+    "three-kingdoms-ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@typescript-eslint/parser": "^8.20.0",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}
