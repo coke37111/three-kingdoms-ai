@@ -47,14 +47,22 @@ export const DP_REGEN_PER_TURN = 1;
 /** DP 전환: IP 1 → DP 변환량 */
 export const DP_CONVERSION_RATE = 0.5;
 
-/** 시설 건설 IP 비용 (레벨당) */
-export const FACILITY_BUILD_COST = 30;
+/** 시설 건설 IP 기본 비용 (Lv0→1) */
+export const FACILITY_BASE_COST = 30;
+
+/** 시설 건설 IP 비용 레벨당 추가분 */
+export const FACILITY_COST_PER_LEVEL = 10;
+
+/** 시설 업그레이드 비용 계산: 30 + currentLevel × 10 */
+export function getFacilityUpgradeCost(currentLevel: number): number {
+  return FACILITY_BASE_COST + currentLevel * FACILITY_COST_PER_LEVEL;
+}
 
 /** SP→DP 변환 비용: SP 2 → DP 1 */
 export const SP_TO_DP_COST = 2;
 
-/** 징병 IP 비용 (1만 명당) */
-export const RECRUIT_IP_COST = 10;
+/** 내정포인트 1당 모병 가능 병력 수 */
+export const RECRUIT_TROOPS_PER_IP = 100;
 
 /** 훈련 IP 비용 (훈련도 0.1당) */
 export const TRAIN_IP_COST = 15;

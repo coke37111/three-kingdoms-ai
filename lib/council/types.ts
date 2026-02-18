@@ -57,7 +57,11 @@ export interface GameSituation {
     farmLv: number;
     bankLv: number;
     noFacilities: boolean;        // 모두 Lv0
-    canUpgrade: boolean;          // ip >= FACILITY_BUILD_COST(30)
+    canUpgrade: boolean;          // ip >= getFacilityUpgradeCost(lowest level)
+    /** 각 시설의 다음 레벨 업그레이드 비용 */
+    marketUpgradeCost: number;
+    farmUpgradeCost: number;
+    bankUpgradeCost: number;
     facilityImbalance: boolean;   // |market - farm| >= 3
     highIncome: boolean;          // ipRegen >= 20
     lowIncome: boolean;           // ipRegen <= 5

@@ -20,10 +20,9 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, RECRUIT_IP_COST, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
-import ChatBubble from "./ChatBubble";
 import TitleScreen from "./TitleScreen";
 import WorldStatus from "./WorldStatus";
 import TurnNotification, { type TurnNotificationItem } from "./TurnNotification";
@@ -96,6 +95,20 @@ export default function GameContainer() {
     });
   }, []);
 
+  // 시스템 메시지를 councilMessages에 인라인 추가
+  const addSystemCouncilMsg = useCallback((text: string) => {
+    setCouncilMessages(prev => [...prev, { speaker: "__system__", dialogue: text, emotion: "calm" as const }]);
+  }, [setCouncilMessages]);
+
+  // addMessage 어댑터: system → councilMessages, 나머지 → messages
+  const addMsgToCouncil = useCallback((msg: ChatMessage) => {
+    if (msg.role === "system") {
+      addSystemCouncilMsg(msg.content);
+    } else {
+      addMessage(msg);
+    }
+  }, [addSystemCouncilMsg, addMessage]);
+
   const [councilNumber, setCouncilNumberRaw] = useState(0);
   const councilNumberRef = useRef(0);
   const setCouncilNumber = useCallback((u: number | ((p: number) => number)) => {
@@ -150,7 +163,7 @@ export default function GameContainer() {
   const { advanceWorldTurn } = useWorldTurn({
     worldStateRef,
     setWorldState,
-    addMessage,
+    addMessage: addMsgToCouncil,
   });
 
   const { cancelTypewriter } = useTypewriter();
@@ -320,7 +333,7 @@ export default function GameContainer() {
     if (npcFactions.length === 0) return [];
 
     setNpcProcessing(true);
-    addMessage({ role: "system", content: "⏳ 타국 군주들이 행동 중..." });
+    addSystemCouncilMsg("⏳ 타국 군주들이 행동 중...");
 
     try {
       const prompt = buildFactionAIPrompt(world, npcFactions);
@@ -362,7 +375,7 @@ export default function GameContainer() {
 
       if (notifications.length > 0) {
         const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-        addMessage({ role: "system", content: `📢 타국 동향\n${lines}` });
+        addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
       }
 
       setNpcProcessing(false);
@@ -379,11 +392,11 @@ export default function GameContainer() {
         });
       }
       const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-      addMessage({ role: "system", content: `📢 타국 동향\n${lines}` });
+      addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
       setNpcProcessing(false);
       return notifications;
     }
-  }, [worldStateRef, addMessage, llmProvider, setTokenUsage]);
+  }, [worldStateRef, addSystemCouncilMsg, llmProvider, setTokenUsage]);
 
   // ---- NPC 행동 적용 ----
   const applyNPCAction = useCallback((factionId: FactionId, action: { action: NPCActionType; target?: string }) => {
@@ -400,17 +413,25 @@ export default function GameContainer() {
     const discount = 1 - costReduceRate;
 
     switch (action.action) {
-      case "개발":
+      case "개발": {
+        const npcMarketLv = faction?.facilities.market ?? 0;
+        const devCost = getFacilityUpgradeCost(npcMarketLv);
         applyNPCChanges(factionId, {
-          point_deltas: { ip_delta: -20 },
+          point_deltas: { ip_delta: -devCost },
           facility_upgrades: [{ type: "market", levels: 1 }],
         });
         break;
-      case "모병":
+      }
+      case "모병": {
+        // NPC는 보유 IP의 절반을 모병에 투자 (최소 10, 최대 50)
+        const npcIp = faction?.points.ip ?? 0;
+        const recruitIp = Math.min(50, Math.max(10, Math.floor(npcIp * 0.5)));
+        const recruitTroops = Math.round(recruitIp * RECRUIT_TROOPS_PER_IP * (1 + costReduceRate));
         applyNPCChanges(factionId, {
-          point_deltas: { ip_delta: -Math.round(RECRUIT_IP_COST * discount), mp_troops_delta: 20000 },
+          point_deltas: { ip_delta: -Math.round(recruitIp * discount), mp_troops_delta: recruitTroops },
         });
         break;
+      }
       case "훈련":
         applyNPCChanges(factionId, {
           point_deltas: { ip_delta: -Math.round(TRAIN_IP_COST * discount), mp_training_delta: 0.05 },
@@ -488,7 +509,7 @@ export default function GameContainer() {
           }
         }
 
-        addMessage({ role: "system", content: result.narrative });
+        addSystemCouncilMsg(result.narrative);
         setBattleReport(result);
         break;
       }
@@ -503,7 +524,7 @@ export default function GameContainer() {
       default:
         break;
     }
-  }, [applyNPCChanges, worldStateRef, addMessage, setBattleReport]);
+  }, [applyNPCChanges, worldStateRef, addSystemCouncilMsg, setBattleReport]);
 
   const applyDeterministicAction = useCallback((factionId: FactionId) => {
     applyNPCAction(factionId, { action: "개발" });
@@ -534,8 +555,8 @@ export default function GameContainer() {
     applyPlayerChanges({
       point_deltas: { ap_delta: -amount },
       xp_gain: Math.floor(amount * XP_PER_AP_SPENT),
-    }, addMessage);
-  }, [applyPlayerChanges, addMessage]);
+    }, addMsgToCouncil);
+  }, [applyPlayerChanges, addMsgToCouncil]);
 
   // ---- SP→DP 변환 ----
   const handleConvertSPtoDP = useCallback(() => {
@@ -543,8 +564,8 @@ export default function GameContainer() {
     if (!player || player.points.sp < SP_TO_DP_COST) return;
     applyPlayerChanges({
       point_deltas: { sp_delta: -SP_TO_DP_COST, dp_delta: 1 },
-    }, addMessage);
-  }, [applyPlayerChanges, addMessage, worldStateRef]);
+    }, addMsgToCouncil);
+  }, [applyPlayerChanges, addMsgToCouncil, worldStateRef]);
 
   // ---- 5-Phase 회의 전체 흐름 실행 ----
   const runMeetingPhase1And3 = useCallback(async (context: string) => {
@@ -570,7 +591,7 @@ export default function GameContainer() {
 
       if (council.state_changes) {
         const { result_message: _, ...changesOnly } = council.state_changes;
-        applyPlayerChanges(changesOnly, addMessage);
+        applyPlayerChanges(changesOnly, addMsgToCouncil);
       }
 
       // Phase 1 메시지 애니메이션
@@ -624,7 +645,7 @@ export default function GameContainer() {
       setIsLoading(false);
       return { phase3Msgs: [] };
     }
-  }, [doPhase1And3, animateCouncilMessages, updateAdvisorStats, applyPlayerChanges, addMessage, worldStateRef]);
+  }, [doPhase1And3, animateCouncilMessages, updateAdvisorStats, applyPlayerChanges, addMsgToCouncil, worldStateRef]);
 
   // Phase 3 메시지 표시용 (Phase 2에서 "다음" 버튼 시 호출)
   const pendingPhase3MsgsRef = useRef<CouncilMessage[]>([]);
@@ -736,7 +757,7 @@ export default function GameContainer() {
             const atkFac = worldStateRef.current.factions.find(f => f.id === invasion.attackerFactionId)!;
             atkFac.woundedPool = [...atkFac.woundedPool, createWoundedPool(result.attackerWounded)];
           }
-          applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMessage);
+          applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMsgToCouncil);
           if (result.defenderWounded > 0) {
             const pFac = worldStateRef.current.factions.find(f => f.isPlayer)!;
             pFac.woundedPool = [...pFac.woundedPool, createWoundedPool(result.defenderWounded)];
@@ -747,7 +768,7 @@ export default function GameContainer() {
             const dmgUpgrades: { type: "farm" | "market"; levels: number }[] = [];
             if (result.facilityDamage.farm_damage > 0) dmgUpgrades.push({ type: "farm", levels: -result.facilityDamage.farm_damage });
             if (result.facilityDamage.market_damage > 0) dmgUpgrades.push({ type: "market", levels: -result.facilityDamage.market_damage });
-            if (dmgUpgrades.length > 0) applyPlayerChanges({ facility_upgrades: dmgUpgrades }, addMessage);
+            if (dmgUpgrades.length > 0) applyPlayerChanges({ facility_upgrades: dmgUpgrades }, addMsgToCouncil);
           }
 
           // 성채 함락 시 소유권 이전 + 도주
@@ -759,12 +780,12 @@ export default function GameContainer() {
               const retreat = resolveRetreat(loser, result.castleConquered, updatedWorld.castles);
               if (retreat) {
                 result.retreatInfo = retreat;
-                applyPlayerChanges({ point_deltas: { mp_troops_delta: -retreat.troopsLost, mp_morale_delta: retreat.moralePenalty } }, addMessage);
+                applyPlayerChanges({ point_deltas: { mp_troops_delta: -retreat.troopsLost, mp_morale_delta: retreat.moralePenalty } }, addMsgToCouncil);
               }
             }
           }
 
-          addMessage({ role: "system", content: result.narrative });
+          addSystemCouncilMsg(result.narrative);
           setBattleReport(result);
           await waitForBattleReportClose();
         } else {
@@ -773,15 +794,15 @@ export default function GameContainer() {
 
           // 비용 차감
           if (responseType === "특수_전략") {
-            applyPlayerChanges({ point_deltas: { sp_delta: -5 } }, addMessage);
+            applyPlayerChanges({ point_deltas: { sp_delta: -5 } }, addMsgToCouncil);
           } else if (responseType === "지원_요청") {
-            applyPlayerChanges({ point_deltas: { dp_delta: -3 } }, addMessage);
+            applyPlayerChanges({ point_deltas: { dp_delta: -3 } }, addMsgToCouncil);
           } else if (responseType === "조공") {
             const tributeCost = Math.max(20, Math.floor(invasion.attackerTroops * 0.0005));
-            applyPlayerChanges({ point_deltas: { ip_delta: -tributeCost } }, addMessage);
+            applyPlayerChanges({ point_deltas: { ip_delta: -tributeCost } }, addMsgToCouncil);
           }
 
-          addMessage({ role: "system", content: `📢 ${invResult.message}` });
+          addSystemCouncilMsg(`📢 ${invResult.message}`);
 
           // 실패 시 자동 전투
           if (!invResult.success) {
@@ -800,7 +821,7 @@ export default function GameContainer() {
               const atkFac = worldStateRef.current.factions.find(f => f.id === invasion.attackerFactionId)!;
               atkFac.woundedPool = [...atkFac.woundedPool, createWoundedPool(result.attackerWounded)];
             }
-            applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMessage);
+            applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMsgToCouncil);
             if (result.defenderWounded > 0) {
               const pFac = worldStateRef.current.factions.find(f => f.isPlayer)!;
               pFac.woundedPool = [...pFac.woundedPool, createWoundedPool(result.defenderWounded)];
@@ -810,7 +831,7 @@ export default function GameContainer() {
               const dmgUpgrades: { type: "farm" | "market"; levels: number }[] = [];
               if (result.facilityDamage.farm_damage > 0) dmgUpgrades.push({ type: "farm", levels: -result.facilityDamage.farm_damage });
               if (result.facilityDamage.market_damage > 0) dmgUpgrades.push({ type: "market", levels: -result.facilityDamage.market_damage });
-              if (dmgUpgrades.length > 0) applyPlayerChanges({ facility_upgrades: dmgUpgrades }, addMessage);
+              if (dmgUpgrades.length > 0) applyPlayerChanges({ facility_upgrades: dmgUpgrades }, addMsgToCouncil);
             }
 
             if (result.castleConquered) {
@@ -821,12 +842,12 @@ export default function GameContainer() {
                 const retreat = resolveRetreat(loser, result.castleConquered, updatedWorld.castles);
                 if (retreat) {
                   result.retreatInfo = retreat;
-                  applyPlayerChanges({ point_deltas: { mp_troops_delta: -retreat.troopsLost, mp_morale_delta: retreat.moralePenalty } }, addMessage);
+                  applyPlayerChanges({ point_deltas: { mp_troops_delta: -retreat.troopsLost, mp_morale_delta: retreat.moralePenalty } }, addMsgToCouncil);
                 }
               }
             }
 
-            addMessage({ role: "system", content: result.narrative });
+            addSystemCouncilMsg(result.narrative);
             setBattleReport(result);
             await waitForBattleReportClose();
           }
@@ -841,14 +862,14 @@ export default function GameContainer() {
         const eventLines: string[] = [];
         for (const event of events) {
           if (event.targetFaction === "liu_bei") {
-            applyPlayerChanges({ point_deltas: event.effects }, addMessage);
+            applyPlayerChanges({ point_deltas: event.effects }, addMsgToCouncil);
           } else {
             applyNPCChanges(event.targetFaction, { point_deltas: event.effects });
           }
           const factionName = FACTION_NAMES[event.targetFaction] || event.targetFaction;
           eventLines.push(`${event.emoji} [${factionName}] ${event.description}`);
         }
-        addMessage({ role: "system", content: `🎲 턴 이벤트\n${eventLines.join("\n")}` });
+        addSystemCouncilMsg(`🎲 턴 이벤트\n${eventLines.join("\n")}`);
       }
 
       // ④ 턴 전진 (포인트 충전, 부상 회복)
@@ -867,7 +888,7 @@ export default function GameContainer() {
     } finally {
       setIsLoading(false);
     }
-  }, [processNPCTurns, advanceWorldTurn, doCheckGameEnd, doAutoSave, runMeetingPhase1And3, waitForInvasionResponse, waitForBattleReportClose, applyPlayerChanges, applyNPCChanges, addMessage, worldStateRef]);
+  }, [processNPCTurns, advanceWorldTurn, doCheckGameEnd, doAutoSave, runMeetingPhase1And3, waitForInvasionResponse, waitForBattleReportClose, applyPlayerChanges, applyNPCChanges, addMsgToCouncil, addSystemCouncilMsg, worldStateRef]);
 
   // ---- 도입 서사 ----
   const buildIntroMessages = useCallback((): CouncilMessage[] => {
@@ -953,6 +974,9 @@ export default function GameContainer() {
       setAdvisors(save.advisors);
     }
 
+    // councilNumber 복원: runMeetingPhase1And3 내부에서 +1 되므로 턴-1로 설정
+    setCouncilNumber(Math.max(0, save.worldState.currentTurn - 1));
+
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
     setIsLoading(true);
@@ -1000,7 +1024,7 @@ export default function GameContainer() {
 
     const player = worldStateRef.current.factions.find(f => f.isPlayer);
     if (!player || player.points.ap < 1) {
-      addMessage({ role: "system", content: "⚠️ 행동포인트가 부족합니다. '다음' 버튼을 눌러 진행하세요." });
+      addSystemCouncilMsg("⚠️ 행동포인트가 부족합니다. '다음' 버튼을 눌러 진행하세요.");
       processingTurnRef.current = false;
       return;
     }
@@ -1045,7 +1069,7 @@ export default function GameContainer() {
         } else {
           await animateCouncilMessages(reaction.council_messages, false, { apiElapsedMs: elapsedMs });
         }
-        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMessage);
+        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
         updateAdvisorStats(advisorUpdates);
       } else if (meetingPhase === 4) {
         const { reaction, advisorUpdates, elapsedMs } = await doPhase4Feedback(llmMessage, effectiveReplyTo);
@@ -1054,20 +1078,20 @@ export default function GameContainer() {
         } else {
           await animateCouncilMessages(reaction.council_messages, false, { apiElapsedMs: elapsedMs });
         }
-        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMessage);
+        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
         updateAdvisorStats(advisorUpdates);
       }
       doAutoSave();
     } catch (err) {
       console.error("sendMessage error:", err);
       // API 실패 시 AP 복구
-      applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMessage);
-      addMessage({ role: "system", content: "⚠️ 요청 처리 중 오류가 발생했습니다. 행동포인트가 복구됩니다." });
+      applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
+      addSystemCouncilMsg("⚠️ 요청 처리 중 오류가 발생했습니다. 행동포인트가 복구됩니다.");
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMessage, addThreadMessage, animateThreadMessages, doPhase2Reply, doPhase4Feedback, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
+  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMsgToCouncil, addSystemCouncilMsg, addThreadMessage, animateThreadMessages, doPhase2Reply, doPhase4Feedback, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
 
   // ---- Restart / Mic ----
   const handleRestart = useCallback(() => {
@@ -1110,6 +1134,17 @@ export default function GameContainer() {
   const playerFaction = getPlayerFaction();
   const currentAP = playerFaction.points.ap;
   const phaseLabel = meetingPhase === 1 ? "상태보고" : meetingPhase === 2 ? "토론" : meetingPhase === 3 ? "계획보고" : meetingPhase === 4 ? "피드백" : "실행";
+
+  // 매턴 포인트 증가치 계산
+  const apRegenTotal = playerFaction.points.ap_regen + playerFaction.skills.reduce((sum, sid) => {
+    const def = SKILL_TREE.find(s => s.id === sid);
+    return sum + (def?.effect.type === "ap_regen" ? def.effect.value : 0);
+  }, 0);
+  const ipRegen = playerFaction.points.ip_regen;
+  const dpRegenTotal = DP_REGEN_PER_TURN * (1 + playerFaction.skills.reduce((sum, sid) => {
+    const def = SKILL_TREE.find(s => s.id === sid);
+    return sum + (def?.effect.type === "dp_bonus" ? def.effect.value : 0);
+  }, 0));
   const canInput = (meetingPhase === 2 || meetingPhase === 4) && currentAP >= 1 && !isLoading;
   const showNextButton = (meetingPhase === 2 || meetingPhase === 4) && !isLoading && !processingTurnRef.current;
 
@@ -1209,18 +1244,18 @@ export default function GameContainer() {
           background: "rgba(13,13,26,0.25)",
           borderRadius: "10px", padding: "8px 12px",
           border: "1px solid rgba(201,168,76,0.1)",
-          fontSize: "10px", color: "var(--text-secondary)",
-          display: "flex", flexDirection: "column", gap: "3px",
+          fontSize: "12px", color: "var(--text-secondary)",
+          display: "flex", flexDirection: "column", gap: "4px",
           pointerEvents: "auto",
         }}>
           <div style={{ color: currentAP >= 1 ? "#64b464" : "var(--text-dim)" }}>
-            행동 포인트 {currentAP.toFixed(1)}/{playerFaction.points.ap_max}
+            행동 포인트 {currentAP.toFixed(1)}/{playerFaction.points.ap_max} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{apRegenTotal % 1 === 0 ? apRegenTotal : apRegenTotal.toFixed(1)})</span>
           </div>
-          <div>전략 포인트 {playerFaction.points.sp}</div>
+          <div>전략 포인트 {playerFaction.points.sp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+1)</span></div>
           <div>군사 포인트 {playerFaction.points.mp.toLocaleString()}</div>
-          <div>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap}</div>
+          <div>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{ipRegen})</span></div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span>외교 포인트 {playerFaction.points.dp}</span>
+            <span>외교 포인트 {playerFaction.points.dp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></span>
             {(meetingPhase === 2 || meetingPhase === 4) && playerFaction.points.sp >= SP_TO_DP_COST && (
               <button
                 onClick={handleConvertSPtoDP}
@@ -1239,8 +1274,6 @@ export default function GameContainer() {
         </div>
 
       <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
-        {messages.map((msg, i) => <ChatBubble key={i} message={msg} />)}
-
         {prevCouncil && (
           <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
             <CouncilChat
@@ -1251,7 +1284,7 @@ export default function GameContainer() {
           </div>
         )}
 
-        {(councilMessages.length > 0 || typingIndicator) && (
+        {(councilMessages.length > 0 || typingIndicator || (isLoading && councilNumber > 0 && !typingIndicator)) && (
           <CouncilChat
             messages={councilMessages}
             advisors={advisors}

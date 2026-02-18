@@ -7,9 +7,9 @@
 
 import type { Phase3CaseDefinition, GameSituation, KeywordMapping } from "./types";
 import {
-  FACILITY_BUILD_COST,
-  RECRUIT_IP_COST,
+  RECRUIT_TROOPS_PER_IP,
   TRAIN_IP_COST,
+  getFacilityUpgradeCost,
 } from "@/constants/gameConstants";
 
 // =====================================================================
@@ -23,44 +23,90 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_guan_recruit_urgent",
     advisor: "관우",
     priority: 75,
-    condition: (s) => s.military.troopsCritical && s.economy.ip >= RECRUIT_IP_COST,
-    planReport: () => ({
-      speaker: "관우",
-      plan: `긴급 모병 (내정포인트 ${RECRUIT_IP_COST} 소비)`,
-      expected_points: { ip_delta: -RECRUIT_IP_COST, mp_troops_delta: 20000 },
-    }),
+    condition: (s) => s.military.troopsCritical && s.economy.ip >= 10,
+    planReport: (s) => {
+      const ipToSpend = Math.min(s.economy.ip, 30);
+      const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+      return {
+        speaker: "관우",
+        plan: `긴급 모병 (내정포인트 ${ipToSpend} 소비)`,
+        expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
+      };
+    },
     variations: [
-      { dialogue: "당장 모병하겠소! 한 명이라도 더 모아야 하오.", emotion: "angry" },
-      { dialogue: "긴급 모병령을 내리겠소. 병력 확보가 급선무요!", emotion: "angry" },
+      {
+        dialogue: (s) => {
+          const ipToSpend = Math.min(s.economy.ip, 30);
+          const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+          return `긴급 모병에 들어가겠소! (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+        },
+        emotion: "angry",
+      },
+      {
+        dialogue: (s) => {
+          const ipToSpend = Math.min(s.economy.ip, 30);
+          const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+          return `긴급 모병령을 내리겠소! (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+        },
+        emotion: "angry",
+      },
     ],
   },
   {
     id: "p3_guan_recruit_normal",
     advisor: "관우",
     priority: 55,
-    condition: (s) => s.military.troopShortage && !s.military.troopsCritical && s.economy.ip >= RECRUIT_IP_COST,
-    planReport: () => ({
-      speaker: "관우",
-      plan: `모병 실시 (내정포인트 ${RECRUIT_IP_COST} 소비)`,
-      expected_points: { ip_delta: -RECRUIT_IP_COST, mp_troops_delta: 20000 },
-    }),
+    condition: (s) => s.military.troopShortage && !s.military.troopsCritical && s.economy.ip >= 10,
+    planReport: (s) => {
+      const ipToSpend = Math.min(s.economy.ip, 20);
+      const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+      return {
+        speaker: "관우",
+        plan: `모병 실시 (내정포인트 ${ipToSpend} 소비)`,
+        expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
+      };
+    },
     variations: [
-      { dialogue: "모병을 실시하겠소. 병력을 보충해야 하오.", emotion: "calm" },
-      { dialogue: "모병하여 1만을 채우겠소.", emotion: "calm" },
+      {
+        dialogue: (s) => {
+          const ipToSpend = Math.min(s.economy.ip, 20);
+          const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+          return `모병을 실시하겠소. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+        },
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => {
+          const ipToSpend = Math.min(s.economy.ip, 20);
+          const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+          return `모병 실시합니다. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+        },
+        emotion: "calm",
+      },
     ],
   },
   {
     id: "p3_guan_mass_recruit",
     advisor: "관우",
     priority: 50,
-    condition: (s) => s.military.troopShortage && s.economy.ip >= RECRUIT_IP_COST * 2,
-    planReport: () => ({
-      speaker: "관우",
-      plan: `대규모 모병 (내정포인트 ${RECRUIT_IP_COST * 2} 소비)`,
-      expected_points: { ip_delta: -RECRUIT_IP_COST * 2, mp_troops_delta: 40000 },
-    }),
+    condition: (s) => s.military.troopShortage && s.economy.ip >= 40,
+    planReport: (s) => {
+      const ipToSpend = 40;
+      const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+      return {
+        speaker: "관우",
+        plan: `대규모 모병 (내정포인트 ${ipToSpend} 소비)`,
+        expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
+      };
+    },
     variations: [
-      { dialogue: "대규모 모병으로 한 번에 병력을 늘리겠소!", emotion: "excited" },
+      {
+        dialogue: (s) => {
+          const troops = 40 * RECRUIT_TROOPS_PER_IP;
+          return `대규모 모병 실시합니다! (내정포인트 40 소비, 군사포인트(병력) +${troops})`;
+        },
+        emotion: "excited",
+      },
     ],
   },
 
@@ -77,8 +123,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "집중 훈련에 들어가겠소! 이 오합지졸을 정예로 만들겠소.", emotion: "angry" },
-      { dialogue: "훈련을 대폭 강화하겠소. 전투력이 너무 떨어지오.", emotion: "worried" },
+      { dialogue: "집중 훈련에 들어가겠소! (내정포인트 15 소비, 훈련도 +5%)", emotion: "angry" },
+      { dialogue: "훈련을 대폭 강화하겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "worried" },
     ],
   },
   {
@@ -92,8 +138,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "병사 훈련에 매진하겠소.", emotion: "calm" },
-      { dialogue: "훈련도를 끌어올리겠소. 전투력 향상이 필요하오.", emotion: "calm" },
+      { dialogue: "병사 훈련을 실시하겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "calm" },
+      { dialogue: "훈련도를 끌어올리겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "calm" },
     ],
   },
 
@@ -200,8 +246,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_morale_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "사기부터 올리겠소. 이 관우가 직접 병사들 앞에 서겠소.", emotion: "angry" },
-      { dialogue: "병사들에게 훈시를 내리고 포상하여 사기를 높이겠소.", emotion: "calm" },
+      { dialogue: "사기 진작에 나서겠소. (사기 +5% 예상)", emotion: "angry" },
+      { dialogue: "훈시와 포상으로 사기를 높이겠소. (사기 +5% 예상)", emotion: "calm" },
     ],
   },
 
@@ -211,14 +257,14 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_guan_want_recruit_no_ip",
     advisor: "관우",
     priority: 62,
-    condition: (s) => s.military.troopsCritical && s.economy.ip < RECRUIT_IP_COST,
+    condition: (s) => s.military.troopsCritical && s.economy.ip < 10,
     planReport: (s) => ({
       speaker: "관우",
-      plan: `긴급 모병 대기 — 자금 부족 (필요 ${RECRUIT_IP_COST}, 현재 ${s.economy.ip})`,
+      plan: `긴급 모병 대기 — 자금 부족 (최소 10 필요, 현재 ${s.economy.ip})`,
     }),
     variations: [
-      { dialogue: "모병이 급하나 자금이 없소... 미축, 어떻게든 마련해 달라!", emotion: "angry" },
-      { dialogue: "내정포인트가 모이는 즉시 모병에 들어가겠소. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
+      { dialogue: "모병이 급하나 자금이 없소... 미축, 내정포인트 10이라도 마련해 달라!", emotion: "angry" },
+      { dialogue: "내정포인트가 최소 10은 있어야 모병 가능하오. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
       { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 병력으로 버텨야 하오.", emotion: "worried" },
     ],
   },
@@ -272,14 +318,25 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "관우",
     priority: 43,
     condition: (s) => s.military.troopShortage && s.military.lowTraining &&
-      s.economy.ip >= RECRUIT_IP_COST + TRAIN_IP_COST,
-    planReport: () => ({
-      speaker: "관우",
-      plan: `모병과 훈련 병행 (내정포인트 ${RECRUIT_IP_COST + TRAIN_IP_COST} 소비)`,
-      expected_points: { ip_delta: -(RECRUIT_IP_COST + TRAIN_IP_COST), mp_troops_delta: 20000, mp_training_delta: 0.05 },
-    }),
+      s.economy.ip >= 20 + TRAIN_IP_COST,
+    planReport: (s) => {
+      const recruitIp = 20;
+      const troops = recruitIp * RECRUIT_TROOPS_PER_IP;
+      const totalIp = recruitIp + TRAIN_IP_COST;
+      return {
+        speaker: "관우",
+        plan: `모병과 훈련 병행 (내정포인트 ${totalIp} 소비)`,
+        expected_points: { ip_delta: -totalIp, mp_troops_delta: troops, mp_training_delta: 0.05 },
+      };
+    },
     variations: [
-      { dialogue: "모병과 훈련을 동시에 진행하겠소. 자금이 허락하니 다행이오.", emotion: "calm" },
+      {
+        dialogue: (s) => {
+          const troops = 20 * RECRUIT_TROOPS_PER_IP;
+          return `모병과 훈련을 병행하겠소. (내정포인트 ${20 + TRAIN_IP_COST} 소비, 군사포인트(병력) +${troops}, 훈련도 +5%)`;
+        },
+        emotion: "calm",
+      },
     ],
   },
 
@@ -327,15 +384,24 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_build_market_first",
     advisor: "미축",
     priority: 60,
-    condition: (s) => s.economy.marketLv === 0 && s.economy.ip >= FACILITY_BUILD_COST,
-    planReport: () => ({
-      speaker: "미축",
-      plan: `시장 건설 (내정포인트 ${FACILITY_BUILD_COST} 소비)`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+    condition: (s) => s.economy.marketLv === 0 && s.economy.ip >= getFacilityUpgradeCost(0),
+    planReport: () => {
+      const cost = getFacilityUpgradeCost(0);
+      return {
+        speaker: "미축",
+        plan: `시장 건설 (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "우선 시장을 건설하여 수입의 기반을 마련하겠습니다.", emotion: "calm" },
-      { dialogue: "시장 건설이 최우선입니다. 수입 없이는 아무것도 할 수 없습니다.", emotion: "thoughtful" },
+      {
+        dialogue: () => `시장을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +3)`,
+        emotion: "calm",
+      },
+      {
+        dialogue: () => `시장 건설이 최우선입니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +3)`,
+        emotion: "thoughtful",
+      },
     ],
   },
   {
@@ -343,16 +409,22 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 40,
     condition: (s) => s.economy.marketLv > 0 && s.economy.marketLv < 5 &&
-      s.economy.ip >= FACILITY_BUILD_COST && !s.economy.facilityImbalance,
-    planReport: (s) => ({
-      speaker: "미축",
-      plan: `시장 확장 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정포인트 ${FACILITY_BUILD_COST} 소비)`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+      s.economy.ip >= getFacilityUpgradeCost(s.economy.marketLv) && !s.economy.facilityImbalance,
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      return {
+        speaker: "미축",
+        plan: `시장 확장 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "시장을 확장하여 수입을 늘리겠습니다.", emotion: "calm" },
       {
-        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 올리면 턴당 수입이 3 늘어납니다.`,
+        dialogue: (s) => `시장을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비, 턴당 수입 +3)`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 올리면 턴당 수입이 3 늘어납니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비)`,
         emotion: "calm",
       },
     ],
@@ -365,14 +437,20 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 45,
     condition: (s) => s.economy.farmLv === 0 && s.economy.marketLv >= 2 &&
-      s.economy.ip >= FACILITY_BUILD_COST,
-    planReport: () => ({
-      speaker: "미축",
-      plan: `논 건설 (내정포인트 ${FACILITY_BUILD_COST} 소비)`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+      s.economy.ip >= getFacilityUpgradeCost(0),
+    planReport: () => {
+      const cost = getFacilityUpgradeCost(0);
+      return {
+        speaker: "미축",
+        plan: `논 건설 (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "시장이 안정되었으니 논을 건설하여 수입을 다각화합시다.", emotion: "thoughtful" },
+      {
+        dialogue: () => `논을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +2)`,
+        emotion: "thoughtful",
+      },
     ],
   },
   {
@@ -380,14 +458,20 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 38,
     condition: (s) => s.economy.farmLv > 0 && s.economy.farmLv < s.economy.marketLv &&
-      s.economy.ip >= FACILITY_BUILD_COST,
-    planReport: (s) => ({
-      speaker: "미축",
-      plan: `논 확장 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정포인트 ${FACILITY_BUILD_COST} 소비)`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+      s.economy.ip >= getFacilityUpgradeCost(s.economy.farmLv),
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(s.economy.farmLv);
+      return {
+        speaker: "미축",
+        plan: `논 확장 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "논을 확장하여 안정적인 수입을 추가하겠습니다.", emotion: "calm" },
+      {
+        dialogue: (s) => `논을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.farmLv)} 소비, 턴당 수입 +2)`,
+        emotion: "calm",
+      },
     ],
   },
 
@@ -398,15 +482,24 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 48,
     condition: (s) => s.economy.bankLv === 0 && s.economy.ipNearCap &&
-      s.economy.marketLv >= 2 && s.economy.ip >= FACILITY_BUILD_COST,
-    planReport: () => ({
-      speaker: "미축",
-      plan: `은행 건설 (내정포인트 ${FACILITY_BUILD_COST} 소비)`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+      s.economy.marketLv >= 2 && s.economy.ip >= getFacilityUpgradeCost(0),
+    planReport: () => {
+      const cost = getFacilityUpgradeCost(0);
+      return {
+        speaker: "미축",
+        plan: `은행 건설 (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "은행을 건설하여 내정포인트 상한을 올리겠습니다.", emotion: "thoughtful" },
-      { dialogue: "저장 한계에 도달하기 전에 은행을 세워야 합니다.", emotion: "worried" },
+      {
+        dialogue: () => `은행을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 상한 +50)`,
+        emotion: "thoughtful",
+      },
+      {
+        dialogue: () => `은행 건설이 급합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 상한 +50)`,
+        emotion: "worried",
+      },
     ],
   },
   {
@@ -414,14 +507,20 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 36,
     condition: (s) => s.economy.bankLv > 0 && s.economy.bankLv < 3 &&
-      s.economy.ipNearCap && s.economy.ip >= FACILITY_BUILD_COST,
-    planReport: (s) => ({
-      speaker: "미축",
-      plan: `은행 확장 Lv${s.economy.bankLv}→${s.economy.bankLv + 1}`,
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+      s.economy.ipNearCap && s.economy.ip >= getFacilityUpgradeCost(s.economy.bankLv),
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(s.economy.bankLv);
+      return {
+        speaker: "미축",
+        plan: `은행 확장 Lv${s.economy.bankLv}→${s.economy.bankLv + 1} (내정포인트 ${cost} 소비)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
-      { dialogue: "은행을 확장하여 비축 여력을 키우겠습니다.", emotion: "calm" },
+      {
+        dialogue: (s) => `은행을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.bankLv)} 소비, 상한 +50)`,
+        emotion: "calm",
+      },
     ],
   },
 
@@ -445,15 +544,24 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_save_for_facility",
     advisor: "미축",
     priority: 35,
-    condition: (s) => s.economy.ip >= 15 && s.economy.ip < FACILITY_BUILD_COST &&
-      (s.economy.marketLv < 3 || s.economy.farmLv < 2),
-    planReport: (s) => ({
-      speaker: "미축",
-      plan: `내정포인트 비축 (현재 ${s.economy.ip}/${FACILITY_BUILD_COST} 목표)`,
-    }),
+    condition: (s) => {
+      const targetCost = getFacilityUpgradeCost(Math.min(s.economy.marketLv, s.economy.farmLv));
+      return s.economy.ip >= 15 && s.economy.ip < targetCost &&
+        (s.economy.marketLv < 3 || s.economy.farmLv < 2);
+    },
+    planReport: (s) => {
+      const targetCost = getFacilityUpgradeCost(Math.min(s.economy.marketLv, s.economy.farmLv));
+      return {
+        speaker: "미축",
+        plan: `내정포인트 비축 (현재 ${s.economy.ip}/${targetCost} 목표)`,
+      };
+    },
     variations: [
       {
-        dialogue: (s) => `시설 건설비 ${FACILITY_BUILD_COST}까지 ${FACILITY_BUILD_COST - s.economy.ip} 부족합니다. 비축하겠습니다.`,
+        dialogue: (s) => {
+          const targetCost = getFacilityUpgradeCost(Math.min(s.economy.marketLv, s.economy.farmLv));
+          return `시설 건설비 ${targetCost}까지 ${targetCost - s.economy.ip} 부족합니다. 비축하겠습니다.`;
+        },
         emotion: "calm",
       },
     ],
@@ -462,7 +570,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_save_for_recruit",
     advisor: "미축",
     priority: 32,
-    condition: (s) => s.military.troopShortage && s.economy.ip < RECRUIT_IP_COST,
+    condition: (s) => s.military.troopShortage && s.economy.ip < 10,
     planReport: () => ({
       speaker: "미축",
       plan: "모병 자금 확보를 위한 비축",
@@ -480,11 +588,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     priority: 30,
     condition: (s) => s.economy.ipRich && s.economy.canUpgrade &&
       s.economy.marketLv < 5 && s.economy.farmLv < 5,
-    planReport: () => ({
-      speaker: "미축",
-      plan: "시설 균형 투자",
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      return {
+        speaker: "미축",
+        plan: "시설 균형 투자",
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
       { dialogue: "여유 자금으로 시설을 균형 있게 확장하겠습니다.", emotion: "calm" },
       { dialogue: "수입 기반을 넓혀 장기적 성장을 도모하겠습니다.", emotion: "thoughtful" },
@@ -509,11 +620,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 25,
     condition: (s) => s.economy.lowIncome && s.economy.canUpgrade,
-    planReport: () => ({
-      speaker: "미축",
-      plan: "수입 극대화 — 시장/논 집중 투자",
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
-    }),
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      return {
+        speaker: "미축",
+        plan: "수입 극대화 — 시장/논 집중 투자",
+        expected_points: { ip_delta: -cost },
+      };
+    },
     variations: [
       { dialogue: "수입이 적으니 시설 투자로 수입을 올리는 게 우선입니다.", emotion: "thoughtful" },
     ],
@@ -523,19 +637,22 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 42,
     condition: (s) => s.strategic.recentCastleGained,
-    planReport: (s) => ({
-      speaker: "미축",
-      plan: s.economy.canUpgrade
-        ? `신규 성채 경제 기반 구축 (내정포인트 ${FACILITY_BUILD_COST} 소비)`
-        : `신규 성채 투자 준비 (자금 비축 중, ${s.economy.ip}/${FACILITY_BUILD_COST})`,
-      expected_points: s.economy.canUpgrade ? { ip_delta: -FACILITY_BUILD_COST } : undefined,
-    }),
+    planReport: (s) => {
+      const cost = getFacilityUpgradeCost(0);
+      return {
+        speaker: "미축",
+        plan: s.economy.canUpgrade
+          ? `신규 성채 경제 기반 구축 (내정포인트 ${cost} 소비)`
+          : `신규 성채 투자 준비 (자금 비축 중, ${s.economy.ip}/${cost})`,
+        expected_points: s.economy.canUpgrade ? { ip_delta: -cost } : undefined,
+      };
+    },
     variations: [
       { dialogue: "새 영토의 경제 기반을 서둘러 구축하겠습니다.", emotion: "excited" },
       {
         dialogue: (s) => s.economy.canUpgrade
           ? "새 성채에 즉시 시설을 건설하겠습니다!"
-          : "새 성채 투자를 위해 자금을 더 모아야 합니다. 비축에 집중하겠습니다.",
+          : `새 성채 투자를 위해 자금을 더 모아야 합니다. (필요 ${getFacilityUpgradeCost(0)}) 비축에 집중하겠습니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -562,15 +679,15 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_support_recruit",
     advisor: "미축",
     priority: 52,
-    condition: (s) => s.military.troopsCritical && s.economy.ip < RECRUIT_IP_COST,
+    condition: (s) => s.military.troopsCritical && s.economy.ip < 10,
     planReport: (s) => ({
       speaker: "미축",
-      plan: `모병 자금 긴급 확보 (현재 ${s.economy.ip}/${RECRUIT_IP_COST})`,
+      plan: `모병 자금 긴급 확보 (현재 ${s.economy.ip}/10)`,
     }),
     variations: [
-      { dialogue: "관우 장군이 모병 자금을 요청하셨습니다. 최우선으로 확보하겠습니다!", emotion: "worried" },
+      { dialogue: "관우 장군이 모병 자금을 요청하셨습니다. 최소 내정포인트 10을 최우선으로 확보하겠습니다!", emotion: "worried" },
       {
-        dialogue: (s) => `내정포인트 ${RECRUIT_IP_COST - s.economy.ip}만 더 모으면 모병 가능합니다. 서두르겠습니다.`,
+        dialogue: (s) => `내정포인트 ${10 - s.economy.ip}만 더 모으면 모병 가능합니다. 서두르겠습니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -628,8 +745,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "조조에게 사신을 보내 관계를 개선하겠소.", emotion: "thoughtful" },
-      { dialogue: "조조와의 적대 관계를 완화할 때요. 사신을 보내겠소.", emotion: "calm" },
+      { dialogue: "조조에게 사신을 보내겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
+      { dialogue: "조조와의 관계를 개선하겠소. (외교포인트 2 소비)", emotion: "calm" },
     ],
   },
   {
@@ -646,8 +763,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "손권에게 화친의 뜻을 전하겠소.", emotion: "thoughtful" },
-      { dialogue: "손권과의 관계를 풀어봅시다. 외교가 답이오.", emotion: "calm" },
+      { dialogue: "손권에게 화친을 제안하겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
+      { dialogue: "손권과 관계를 개선하겠소. (외교포인트 2 소비)", emotion: "calm" },
     ],
   },
 
@@ -664,8 +781,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -3 },
     }),
     variations: [
-      { dialogue: "적끼리 사이가 좋소? 이 봉추가 갈라놓겠소!", emotion: "excited" },
-      { dialogue: "이간계를 펼치겠소. 적의 동맹을 와해시킵시다.", emotion: "excited" },
+      { dialogue: "이간책을 실행하겠소! (외교포인트 3 소비)", emotion: "excited" },
+      { dialogue: "이간계를 펼치겠소. (외교포인트 3 소비)", emotion: "excited" },
     ],
   },
 
@@ -682,8 +799,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -3 },
     }),
     variations: [
-      { dialogue: "우호적인 세력과 정식 동맹을 맺읍시다!", emotion: "excited" },
-      { dialogue: "관계가 좋은 쪽과 동맹을 체결하면 큰 힘이 됩니다.", emotion: "thoughtful" },
+      { dialogue: "정식 동맹을 추진하겠소! (외교포인트 3 소비)", emotion: "excited" },
+      { dialogue: "동맹 체결을 추진하겠소. (외교포인트 3 소비)", emotion: "thoughtful" },
     ],
   },
 
@@ -701,8 +818,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "힘으로 안 되면 외교로 시간을 벌어야 하오.", emotion: "thoughtful" },
-      { dialogue: "적이 너무 강하오. 외교적 완충을 마련합시다.", emotion: "worried" },
+      { dialogue: "외교로 시간을 벌겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
+      { dialogue: "외교적 완충을 마련하겠소. (외교포인트 2 소비)", emotion: "worried" },
     ],
   },
   {

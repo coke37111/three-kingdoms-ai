@@ -183,6 +183,31 @@ export default function CouncilChat({
 
       {/* 메시지들 */}
       {messages.map((msg, i) => {
+        // 시스템 메시지 (인라인)
+        if (msg.speaker === "__system__") {
+          return (
+            <div key={i} style={{
+              textAlign: "center",
+              padding: "6px 16px",
+              margin: "12px 0",
+              animation: "fadeInUp 0.3s ease",
+            }}>
+              <span style={{
+                background: "var(--gold-dim)",
+                color: "var(--gold)",
+                fontSize: "11px",
+                padding: "4px 14px",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                letterSpacing: "0.5px",
+                whiteSpace: "pre-line",
+              }}>
+                {msg.dialogue}
+              </span>
+            </div>
+          );
+        }
+
         // Phase 구분선
         if (msg.speaker === "__phase_divider__") {
           return (

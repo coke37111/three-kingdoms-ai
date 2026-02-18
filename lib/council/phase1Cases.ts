@@ -474,9 +474,12 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 12,
     condition: (s) => s.military.midTraining,
     variations: [
-      { dialogue: "훈련이 순조롭소. 꾸준히 이어가겠소.", emotion: "calm" },
       {
-        dialogue: (s) => `훈련도 ${(s.military.training * 100).toFixed(0)}%. 더 올릴 수 있소.`,
+        dialogue: (s) => `훈련도 ${(s.military.training * 100).toFixed(0)}%입니다. 기본 수준은 갖추고 있소.`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `현재 훈련도 ${(s.military.training * 100).toFixed(0)}%. 실전 투입은 가능한 수준이오.`,
         emotion: "calm",
       },
     ],
@@ -772,8 +775,8 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "군사적으로 특별한 변동은 없소.", emotion: "calm" },
       { dialogue: "장병들이 잘 따르고 있소. 이상 없소.", emotion: "calm" },
       { dialogue: "평온하오. 주공의 명을 기다리겠소.", emotion: "calm" },
-      { dialogue: "평화롭소. 이 틈에 병사들을 더 단련하면 좋겠소.", emotion: "thoughtful" },
-      { dialogue: "조용한 날이오. 하나 적은 항상 움직이고 있을 것이오.", emotion: "thoughtful" },
+      { dialogue: "평온하오. 병사들의 기강은 유지되고 있소.", emotion: "calm" },
+      { dialogue: "조용한 날이오. 전방에 이상 없소.", emotion: "calm" },
     ],
   },
 ];
@@ -1114,10 +1117,22 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
         dialogue: (s) => `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 매턴 +${s.economy.ipRegen}. 안정적입니다.`,
         emotion: "calm",
       },
-      { dialogue: "재정에 특별한 변동은 없습니다. 순조롭습니다.", emotion: "calm" },
-      { dialogue: "경제 운영이 무난합니다.", emotion: "calm" },
-      { dialogue: "곳간이 안정적이니 장기 투자를 고려해볼 만합니다.", emotion: "thoughtful" },
-      { dialogue: "조용한 시기에 재정을 쌓아두면 나중에 큰 도움이 됩니다.", emotion: "calm" },
+      {
+        dialogue: (s) => `시설 운영하여 내정포인트 ${s.economy.ipRegen} 확보했습니다. 현재 ${s.economy.ip}/${s.economy.ipCap}.`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `매턴 내정포인트 +${s.economy.ipRegen}. 재정 안정적입니다.`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 수입 +${s.economy.ipRegen}/턴. 이상 없습니다.`,
+        emotion: "calm",
+      },
+      {
+        dialogue: (s) => `통상 운영 중입니다. 현재 내정포인트 ${s.economy.ip}, 매턴 +${s.economy.ipRegen}.`,
+        emotion: "calm",
+      },
     ],
     statusReport: (s) => ({
       speaker: "미축",
@@ -1448,7 +1463,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "외교적으로 특별한 변동은 없소.", emotion: "calm" },
       { dialogue: "천하의 외교 정세가 잠잠하오.", emotion: "calm" },
       { dialogue: "별다른 외교 동향은 없소. 지켜보겠소.", emotion: "calm" },
-      { dialogue: "조용할 때 관계를 다져놓으면 위기 때 의지할 수 있소.", emotion: "thoughtful" },
+      { dialogue: "외교 정세에 변동 없소. 각국 동향을 주시하고 있소.", emotion: "calm" },
       { dialogue: "적의 외교 동향을 살피고 있소. 아직은 잠잠하오.", emotion: "calm" },
     ],
   },
