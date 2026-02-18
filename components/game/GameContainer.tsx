@@ -1091,7 +1091,12 @@ export default function GameContainer() {
         } else {
           await animateCouncilMessages(reaction.council_messages, false, { apiElapsedMs: elapsedMs });
         }
-        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
+        if (reaction.state_changes) {
+          applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
+        } else {
+          // 참모가 질문만 하고 실제 행동 없으면 AP 환불 (예: "얼마나 모병할까요?")
+          applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
+        }
         updateAdvisorStats(advisorUpdates);
       } else if (meetingPhase === 4) {
         const { reaction, advisorUpdates, elapsedMs } = await doPhase4Feedback(llmMessage, effectiveReplyTo);
