@@ -149,8 +149,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       plan: "적 본성 최종 공략 작전",
     }),
     variations: [
-      { dialogue: "적의 본성이 코앞이오! 최후의 일격을 가합시다!", emotion: "excited" },
-      { dialogue: "본성을 함락하면 끝이오! 총공격을 건의하오!", emotion: "excited" },
+      { dialogue: "이 관우가 선봉에 서겠소! 전군 돌격으로 적 본성을 함락합시다!", emotion: "excited" },
+      { dialogue: "본성 공략에 정예 병력을 투입하겠소. 한 번에 끝냅시다!", emotion: "excited" },
     ],
   },
 
@@ -206,6 +206,36 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
   },
 
   // ─── 재정비 ───
+
+  {
+    id: "p3_guan_want_recruit_no_ip",
+    advisor: "관우",
+    priority: 62,
+    condition: (s) => s.military.troopsCritical && s.economy.ip < RECRUIT_IP_COST,
+    planReport: (s) => ({
+      speaker: "관우",
+      plan: `긴급 모병 대기 — 자금 부족 (필요 ${RECRUIT_IP_COST}, 현재 ${s.economy.ip})`,
+    }),
+    variations: [
+      { dialogue: "모병이 급하나 자금이 없소... 미축, 어떻게든 마련해 달라!", emotion: "angry" },
+      { dialogue: "내정포인트가 모이는 즉시 모병에 들어가겠소. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
+      { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 병력으로 버텨야 하오.", emotion: "worried" },
+    ],
+  },
+  {
+    id: "p3_guan_want_train_no_ip",
+    advisor: "관우",
+    priority: 46,
+    condition: (s) => s.military.training < 0.3 && s.economy.ip < TRAIN_IP_COST && !s.military.troopsCritical,
+    planReport: (s) => ({
+      speaker: "관우",
+      plan: `훈련 대기 — 자금 부족 (필요 ${TRAIN_IP_COST}, 현재 ${s.economy.ip})`,
+    }),
+    variations: [
+      { dialogue: "훈련시키고 싶으나 자금이 없소. 미축에게 재원 확보를 부탁하겠소.", emotion: "worried" },
+      { dialogue: "내정포인트가 모이면 바로 훈련에 들어가겠소.", emotion: "calm" },
+    ],
+  },
 
   {
     id: "p3_guan_regroup",
@@ -492,14 +522,57 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_post_castle_setup",
     advisor: "미축",
     priority: 42,
-    condition: (s) => s.strategic.recentCastleGained && s.economy.canUpgrade,
-    planReport: () => ({
+    condition: (s) => s.strategic.recentCastleGained,
+    planReport: (s) => ({
       speaker: "미축",
-      plan: "신규 성채 경제 기반 구축",
-      expected_points: { ip_delta: -FACILITY_BUILD_COST },
+      plan: s.economy.canUpgrade
+        ? `신규 성채 경제 기반 구축 (내정포인트 ${FACILITY_BUILD_COST} 소비)`
+        : `신규 성채 투자 준비 (자금 비축 중, ${s.economy.ip}/${FACILITY_BUILD_COST})`,
+      expected_points: s.economy.canUpgrade ? { ip_delta: -FACILITY_BUILD_COST } : undefined,
     }),
     variations: [
       { dialogue: "새 영토의 경제 기반을 서둘러 구축하겠습니다.", emotion: "excited" },
+      {
+        dialogue: (s) => s.economy.canUpgrade
+          ? "새 성채에 즉시 시설을 건설하겠습니다!"
+          : "새 성채 투자를 위해 자금을 더 모아야 합니다. 비축에 집중하겠습니다.",
+        emotion: "thoughtful",
+      },
+    ],
+  },
+
+  // ─── 전쟁 보급 ───
+
+  {
+    id: "p3_mi_war_supply",
+    advisor: "미축",
+    priority: 46,
+    condition: (s) => s.strategic.nearEnemyCapital && !s.economy.ipLow,
+    planReport: (s) => ({
+      speaker: "미축",
+      plan: `전쟁 보급 체제 유지 (현재 내정포인트 ${s.economy.ip})`,
+    }),
+    variations: [
+      { dialogue: "전쟁 보급에 차질 없도록 하겠습니다. 자금은 충분합니다!", emotion: "excited" },
+      { dialogue: "관우 장군의 출격에 필요한 자금을 확보해 두겠습니다.", emotion: "calm" },
+      { dialogue: "전비 지출에 대비하여 비축분을 유지하겠습니다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "p3_mi_support_recruit",
+    advisor: "미축",
+    priority: 52,
+    condition: (s) => s.military.troopsCritical && s.economy.ip < RECRUIT_IP_COST,
+    planReport: (s) => ({
+      speaker: "미축",
+      plan: `모병 자금 긴급 확보 (현재 ${s.economy.ip}/${RECRUIT_IP_COST})`,
+    }),
+    variations: [
+      { dialogue: "관우 장군이 모병 자금을 요청하셨습니다. 최우선으로 확보하겠습니다!", emotion: "worried" },
+      {
+        dialogue: (s) => `내정포인트 ${RECRUIT_IP_COST - s.economy.ip}만 더 모으면 모병 가능합니다. 서두르겠습니다.`,
+        emotion: "thoughtful",
+      },
     ],
   },
 
@@ -680,6 +753,44 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     ],
   },
 
+  // ─── 위기 대응 ───
+
+  {
+    id: "p3_pang_crisis_no_dp",
+    advisor: "방통",
+    priority: 52,
+    condition: (s) => s.diplomacy.dpNone && s.diplomacy.allHostile && s.strategic.sp < 4,
+    planReport: () => ({
+      speaker: "방통",
+      plan: "외교포인트 긴급 확보 — DP 회복 대기",
+    }),
+    variations: [
+      { dialogue: "DP가 없어 당장은 손발이 묶였소. 하나 회복되는 즉시 외교에 나서겠소!", emotion: "worried" },
+      { dialogue: "외교 자원이 바닥이오... 하나 포기하지 않겠소. 다음 턴을 기다립시다.", emotion: "worried" },
+      { dialogue: "양면 적대에 외교력도 없으니 최악이오. 그래도 방도를 찾겠소.", emotion: "angry" },
+    ],
+  },
+  {
+    id: "p3_pang_survive_diplomacy",
+    advisor: "방통",
+    priority: 48,
+    condition: (s) => s.diplomacy.allHostile && s.diplomacy.dpLow && !s.diplomacy.dpNone,
+    planReport: () => ({
+      speaker: "방통",
+      plan: "제한된 외교 — 약한 적부터 관계 개선 시도",
+      expected_points: { dp_delta: -1 },
+    }),
+    variations: [
+      { dialogue: "외교 자원이 부족하나 한 곳이라도 관계를 풀어보겠소.", emotion: "thoughtful" },
+      {
+        dialogue: (s) => s.strategic.weakestEnemy
+          ? `${s.strategic.weakestEnemy.name} 쪽에 조심스레 접근해 보겠소.`
+          : "약한 쪽부터 접근하겠소. 어떤 성과라도 내보겠소.",
+        emotion: "thoughtful",
+      },
+    ],
+  },
+
   // ─── 복합 외교 ───
 
   {
@@ -761,7 +872,8 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
       plan: "최종 공세 — 적 본성 함락 작전",
     }),
     variations: [
-      { dialogue: "적 본성이 눈앞입니다! 모든 역량을 집중하여 최후의 일격을 가합시다.", emotion: "excited" },
+      { dialogue: "적 본성이 눈앞입니다! 관우 장군은 선봉을, 방통은 외교로 후방을 봉쇄하시오. 총력전입니다.", emotion: "excited" },
+      { dialogue: "최종 공세를 총괄하겠습니다. 군사·외교·내정 모든 역량을 이 한 전투에 쏟읍시다.", emotion: "excited" },
     ],
   },
 

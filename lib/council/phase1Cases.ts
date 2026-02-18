@@ -14,6 +14,19 @@ import type { CaseDefinition, GameSituation } from "./types";
 // =====================================================================
 
 export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
+  // ─── 첫 턴 특수 ───
+
+  {
+    id: "zhuge_first_turn",
+    advisor: "제갈량",
+    priority: 80,
+    condition: (s) => s.turn === 1,
+    variations: [
+      { dialogue: "주공, 제갈량이옵니다. 첫 회의를 시작하겠습니다. 아직 미약하오나, 큰 뜻을 품고 나아갑시다. 각 참모의 보고를 들으시옵소서.", emotion: "calm" },
+      { dialogue: "주공, 대업의 첫걸음을 내딛겠습니다. 우리의 현 상황을 파악하고 방향을 정합시다.", emotion: "calm" },
+    ],
+  },
+
   // ─── 개회 발언 (기본, 시기별) ───
 
   {
@@ -80,8 +93,8 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 35,
     condition: (s) => s.strategic.overallStrength === "dominant",
     variations: [
-      { dialogue: "주공, 이제 천하는 우리 손안에 있습니다. 마지막 일격을 준비합시다.", emotion: "excited" },
-      { dialogue: "대세가 완전히 기울었습니다. 이 기세를 놓쳐서는 안 됩니다.", emotion: "excited" },
+      { dialogue: "주공, 보고드립니다. 이제 천하는 우리 손안에 있습니다! 마지막 일격을 준비합시다.", emotion: "excited" },
+      { dialogue: "보고를 올리겠습니다. 대세가 완전히 기울었습니다. 이 기세를 놓쳐서는 안 됩니다.", emotion: "excited" },
     ],
   },
   {
@@ -90,9 +103,9 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 30,
     condition: (s) => s.strategic.overallStrength === "advantage",
     variations: [
-      { dialogue: "천하의 형세가 유리하게 돌아가고 있사옵니다.", emotion: "excited" },
-      { dialogue: "주공, 우리 세력이 점차 강해지고 있습니다. 좋은 흐름입니다.", emotion: "calm" },
-      { dialogue: "지금의 기세를 이어가면 대업을 이룰 수 있습니다.", emotion: "excited" },
+      { dialogue: "주공, 보고를 시작합니다. 천하의 형세가 유리하게 돌아가고 있사옵니다.", emotion: "excited" },
+      { dialogue: "보고를 올리겠습니다. 우리 세력이 점차 강해지고 있습니다. 좋은 흐름입니다.", emotion: "calm" },
+      { dialogue: "이번 턴 보고입니다. 지금의 기세를 이어가면 대업을 이룰 수 있습니다.", emotion: "excited" },
     ],
   },
   {
@@ -101,8 +114,8 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 20,
     condition: (s) => s.strategic.overallStrength === "balanced",
     variations: [
-      { dialogue: "천하 삼분의 균형이 유지되고 있습니다. 틈을 노려야 합니다.", emotion: "thoughtful" },
-      { dialogue: "아직 대세가 결정되지 않았습니다. 한 수 앞을 내다봐야 합니다.", emotion: "thoughtful" },
+      { dialogue: "주공, 보고를 시작합니다. 천하 삼분의 균형이 유지되고 있습니다. 틈을 노려야 합니다.", emotion: "thoughtful" },
+      { dialogue: "보고를 올리겠습니다. 아직 대세가 결정되지 않았습니다. 한 수 앞을 내다봐야 합니다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -111,9 +124,9 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 38,
     condition: (s) => s.strategic.overallStrength === "disadvantage",
     variations: [
-      { dialogue: "주공, 현 상황이 녹록하지 않사옵니다. 신중해야 합니다.", emotion: "worried" },
-      { dialogue: "적의 기세가 대단합니다. 지금은 힘을 기를 때입니다.", emotion: "thoughtful" },
-      { dialogue: "불리한 정세이나 절망할 때가 아닙니다. 방도를 찾읍시다.", emotion: "thoughtful" },
+      { dialogue: "주공, 보고를 올리겠습니다. 현 상황이 녹록하지 않사옵니다. 신중해야 합니다.", emotion: "worried" },
+      { dialogue: "보고를 시작합니다. 적의 기세가 대단합니다. 지금은 힘을 기를 때입니다.", emotion: "thoughtful" },
+      { dialogue: "주공, 금번 보고를 드립니다. 불리한 정세이나 절망할 때가 아닙니다. 방도를 찾읍시다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -122,9 +135,9 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 45,
     condition: (s) => s.strategic.overallStrength === "critical",
     variations: [
-      { dialogue: "주공, 사태가 심각합니다. 지금이 존망의 기로입니다.", emotion: "worried" },
-      { dialogue: "위기입니다. 모든 역량을 집중하지 않으면 안 됩니다.", emotion: "angry" },
-      { dialogue: "한 치 앞도 보이지 않는 형국이나... 길은 반드시 있습니다.", emotion: "thoughtful" },
+      { dialogue: "주공, 급히 보고 올립니다. 사태가 심각합니다. 지금이 존망의 기로입니다.", emotion: "worried" },
+      { dialogue: "긴급 보고입니다. 위기입니다. 모든 역량을 집중하지 않으면 안 됩니다.", emotion: "angry" },
+      { dialogue: "주공... 보고를 드리겠습니다. 한 치 앞도 보이지 않는 형국이나... 길은 반드시 있습니다.", emotion: "thoughtful" },
     ],
   },
 
@@ -560,6 +573,10 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
         dialogue: (s) => `${s.strategic.biggestThreat!.name} 군의 병력이 압도적이오. 지금은 피해야 하오.`,
         emotion: "worried",
       },
+      {
+        dialogue: (s) => `${s.strategic.biggestThreat!.name}이 너무 강하오. 방통, 외교로 시간을 벌 수는 없겠소?`,
+        emotion: "worried",
+      },
     ],
   },
   {
@@ -717,6 +734,33 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     ],
   },
 
+  // ─── 자원 부족 크로스 참조 ───
+
+  {
+    id: "guan_need_funds_recruit",
+    advisor: "관우",
+    priority: 65,
+    condition: (s) => s.military.troopsCritical && s.economy.ip < 10,
+    variations: [
+      { dialogue: "모병이 급하나 자금이 없소! 미축, 어떻게든 마련해 달라!", emotion: "angry" },
+      {
+        dialogue: (s) => `병력이 ${s.military.troops.toLocaleString()}뿐인데 모병할 돈이 없소... 미축에게 부탁하는 수밖에.`,
+        emotion: "worried",
+      },
+      { dialogue: "자금만 있으면 당장 모병할 수 있소. 내정이 급선무요!", emotion: "angry" },
+    ],
+  },
+  {
+    id: "guan_need_funds_train",
+    advisor: "관우",
+    priority: 50,
+    condition: (s) => s.military.training < 0.3 && s.economy.ip < 15 && !s.military.troopsCritical,
+    variations: [
+      { dialogue: "훈련이 급하나 자금이 부족하오. 미축, 서둘러 재원을 확보해 달라.", emotion: "worried" },
+      { dialogue: "오합지졸을 그대로 둘 수는 없소. 내정포인트가 모이면 즉시 훈련에 투입하겠소.", emotion: "worried" },
+    ],
+  },
+
   // ─── 안정 (기본) ───
 
   {
@@ -728,6 +772,8 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "군사적으로 특별한 변동은 없소.", emotion: "calm" },
       { dialogue: "장병들이 잘 따르고 있소. 이상 없소.", emotion: "calm" },
       { dialogue: "평온하오. 주공의 명을 기다리겠소.", emotion: "calm" },
+      { dialogue: "평화롭소. 이 틈에 병사들을 더 단련하면 좋겠소.", emotion: "thoughtful" },
+      { dialogue: "조용한 날이오. 하나 적은 항상 움직이고 있을 것이오.", emotion: "thoughtful" },
     ],
   },
 ];
@@ -975,6 +1021,39 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     ],
   },
 
+  // ─── 전쟁 지원 ───
+
+  {
+    id: "mi_wartime_support",
+    advisor: "미축",
+    priority: 46,
+    condition: (s) => s.strategic.nearEnemyCapital && s.economy.ipRich,
+    variations: [
+      { dialogue: "전쟁 자금이 충분합니다. 관우 장군, 마음 놓고 출격하시오!", emotion: "excited" },
+      { dialogue: "보급선 확보 완료입니다. 자금 걱정은 안 하셔도 됩니다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "mi_wartime_economy_active",
+    advisor: "미축",
+    priority: 44,
+    condition: (s) => s.strategic.recentBattle && !s.economy.ipCritical && !s.economy.ipLow,
+    variations: [
+      { dialogue: "전쟁 비용을 감당할 수 있습니다. 재정은 버티고 있습니다.", emotion: "calm" },
+      { dialogue: "전비 지출이 있었으나 아직 여유가 있습니다.", emotion: "calm" },
+    ],
+  },
+  {
+    id: "mi_near_enemy_capital_tight",
+    advisor: "미축",
+    priority: 43,
+    condition: (s) => s.strategic.nearEnemyCapital && !s.economy.ipRich && !s.economy.ipCritical,
+    variations: [
+      { dialogue: "자금이 넉넉하진 않으나 전투 보급은 가능합니다. 아껴 쓰겠습니다.", emotion: "thoughtful" },
+      { dialogue: "최종 결전을 위해 불필요한 지출을 전부 동결하겠습니다.", emotion: "calm" },
+    ],
+  },
+
   // ─── 비용 안내 ───
 
   {
@@ -1037,6 +1116,8 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
       },
       { dialogue: "재정에 특별한 변동은 없습니다. 순조롭습니다.", emotion: "calm" },
       { dialogue: "경제 운영이 무난합니다.", emotion: "calm" },
+      { dialogue: "곳간이 안정적이니 장기 투자를 고려해볼 만합니다.", emotion: "thoughtful" },
+      { dialogue: "조용한 시기에 재정을 쌓아두면 나중에 큰 도움이 됩니다.", emotion: "calm" },
     ],
     statusReport: (s) => ({
       speaker: "미축",
@@ -1059,7 +1140,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     priority: 35,
     condition: (s) => {
       const cao = s.diplomacy.relations.find(r => r.targetId === "cao_cao");
-      return !!cao && cao.score < -5;
+      return !!cao && cao.score <= -5;
     },
     variations: [
       { dialogue: "조조와의 관계가 극도로 악화되었소. 전쟁 각오를 하시오.", emotion: "worried" },
@@ -1132,7 +1213,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     priority: 35,
     condition: (s) => {
       const sun = s.diplomacy.relations.find(r => r.targetId === "sun_quan");
-      return !!sun && sun.score < -5;
+      return !!sun && sun.score <= -5;
     },
     variations: [
       { dialogue: "손권과의 관계가 최악이오. 남쪽에서도 위협이 됩니다.", emotion: "worried" },
@@ -1319,6 +1400,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
         emotion: "thoughtful",
       },
       { dialogue: "힘으로 안 되면 머리를 써야 하오. 외교가 답이오.", emotion: "thoughtful" },
+      { dialogue: "관우 장군도 아시다시피 군사력으로는 부족하오. 이 봉추에게 맡기시오.", emotion: "thoughtful" },
     ],
   },
 
@@ -1366,6 +1448,8 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "외교적으로 특별한 변동은 없소.", emotion: "calm" },
       { dialogue: "천하의 외교 정세가 잠잠하오.", emotion: "calm" },
       { dialogue: "별다른 외교 동향은 없소. 지켜보겠소.", emotion: "calm" },
+      { dialogue: "조용할 때 관계를 다져놓으면 위기 때 의지할 수 있소.", emotion: "thoughtful" },
+      { dialogue: "적의 외교 동향을 살피고 있소. 아직은 잠잠하오.", emotion: "calm" },
     ],
   },
 ];
