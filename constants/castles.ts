@@ -10,12 +10,13 @@ import type { Castle } from "@/types/game";
  * 손권(건업) ←────────────────────────────────┘
  */
 export const INITIAL_CASTLES: Castle[] = [
-  // ============ 유비 영토 (2성) ============
-  { name: "신야", grade: "본성", owner: "liu_bei", garrison: 30000, defenseMultiplier: 3.0, maxGarrison: 80000, adjacentCastles: ["하비", "양양"], lineId: "liu_cao" },
+  // ============ 유비 영토 (3성 - 박망 추가) ============
+  { name: "신야", grade: "본성", owner: "liu_bei", garrison: 30000, defenseMultiplier: 3.0, maxGarrison: 80000, adjacentCastles: ["하비", "박망"], lineId: "liu_cao" },
+  { name: "박망", grade: "일반", owner: "liu_bei", garrison: 15000, defenseMultiplier: 1.5, maxGarrison: 40000, adjacentCastles: ["신야", "양양"], lineId: "liu_cao" },
   { name: "하비", grade: "일반", owner: "liu_bei", garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 50000, adjacentCastles: ["신야", "강하"], lineId: "liu_sun" },
 
   // ============ 유비↔조조 라인 (liu_cao, ~12성) ============
-  { name: "양양", grade: "요새", owner: "cao_cao", garrison: 40000, defenseMultiplier: 2.5, maxGarrison: 80000, adjacentCastles: ["신야", "완"], lineId: "liu_cao" },
+  { name: "양양", grade: "요새", owner: "cao_cao", garrison: 40000, defenseMultiplier: 2.5, maxGarrison: 80000, adjacentCastles: ["박망", "완"], lineId: "liu_cao" },
   { name: "완", grade: "일반", owner: "cao_cao", garrison: 25000, defenseMultiplier: 1.5, maxGarrison: 60000, adjacentCastles: ["양양", "여남"], lineId: "liu_cao" },
   { name: "여남", grade: "일반", owner: "cao_cao", garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 50000, adjacentCastles: ["완", "소패"], lineId: "liu_cao" },
   { name: "소패", grade: "요새", owner: "cao_cao", garrison: 35000, defenseMultiplier: 2.0, maxGarrison: 70000, adjacentCastles: ["여남", "서주"], lineId: "liu_cao" },
