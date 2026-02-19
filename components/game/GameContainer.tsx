@@ -8,8 +8,8 @@ import { useWorldState } from "@/hooks/useWorldState";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useWorldTurn } from "@/hooks/useWorldTurn";
 import { useTypewriter } from "@/hooks/useTypewriter";
-import { callCouncilLLM, callReactionLLM, type CallLLMOptions } from "@/lib/api/llmClient";
-import { buildPhase1And3Prompt, buildPhase2Prompt, buildPhase4Prompt } from "@/lib/prompts/councilPrompt";
+import { callCouncilLLM, callReactionLLM, callMentionResponseLLM, type CallLLMOptions } from "@/lib/api/llmClient";
+import { buildPhase1And3Prompt, buildPhase2Prompt, buildPhase1MentionResponsePrompt } from "@/lib/prompts/councilPrompt";
 import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
 import { calcAllNPCActions } from "@/lib/game/npcAI";
 import { autoSave, loadAutoSave, hasAutoSave, loadChatLog } from "@/lib/game/saveSystem";
@@ -128,7 +128,7 @@ export default function GameContainer() {
     });
   }, []);
 
-  // 5-Phase 회의 상태
+  // 3-Phase 회의 상태
   const [meetingPhase, setMeetingPhase] = useState<MeetingPhase>(1);
   const [statusReports, setStatusReports] = useState<StatusReport[]>([]);
   const [planReports, setPlanReports] = useState<PlanReport[]>([]);
@@ -150,7 +150,7 @@ export default function GameContainer() {
   const pendingInvasionsRef = useRef<PendingInvasion[]>([]);
   const pendingCasePlanReportsRef = useRef<import("@/types/council").PlanReport[]>([]);
   const turnCtxRef = useRef(createInitialTurnContext());
-  const playerConqueredThisTurnRef = useRef(false); // Phase 4 공격으로 성채 획득 여부 추적
+  const playerConqueredThisTurnRef = useRef(false); // Phase 2 공격으로 성채 획득 여부 추적
 
   // 침공 대응 모달
   const [pendingInvasion, setPendingInvasion] = useState<PendingInvasion | null>(null);
@@ -250,38 +250,6 @@ export default function GameContainer() {
     );
 
     addToConvHistory("user", message);
-    const trimmedHistory = convHistoryRef.current.slice(-20);
-
-    const t0 = Date.now();
-    const { reaction, advisorUpdates, usage } = await callReactionLLM(
-      systemPrompt,
-      trimmedHistory,
-      llmProvider,
-      { replyTo },
-    );
-    const elapsedMs = Date.now() - t0;
-
-    if (usage) {
-      setTokenUsage((prev) => ({
-        input: prev.input + usage.input_tokens,
-        output: prev.output + usage.output_tokens,
-      }));
-    }
-
-    addToConvHistory("assistant", JSON.stringify(reaction));
-    return { reaction, advisorUpdates, elapsedMs };
-  }, [worldStateRef, addToConvHistory, convHistoryRef, llmProvider, setTokenUsage]);
-
-  // ---- Phase 4: 군주 피드백 (API 1회) ----
-  const doPhase4Feedback = useCallback(async (feedback: string, replyTo?: string) => {
-    const systemPrompt = buildPhase4Prompt(
-      worldStateRef.current,
-      advisorsRef.current,
-      feedback,
-      replyTo,
-    );
-
-    addToConvHistory("user", feedback);
     const trimmedHistory = convHistoryRef.current.slice(-20);
 
     const t0 = Date.now();
@@ -647,7 +615,7 @@ export default function GameContainer() {
     }, addMsgToCouncil);
   }, [applyPlayerChanges, addMsgToCouncil, worldStateRef]);
 
-  // ---- 5-Phase 회의 전체 흐름 실행 ----
+  // ---- 3-Phase 회의: 보고(상태+계획) → 토론 → 실행 ----
   const runMeetingPhase1And3 = useCallback(async (context: string) => {
     const oldMsgs = councilMsgsRef.current;
     const oldNum = councilNumberRef.current;
@@ -676,34 +644,47 @@ export default function GameContainer() {
 
       if (!shouldFallbackToLLM(situation, consecutive)) {
         const phase1 = runPhase1FromCases(situation, worldStateRef.current.currentTurn);
-        const phase3 = runPhase3FromCases(situation, worldStateRef.current.currentTurn, []);
+        const phase3 = runPhase3FromCases(situation, worldStateRef.current.currentTurn);
 
         if (phase1 && phase3) {
           updateAdvisorStats(phase1.advisorUpdates);
           pendingCasePlanReportsRef.current = phase3.planReports;
           turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: consecutive + 1 };
 
-          await animateCouncilMessages(phase1.messages, true, {});
+          // 같은 참모의 phase1+phase3 메시지를 한 발언으로 병합
+          const ADVISOR_DISPLAY_ORDER = ["제갈량", "관우", "미축", "방통"] as const;
+          const allSpeakers = new Set([
+            ...phase1.messages.map(m => m.speaker),
+            ...phase3.messages.map(m => m.speaker),
+          ]);
+          const merged: CouncilMessage[] = [];
+          for (const advisor of ADVISOR_DISPLAY_ORDER) {
+            if (!allSpeakers.has(advisor)) continue;
+            const p1 = phase1.messages.find(m => m.speaker === advisor);
+            const p3 = phase3.messages.find(m => m.speaker === advisor);
+            if (p1 && p3) {
+              merged.push({ speaker: advisor, dialogue: `${p1.dialogue} ${p3.dialogue}`, emotion: p3.emotion, phase: 1 as const });
+            } else if (p1) {
+              merged.push({ ...p1, phase: 1 as const });
+            } else if (p3) {
+              merged.push({ ...p3, phase: 1 as const });
+            }
+          }
+
+          await animateCouncilMessages(merged, true, {});
           setStatusReports(phase1.statusReports);
           setPlanReports(phase3.planReports);
+
           setMeetingPhase(2);
 
           const player = worldStateRef.current.factions.find(f => f.isPlayer);
           if (player && player.points.ap >= 1) {
             setIsLoading(false);
-            return { phase3Msgs: phase3.messages };
           } else {
+            // AP 부족 — 바로 실행
             await delay(500);
-            setMeetingPhase(3);
-            setCouncilMessages(prev => [
-              ...prev,
-              { speaker: "__phase_divider__", dialogue: "3", emotion: "calm" as const },
-            ]);
-            await animateCouncilMessages(phase3.messages, false);
-            setMeetingPhase(4);
-            setIsLoading(false);
-            return { phase3Msgs: [] };
           }
+          return;
         }
       }
 
@@ -716,67 +697,72 @@ export default function GameContainer() {
         const { result_message: _, ...changesOnly } = council.state_changes;
         applyPlayerChanges(changesOnly, addMsgToCouncil);
       } else {
-        // 케이스 모드: planReports를 Phase 5에서 실행
         pendingCasePlanReportsRef.current = council.plan_reports;
       }
 
-      // Phase 1 메시지 애니메이션
-      const phase1Msgs = council.council_messages.filter(m => m.phase === 1 || !m.phase);
-      const phase3Msgs = council.council_messages.filter(m => m.phase === 3);
-
-      // Phase 1이 없으면 전체 메시지를 Phase 1으로
-      const actualPhase1 = phase1Msgs.length > 0 ? phase1Msgs : council.council_messages;
-      const actualPhase3 = phase1Msgs.length > 0 ? phase3Msgs : [];
-
-      await animateCouncilMessages(actualPhase1, true, { apiElapsedMs: elapsedMs });
+      // 모든 메시지를 순서대로 애니메이션 (구분선 없음)
+      await animateCouncilMessages(council.council_messages, true, { apiElapsedMs: elapsedMs });
       setStatusReports(council.status_reports);
-      setMeetingPhase(2);
+      setPlanReports(council.plan_reports);
 
-      // 즉시 Phase 3으로 진행 (AP가 있으면 Phase 2에서 대기)
-      if (actualPhase3.length > 0) {
-        // Phase 3 메시지를 저장해두고, Phase 2 후에 표시
-        setPlanReports(council.plan_reports);
-
-        // Phase 2 대기: 플레이어 AP > 0이면 입력 대기, 아니면 바로 Phase 3
-        const player = worldStateRef.current.factions.find(f => f.isPlayer);
-        if (player && player.points.ap >= 1) {
-          // Phase 2 대기 — 사용자가 발언하거나 "다음" 버튼 누름
-          setIsLoading(false);
-          return { phase3Msgs: actualPhase3 };
-        } else {
-          // AP 부족 — Phase 3 바로 진행
-          await delay(500);
-          setMeetingPhase(3);
-          setCouncilMessages(prev => [
-            ...prev,
-            { speaker: "__phase_divider__", dialogue: "3", emotion: "calm" as const },
-          ]);
-          await animateCouncilMessages(actualPhase3, false);
-          setMeetingPhase(4);
-
-          const playerAfter = worldStateRef.current.factions.find(f => f.isPlayer);
-          if (!playerAfter || playerAfter.points.ap < 1) {
-            // Phase 5로 바로 진행
-            return { phase3Msgs: [] };
+      // ── 멘션 응답 처리 ──
+      if (council.advisor_mentions && council.advisor_mentions.length > 0) {
+        try {
+          const mentionSystem = buildPhase1MentionResponsePrompt(
+            worldStateRef.current,
+            advisorsRef.current,
+            council.advisor_mentions,
+            council.council_messages,
+          );
+          const { mentionResponses, usage: mentionUsage } = await callMentionResponseLLM(
+            mentionSystem,
+            [{ role: "user", content: "위 멘션 요청에 대한 응답을 생성해주세요." }],
+            llmProvider,
+          );
+          if (mentionUsage) {
+            setTokenUsage((prev) => ({
+              input: prev.input + mentionUsage.input_tokens,
+              output: prev.output + mentionUsage.output_tokens,
+            }));
           }
-          setIsLoading(false);
-          return { phase3Msgs: [] };
+          for (const resp of mentionResponses) {
+            const fromName = resp.replyTo;
+            if (!fromName) continue;
+            // replyTo 참모의 메시지 인덱스 찾기 (현재 councilMessages 기준)
+            const msgIndex = councilMsgsRef.current.findIndex(m => m.speaker === fromName);
+            if (msgIndex < 0) continue;
+            // 타이핑 인디케이터 표시
+            setThreadTyping({ msgIndex, speaker: resp.speaker });
+            await delay(Math.max(400, resp.dialogue.length * 30));
+            setThreadTyping(null);
+            addThreadMessage(msgIndex, {
+              type: "advisor",
+              speaker: resp.speaker,
+              text: resp.dialogue,
+              emotion: resp.emotion,
+            });
+          }
+        } catch (mentionErr) {
+          console.error("Mention response error (ignored):", mentionErr);
         }
       }
 
-      setIsLoading(false);
-      return { phase3Msgs: [] };
+      setMeetingPhase(2);
+
+      const player = worldStateRef.current.factions.find(f => f.isPlayer);
+      if (player && player.points.ap >= 1) {
+        setIsLoading(false);
+      } else {
+        // AP 부족 — 바로 실행
+        await delay(500);
+      }
     } catch (err) {
       console.error("Phase 1+3 error:", err);
       setIsLoading(false);
-      return { phase3Msgs: [] };
     }
   }, [doPhase1And3, animateCouncilMessages, updateAdvisorStats, applyPlayerChanges, addMsgToCouncil, worldStateRef]);
 
-  // Phase 3 메시지 표시용 (Phase 2에서 "다음" 버튼 시 호출)
-  const pendingPhase3MsgsRef = useRef<CouncilMessage[]>([]);
-
-  // ---- "다음" 버튼: Phase 2 → Phase 3 → Phase 4 → Phase 5 ----
+  // ---- "실행" 버튼: Phase 2 → Phase 3(실행) ----
   const handleAdvancePhase = useCallback(async () => {
     if (processingTurnRef.current) return;
     processingTurnRef.current = true;
@@ -784,38 +770,13 @@ export default function GameContainer() {
 
     try {
       if (meetingPhase === 2) {
-        // Phase 2 → Phase 3
-        setMeetingPhase(3);
-        const phase3Msgs = pendingPhase3MsgsRef.current;
-        if (phase3Msgs.length > 0) {
-          setCouncilMessages(prev => [
-            ...prev,
-            { speaker: "__phase_divider__", dialogue: "3", emotion: "calm" as const },
-          ]);
-          scrollToBottom();
-          await delay(400);
-          await animateCouncilMessages(phase3Msgs, false);
-          pendingPhase3MsgsRef.current = [];
-        }
-        setMeetingPhase(4);
-
-        // Phase 4 대기: AP 확인
-        const player = worldStateRef.current.factions.find(f => f.isPlayer);
-        if (player && player.points.ap >= 1) {
-          setIsLoading(false);
-        } else {
-          // Phase 5로 바로 진행
-          await handleExecuteTurn();
-        }
-      } else if (meetingPhase === 4) {
-        // Phase 4 → Phase 5
         await handleExecuteTurn();
       }
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [meetingPhase, animateCouncilMessages, scrollToBottom, worldStateRef]);
+  }, [meetingPhase]);
 
   // ---- 침공 대응 Promise 헬퍼 ----
   const waitForInvasionResponse = useCallback((invasion: PendingInvasion): Promise<InvasionResponseType> => {
@@ -928,9 +889,9 @@ export default function GameContainer() {
     }
   }, []);
 
-  // ---- Phase 5: 턴 실행 ----
+  // ---- Phase 3: 턴 실행 ----
   const handleExecuteTurn = useCallback(async () => {
-    setMeetingPhase(5);
+    setMeetingPhase(3);
     setIsLoading(true);
     pendingInvasionsRef.current = [];
 
@@ -1190,10 +1151,9 @@ export default function GameContainer() {
       };
 
       // ⑤ Phase 1 복귀: 다음 턴 참모 회의
-      const result = await runMeetingPhase1And3(
+      await runMeetingPhase1And3(
         "현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 담당 업무 현황을 보고하고, 다음 턴 계획을 제안하라."
       );
-      pendingPhase3MsgsRef.current = result.phase3Msgs;
     } finally {
       setIsLoading(false);
     }
@@ -1259,8 +1219,7 @@ export default function GameContainer() {
       await delay(600);
 
       const context = "게임이 시작되었다. 첫 번째 참모 회의다. 각 참모가 자율 업무를 수행한 결과를 보고하고, 다음 턴 계획을 제안하라. (도입 서사는 이미 완료됨 — 천하 정세 반복하지 말 것)";
-      const result = await runMeetingPhase1And3(context);
-      pendingPhase3MsgsRef.current = result.phase3Msgs;
+      await runMeetingPhase1And3(context);
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
@@ -1298,8 +1257,7 @@ export default function GameContainer() {
     setIsLoading(true);
 
     try {
-      const result = await runMeetingPhase1And3("저장된 게임을 불러왔다. 현재 상황을 요약하고 참모 회의를 진행하라.");
-      pendingPhase3MsgsRef.current = result.phase3Msgs;
+      await runMeetingPhase1And3("저장된 게임을 불러왔다. 현재 상황을 요약하고 참모 회의를 진행하라.");
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
@@ -1401,29 +1359,6 @@ export default function GameContainer() {
           }
         }
         updateAdvisorStats(advisorUpdates);
-      } else if (meetingPhase === 4) {
-        const { reaction, advisorUpdates, elapsedMs } = await doPhase4Feedback(llmMessage, effectiveReplyTo);
-        if (reply) {
-          await animateThreadMessages(reply.index, reaction.council_messages);
-        } else {
-          await animateCouncilMessages(reaction.council_messages, false, { apiElapsedMs: elapsedMs });
-        }
-        if (reaction.state_changes) {
-          applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
-        } else {
-          // 참모가 질문만 하고 실제 행동 없으면 AP 환불 (예: "얼마나 모병할까요?")
-          applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
-          // 모병 수량 질문이면 팝업 오픈
-          const isRecruitQuestion = reaction.council_messages.some(m =>
-            (m.dialogue.includes("모병") || m.dialogue.includes("징병")) &&
-            (m.dialogue.includes("얼마") || m.dialogue.includes("수량") || m.dialogue.includes("몇"))
-          );
-          if (isRecruitQuestion) {
-            const ip = worldStateRef.current.factions.find(f => f.isPlayer)!.points.ip;
-            setRecruitmentPopup({ maxIP: ip });
-          }
-        }
-        updateAdvisorStats(advisorUpdates);
       }
       doAutoSave();
     } catch (err) {
@@ -1435,7 +1370,7 @@ export default function GameContainer() {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMsgToCouncil, addSystemCouncilMsg, addThreadMessage, animateThreadMessages, doPhase2Reply, doPhase4Feedback, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
+  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMsgToCouncil, addSystemCouncilMsg, addThreadMessage, animateThreadMessages, doPhase2Reply, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
 
   // ---- Restart / Mic ----
   const handleRestart = useCallback(() => {
@@ -1477,7 +1412,7 @@ export default function GameContainer() {
 
   const playerFaction = getPlayerFaction();
   const currentAP = playerFaction.points.ap;
-  const phaseLabel = meetingPhase === 1 ? "상태보고" : meetingPhase === 2 ? "토론" : meetingPhase === 3 ? "계획보고" : meetingPhase === 4 ? "피드백" : "실행";
+  const phaseLabel = meetingPhase === 1 ? "보고" : meetingPhase === 2 ? "토론" : "실행";
 
   // 매턴 포인트 증가치 계산
   const apRegenTotal = playerFaction.points.ap_regen + playerFaction.skills.reduce((sum, sid) => {
@@ -1489,8 +1424,8 @@ export default function GameContainer() {
     const def = SKILL_TREE.find(s => s.id === sid);
     return sum + (def?.effect.type === "dp_bonus" ? def.effect.value : 0);
   }, 0));
-  const canInput = (meetingPhase === 2 || meetingPhase === 4) && currentAP >= 1 && !isLoading;
-  const showNextButton = (meetingPhase === 2 || meetingPhase === 4) && !isLoading && !processingTurnRef.current;
+  const canInput = meetingPhase === 2 && currentAP >= 1 && !isLoading;
+  const showNextButton = meetingPhase === 2 && !isLoading && !processingTurnRef.current;
 
   return (
     <div style={{
@@ -1537,14 +1472,14 @@ export default function GameContainer() {
         background: "rgba(201,168,76,0.05)", borderBottom: "1px solid var(--border)",
         fontSize: "10px",
       }}>
-        {([1, 2, 3, 4, 5] as MeetingPhase[]).map(p => (
+        {([1, 2, 3] as MeetingPhase[]).map(p => (
           <span key={p} style={{
             padding: "1px 8px", borderRadius: "8px",
             background: p === meetingPhase ? "rgba(201,168,76,0.2)" : "transparent",
             color: p === meetingPhase ? "var(--gold)" : "var(--text-dim)",
             fontWeight: p === meetingPhase ? 700 : 400,
           }}>
-            {p === 1 ? "상태보고" : p === 2 ? "토론" : p === 3 ? "계획" : p === 4 ? "피드백" : "실행"}
+            {p === 1 ? "보고" : p === 2 ? "토론" : "실행"}
           </span>
         ))}
 
@@ -1677,10 +1612,8 @@ export default function GameContainer() {
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder={
             !canInput
-              ? `Phase ${meetingPhase}: ${phaseLabel} 진행 중...`
-              : meetingPhase === 2
-                ? `행동포인트 ${currentAP.toFixed(1)} — 참모에게 질문하거나 지시하세요 (1 소비)`
-                : `행동포인트 ${currentAP.toFixed(1)} — 계획에 피드백하세요 (1 소비)`
+              ? `${phaseLabel} 진행 중...`
+              : `행동포인트 ${currentAP.toFixed(1)} — 참모에게 질문, 지시, 또는 계획 피드백 (1 소비)`
           }
           disabled={isLoading || !canInput}
           style={{
@@ -1699,7 +1632,7 @@ export default function GameContainer() {
             fontSize: "13px", cursor: !canInput ? "not-allowed" : "pointer", fontWeight: 700,
           }}
         >전송</button>
-        {showNextButton && meetingPhase === 4 && (
+        {showNextButton && meetingPhase === 2 && (
           <button onClick={() => setShowAttackModal(true)} style={{
             background: "rgba(196,68,68,0.15)", color: "#c44",
             border: "1px solid rgba(196,68,68,0.4)", borderRadius: "8px",
@@ -1712,7 +1645,7 @@ export default function GameContainer() {
             border: "1px solid var(--border)", borderRadius: "8px",
             padding: "10px 12px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600,
           }}>
-            {meetingPhase === 2 ? "다음 →" : "실행 ⚡"}
+            실행 ⚡
           </button>
         )}
       </div>

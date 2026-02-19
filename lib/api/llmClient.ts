@@ -7,6 +7,11 @@ export interface CouncilLLMResult {
   usage: { input_tokens: number; output_tokens: number } | null;
 }
 
+export interface MentionResponseLLMResult {
+  mentionResponses: CouncilMessage[];
+  usage: { input_tokens: number; output_tokens: number } | null;
+}
+
 export interface ReactionLLMResult {
   reaction: CouncilReactionResponse;
   advisorUpdates: AdvisorStatsDelta[];
@@ -176,6 +181,39 @@ export async function callCouncilLLM(
       advisorUpdates: [],
       usage: null,
     };
+  }
+}
+
+/** Phase 1 멘션 응답 호출 */
+export async function callMentionResponseLLM(
+  system: string,
+  messages: { role: string; content: string }[],
+  provider: LLMProvider = "openai",
+): Promise<MentionResponseLLMResult> {
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, messages, provider, skipCache: true }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const raw: string = data.text || "";
+    const usage = data.cached ? null : (data.usage ?? null);
+
+    let parsed: { mention_responses?: CouncilMessage[] };
+    try {
+      parsed = parseJSON(raw);
+    } catch {
+      return { mentionResponses: [], usage: null };
+    }
+
+    const responses = Array.isArray(parsed.mention_responses) ? parsed.mention_responses : [];
+    return { mentionResponses: responses, usage };
+  } catch (err) {
+    console.error("Mention response API error:", err);
+    return { mentionResponses: [], usage: null };
   }
 }
 

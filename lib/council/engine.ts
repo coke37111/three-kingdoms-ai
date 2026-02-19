@@ -21,7 +21,7 @@ import { getFacilityUpgradeCost, getFacilityBuildCost } from "@/constants/gameCo
 import { SKILL_TREE } from "@/constants/skills";
 import { CAPITAL_CASTLES } from "@/constants/castles";
 import { ALL_PHASE1_CASES } from "./phase1Cases";
-import { ALL_PHASE3_CASES, PHASE2_KEYWORD_MAPPINGS } from "./phase3Cases";
+import { ALL_PHASE3_CASES } from "./phase3Cases";
 
 // ===================== 상황 분석 =====================
 
@@ -374,24 +374,13 @@ export function runPhase1FromCases(
 export function runPhase3FromCases(
   situation: GameSituation,
   turn: number,
-  phase2Keywords: string[],
 ): Phase3Result | null {
-  const boostedAdvisors = new Set<string>();
-  for (const keyword of phase2Keywords) {
-    const mapping = PHASE2_KEYWORD_MAPPINGS.find(m => m.id === keyword);
-    if (mapping) boostedAdvisors.add(mapping.advisorOverride);
-  }
-
   const selected: { advisor: string; caseItem: Phase3CaseDefinition }[] = [];
 
   for (const advisor of ADVISOR_ORDER) {
     const matched = ALL_PHASE3_CASES
       .filter(c => c.advisor === advisor && c.condition(situation))
-      .sort((a, b) => {
-        const boostA = boostedAdvisors.has(a.advisor) ? 30 : 0;
-        const boostB = boostedAdvisors.has(b.advisor) ? 30 : 0;
-        return (b.priority + boostB) - (a.priority + boostA);
-      });
+      .sort((a, b) => b.priority - a.priority);
 
     if (matched.length > 0) {
       selected.push({ advisor, caseItem: matched[0] });

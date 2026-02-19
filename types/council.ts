@@ -5,7 +5,7 @@ import type { StateChanges, PointDeltas } from "./game";
 
 export type AdvisorRole = "전략" | "군사" | "외교" | "내정";
 
-export type MeetingPhase = 1 | 2 | 3 | 4 | 5;
+export type MeetingPhase = 1 | 2 | 3;
 
 export interface AdvisorState {
   name: string;
@@ -23,7 +23,17 @@ export interface CouncilMessage {
   speaker: string;
   dialogue: string;
   emotion: Emotion;
-  phase?: MeetingPhase;
+  phase?: 1 | 2 | 3 | 4;  // 메시지 유형 표시용 (1=상태보고, 2=토론, 3=계획, 4=레거시 피드백)
+  replyTo?: string;  // 멘션 응답 시 원본 발언자
+}
+
+// ===================== 참모 간 멘션 =====================
+
+export interface AdvisorMention {
+  from: string;     // 멘션 거는 참모 (예: "미축")
+  to: string;       // 멘션 대상 참모 (예: "방통")
+  context: string;  // 발언 맥락
+  request: string;  // 구체적 요청 내용
 }
 
 // ===================== Phase 1: 상태 보고 =====================
@@ -50,6 +60,7 @@ export interface CouncilResponse {
   status_reports: StatusReport[];
   plan_reports: PlanReport[];
   state_changes: StateChanges | null;
+  advisor_mentions?: AdvisorMention[];
 }
 
 // ===================== Phase 2/4 반응 응답 =====================
@@ -57,7 +68,7 @@ export interface CouncilResponse {
 export interface CouncilReactionResponse {
   council_messages: CouncilMessage[];
   state_changes: StateChanges | null;
-  boosted_plans?: string[];  // Phase 4에서 boost된 계획 참모 이름
+  boosted_plans?: string[];  // boost된 계획 참모 이름
 }
 
 // ===================== 쓰레드 메시지 =====================

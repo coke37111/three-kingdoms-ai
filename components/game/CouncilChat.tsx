@@ -230,6 +230,7 @@ export default function CouncilChat({
 
         // Phase 구분선
         if (msg.speaker === "__phase_divider__") {
+          const dividerLabel = msg.dialogue === "계획" ? "📋 계획 보고" : msg.dialogue;
           return (
             <div key={i} style={{
               textAlign: "center",
@@ -246,7 +247,7 @@ export default function CouncilChat({
                 border: "1px solid var(--border)",
                 letterSpacing: "1px",
               }}>
-                {msg.dialogue}
+                {dividerLabel}
               </span>
             </div>
           );
@@ -283,6 +284,7 @@ export default function CouncilChat({
         const isRuler = msg.speaker === "유비";
 
         // Phase 배지
+        const phaseLabels: Record<number, string> = { 1: "보고", 2: "토론", 3: "계획", 4: "토론" };
         const phaseBadge = msg.phase ? (
           <span style={{
             fontSize: "8px",
@@ -292,7 +294,7 @@ export default function CouncilChat({
             color: "var(--text-dim)",
             marginLeft: "4px",
           }}>
-            P{msg.phase}
+            {phaseLabels[msg.phase] || `P${msg.phase}`}
           </span>
         ) : null;
 

@@ -1,11 +1,10 @@
 /**
  * Phase 3 (계획 보고) 케이스 정의
  *
- * Phase 2 토론이 없거나 키워드 매칭으로 처리 가능한 경우,
  * API 없이 현재 상태 기반 계획을 즉각 생성한다.
  */
 
-import type { Phase3CaseDefinition, GameSituation, KeywordMapping } from "./types";
+import type { Phase3CaseDefinition, GameSituation } from "./types";
 import {
   RECRUIT_TROOPS_PER_IP,
   TRAIN_IP_COST,
@@ -2386,81 +2385,3 @@ export const ALL_PHASE3_CASES: Phase3CaseDefinition[] = [
   ...ZHUGE_PHASE3_CASES,
 ];
 
-// =====================================================================
-//  Phase 2 키워드 매핑
-// =====================================================================
-
-export const PHASE2_KEYWORD_MAPPINGS: KeywordMapping[] = [
-  {
-    id: "kw_attack",
-    keywords: ["공격", "출격", "침공", "점령", "진격", "치자", "때리자", "쳐들어"],
-    advisorOverride: "관우",
-    description: "공격/출격 지시",
-  },
-  {
-    id: "kw_defense",
-    keywords: ["방어", "수비", "지키", "방비", "막아", "수성", "성벽"],
-    advisorOverride: "관우",
-    description: "방어 지시",
-  },
-  {
-    id: "kw_recruit",
-    keywords: ["모병", "징병", "병력 보충", "병사 모아", "군사 늘려"],
-    advisorOverride: "관우",
-    description: "모병 지시",
-  },
-  {
-    id: "kw_train",
-    keywords: ["훈련", "단련", "기량", "전투력"],
-    advisorOverride: "관우",
-    description: "훈련 지시",
-  },
-  {
-    id: "kw_build_market",
-    keywords: ["시장", "상업", "장사"],
-    advisorOverride: "미축",
-    description: "시장 건설/확장",
-  },
-  {
-    id: "kw_build_farm",
-    keywords: ["논", "농업", "농사", "식량"],
-    advisorOverride: "미축",
-    description: "논 건설/확장",
-  },
-  {
-    id: "kw_build_bank",
-    keywords: ["은행", "금고", "저장", "비축"],
-    advisorOverride: "미축",
-    description: "은행 건설/확장",
-  },
-  {
-    id: "kw_build_general",
-    keywords: ["시설", "건설", "확장", "인프라", "내정"],
-    advisorOverride: "미축",
-    description: "시설 건설 일반",
-  },
-  {
-    id: "kw_diplomacy_improve",
-    keywords: ["외교", "화친", "관계 개선", "사신", "우호"],
-    advisorOverride: "방통",
-    description: "관계 개선",
-  },
-  {
-    id: "kw_diplomacy_alliance",
-    keywords: ["동맹", "연합", "손잡"],
-    advisorOverride: "방통",
-    description: "동맹 추진",
-  },
-  {
-    id: "kw_diplomacy_divide",
-    keywords: ["이간", "분열", "갈라", "이이제이"],
-    advisorOverride: "방통",
-    description: "이간책",
-  },
-  {
-    id: "kw_skill",
-    keywords: ["스킬", "기술", "연구", "전략포인트"],
-    advisorOverride: "제갈량",
-    description: "스킬 트리 연구",
-  },
-];

@@ -237,12 +237,3 @@ export function createInitialTurnContext(): TurnContext {
   };
 }
 
-// ===================== 키워드 매핑 (Phase 3) =====================
-
-/** Phase 2 발언 키워드 → 계획 방향 매핑 */
-export interface KeywordMapping {
-  id: string;
-  keywords: string[];
-  advisorOverride: string;
-  description: string;
-}

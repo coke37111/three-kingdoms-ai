@@ -56,7 +56,7 @@ Next.js 14 App Router, **TypeScript**, **Turbopack** bundler.
 - **`lib/game/saveSystem.ts`** — Firebase Firestore 기반 저장/로드 (SAVE_VERSION 2)
 - **`lib/api/llmClient.ts`** — `callCouncilLLM()` (Phase 1+3), `callReactionLLM()` (Phase 2/4)
 - **`lib/api/llmCache.ts`** — 서버 측 LLM 응답 캐시 (SHA-256, 60분 TTL, 2000항목)
-- **`lib/prompts/councilPrompt.ts`** — `buildPhase1And3Prompt()`, `buildPhase2Prompt()`, `buildPhase4Prompt()`
+- **`lib/prompts/councilPrompt.ts`** — `buildPhase1And3Prompt()`, `buildPhase2Prompt()`
 - **`lib/prompts/factionAIPrompt.ts`** — `buildFactionAIPrompt()`, `parseNPCResponse()` — 포인트 기반 NPC AI
 - **`lib/firebase/`** — Firebase config, auth, firestore
 - **`lib/voice/`** — STT/TTS 엔진, 감정 음성 매핑
@@ -71,7 +71,7 @@ Next.js 14 App Router, **TypeScript**, **Turbopack** bundler.
 - **`hooks/useVoice.ts`** — 음성 입력 (STT)
 
 ### UI Components (`components/game/`)
-- **`GameContainer.tsx`** — ★ 5-Phase 게임 루프 오케스트레이터
+- **`GameContainer.tsx`** — ★ 3-Phase 게임 루프 오케스트레이터
 - **`CouncilChat.tsx`** — ★ 참모 회의 채팅 (메시지, 쓰레드, Phase 배지, 타이핑)
 - **`WorldStatus.tsx`** — 천하 정세 모달 (포인트, 성채, 전선 현황)
 - **`TitleScreen.tsx`** — 시작 화면
@@ -86,29 +86,22 @@ Next.js 14 App Router, **TypeScript**, **Turbopack** bundler.
 - **`AdvisorBar.tsx`** — 참모 충성도/열정 표시
 - **`VoiceSettingsModal.tsx`** — 음성 설정
 
-### Game Loop — 5-Phase Meeting System
+### Game Loop — 3-Phase Meeting System
 
 ```
-Phase 1: 상태 보고 (자동, API 1회 — Phase 3과 합산)
+Phase 1: 보고 (자동, API 1회)
   → buildPhase1And3Prompt() → callCouncilLLM()
-  → Phase 1 메시지 + status_reports 표시
+  → Phase 1(상태보고) 메시지 + 구분선 + Phase 3(계획보고) 메시지 이어서 표시
   → state_changes 적용
 
-Phase 2: 군주 토론 (AP 1 소비/발언, API 0~N회)
+Phase 2: 토론 (AP 1 소비/발언, API 0~N회)
   → buildPhase2Prompt() → callReactionLLM()
+  → 질문, 지시, 피드백, boost 통합
   → replyTo 쓰레드 유지, AP 0이면 스킵
-  → "다음" 버튼 → Phase 3
+  → "실행" 버튼 → Phase 3
 
-Phase 3: 계획 보고 (자동, API 0회 — Phase 1과 함께 생성)
-  → Phase 3 메시지 + plan_reports 표시
-
-Phase 4: 군주 피드백 (AP 1 소비/발언, API 0~N회)
-  → buildPhase4Prompt() → callReactionLLM()
-  → boost 가능, AP 0이면 스킵
-  → "실행" 버튼 → Phase 5
-
-Phase 5: 턴 실행 (자동)
-  → 계획 실행, NPC턴(API 1회), 포인트 충전, 승패 판정
+Phase 3: 실행 (자동)
+  → 계획 실행, NPC턴, 포인트 충전, 승패 판정
   → Phase 1 복귀
 ```
 
