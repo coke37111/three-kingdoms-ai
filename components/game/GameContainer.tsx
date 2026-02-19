@@ -23,7 +23,7 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost, SPECIAL_STRATEGY_INITIAL_RATE, SPECIAL_STRATEGY_USE_PENALTY, SPECIAL_STRATEGY_MIN_RATE, SPECIAL_STRATEGY_MAX_RATE, SPECIAL_STRATEGY_RECOVERY, SPECIAL_STRATEGY_COOLDOWN_TURNS } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost, getFacilityBuildCost, SPECIAL_STRATEGY_INITIAL_RATE, SPECIAL_STRATEGY_USE_PENALTY, SPECIAL_STRATEGY_MIN_RATE, SPECIAL_STRATEGY_MAX_RATE, SPECIAL_STRATEGY_RECOVERY, SPECIAL_STRATEGY_COOLDOWN_TURNS } from "@/constants/gameConstants";
 import { POINT_COLORS, getDeltaColor } from "@/constants/uiConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
@@ -459,7 +459,7 @@ export default function GameContainer() {
           ? action.target
           : "market";
         const currentLv = faction?.facilities[facType] ?? 0;
-        const devCost = getFacilityUpgradeCost(currentLv);
+        const devCost = facType === "bank" ? getFacilityUpgradeCost(currentLv) : getFacilityBuildCost(currentLv);
         const npcIp = faction?.points.ip ?? 0;
         if (npcIp < devCost) break; // IP 부족 시 스킵
         applyNPCChanges(factionId, {

@@ -19,7 +19,7 @@ export function useWorldTurn({
   const advanceWorldTurn = useCallback(() => {
     const prev = worldStateRef.current;
     const player = prev.factions.find(f => f.isPlayer)!;
-    const { recoveredTroops } = calcPointsForTurn(player);
+    const { recoveredTroops, starvationLoss } = calcPointsForTurn(player);
 
     setWorldState(prev => {
       const updatedFactions = prev.factions.map(faction => {
@@ -56,6 +56,9 @@ export function useWorldTurn({
     let msg = `📅 第${nextTurn}턴 시작 | AP 충전됨`;
     if (recoveredTroops > 0) {
       msg += ` | 부상병 ${recoveredTroops.toLocaleString()}명 복귀`;
+    }
+    if (starvationLoss > 0) {
+      msg += ` | ⚠️ 유지비 부족 — 병사 ${starvationLoss.toLocaleString()}명 이탈`;
     }
     addMessage({ role: "system", content: msg });
   }, [worldStateRef, setWorldState, addMessage]);

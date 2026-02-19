@@ -31,14 +31,19 @@ function applyPointDeltas(points: FactionPoints, deltas: PointDeltas): FactionPo
   return p;
 }
 
-/** 시설 업그레이드 적용 */
+/** 시설 업그레이드 적용 (시장·논은 보유 성채 수 상한 적용) */
 function applyFacilityUpgrades(
   facilities: Facilities,
   upgrades: { type: keyof Facilities; levels: number }[],
+  castleCount: number,
 ): Facilities {
   const f = { ...facilities };
   for (const u of upgrades) {
     f[u.type] = Math.max(0, f[u.type] + u.levels);
+    // 시장·논은 보유 성채 수를 초과할 수 없음
+    if ((u.type === "market" || u.type === "farm") && castleCount > 0) {
+      f[u.type] = Math.min(f[u.type], castleCount);
+    }
   }
   return f;
 }
@@ -57,9 +62,10 @@ export function applyStateChanges(
     nextFaction.points = applyPointDeltas(nextFaction.points, changes.point_deltas);
   }
 
-  // 시설 업그레이드
+  // 시설 업그레이드 (시장·논은 성채 수 상한)
   if (changes.facility_upgrades) {
-    nextFaction.facilities = applyFacilityUpgrades(nextFaction.facilities, changes.facility_upgrades);
+    const castleCount = nextCastles.filter(c => c.owner === faction.id).length;
+    nextFaction.facilities = applyFacilityUpgrades(nextFaction.facilities, changes.facility_upgrades, castleCount);
   }
 
   // 스킬 해금

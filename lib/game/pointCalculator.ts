@@ -7,6 +7,8 @@ import {
   BASE_IP_CAP,
   WOUND_RECOVERY_TURNS,
   DP_REGEN_PER_TURN,
+  TROOP_MAINTENANCE_DIVISOR,
+  TROOP_STARVATION_RATE,
 } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 
@@ -15,6 +17,8 @@ export function calcPointsForTurn(faction: Faction): {
   nextPoints: FactionPoints;
   nextWoundedPool: WoundedPool[];
   recoveredTroops: number;
+  maintenanceCost: number;
+  starvationLoss: number;
 } {
   const p = { ...faction.points };
   const skills = faction.skills;
@@ -41,6 +45,17 @@ export function calcPointsForTurn(faction: Faction): {
   p.ip_regen = ipRegenBase + ipBonus;
   p.ip_cap = ipCap;
   p.ip = Math.min(ipCap, p.ip + p.ip_regen);
+
+  // ── 병사 유지비 (병력 5,000명당 IP 1 소모) ──
+  const maintenanceCost = Math.floor(p.mp_troops / TROOP_MAINTENANCE_DIVISOR);
+  let starvationLoss = 0;
+  if (p.ip >= maintenanceCost) {
+    p.ip -= maintenanceCost;
+  } else {
+    starvationLoss = Math.floor(p.mp_troops * TROOP_STARVATION_RATE);
+    p.mp_troops = Math.max(0, p.mp_troops - starvationLoss);
+    p.ip = 0;
+  }
 
   // ── SP 소량 자동 충전 ──
   p.sp += 1;
@@ -80,7 +95,7 @@ export function calcPointsForTurn(faction: Faction): {
   // ── MP 재산출 (부상 복귀 반영) ──
   p.mp = Math.floor(p.mp_troops * p.mp_training * p.mp_morale);
 
-  return { nextPoints: p, nextWoundedPool: nextPool, recoveredTroops };
+  return { nextPoints: p, nextWoundedPool: nextPool, recoveredTroops, maintenanceCost, starvationLoss };
 }
 
 /** MP 산출값 계산 (순수 함수) */

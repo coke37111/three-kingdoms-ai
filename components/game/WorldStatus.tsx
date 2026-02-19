@@ -1,7 +1,31 @@
 "use client";
 
-import type { WorldState, DiplomaticRelation, FactionId } from "@/types/game";
+import type { WorldState, DiplomaticRelation, FactionId, Castle } from "@/types/game";
 import { scoreToLabel } from "@/lib/game/diplomacySystem";
+
+/** lineId 라인의 성채를 시작 성채에서 BFS로 순서대로 반환 */
+function getLineOrder(castles: Castle[], lineId: string, startCastle: string): Castle[] {
+  const lineCastles = castles.filter(c => c.lineId === lineId);
+  const castleMap = new Map(lineCastles.map(c => [c.name, c]));
+  const visited = new Set<string>();
+  const result: Castle[] = [];
+  const queue = [startCastle];
+  visited.add(startCastle);
+  while (queue.length > 0) {
+    const name = queue.shift()!;
+    const castle = castleMap.get(name);
+    if (castle) {
+      result.push(castle);
+      for (const adj of castle.adjacentCastles) {
+        if (!visited.has(adj) && castleMap.has(adj)) {
+          visited.add(adj);
+          queue.push(adj);
+        }
+      }
+    }
+  }
+  return result;
+}
 
 interface WorldStatusProps {
   worldState: WorldState;
@@ -149,22 +173,42 @@ export default function WorldStatus({ worldState, show, onClose }: WorldStatusPr
           <div style={{ fontSize: "11px", color: "var(--gold)", fontWeight: 700, marginBottom: "8px" }}>
             ⚔️ 전선 현황
           </div>
-          {["liu_cao", "liu_sun", "sun_cao"].map(lineId => {
-            const lineCastles = worldState.castles.filter(c => c.lineId === lineId);
-            const labels: Record<string, string> = { liu_cao: "유비↔조조", liu_sun: "유비↔손권", sun_cao: "손권↔조조" };
-            const ownerCounts: Record<string, number> = {};
-            for (const c of lineCastles) {
-              ownerCounts[c.owner] = (ownerCounts[c.owner] || 0) + 1;
-            }
+          {([
+            { lineId: "liu_cao", label: "유비↔조조", start: "신야" },
+            { lineId: "liu_sun", label: "유비↔손권", start: "하비" },
+            { lineId: "sun_cao", label: "손권↔조조", start: "건업" },
+          ] as const).map(({ lineId, label, start }) => {
+            const ordered = getLineOrder(worldState.castles, lineId, start);
             return (
-              <div key={lineId} style={{ fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>
-                <span style={{ fontWeight: 600 }}>{labels[lineId]}</span>
-                {" — "}
-                {Object.entries(ownerCounts).map(([owner, count]) => {
-                  const f = worldState.factions.find(f => f.id === owner);
-                  return `${f?.rulerName || owner} ${count}`;
-                }).join(" / ")}
-                {" (총 "}{lineCastles.length}{"개)"}
+              <div key={lineId} style={{ marginBottom: "8px" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-dim)", fontWeight: 700, marginBottom: "3px" }}>
+                  {label} ({ordered.length}개)
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px", alignItems: "center" }}>
+                  {ordered.map((castle, i) => {
+                    const f = worldState.factions.find(f => f.id === castle.owner);
+                    const gradeSymbol = castle.grade === "본성" ? "★" : castle.grade === "요새" ? "▲" : "·";
+                    return (
+                      <span key={castle.name} style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                        <span style={{
+                          fontSize: "9px",
+                          padding: "1px 5px",
+                          borderRadius: "4px",
+                          background: `${f?.color || "#888"}22`,
+                          border: `1px solid ${f?.color || "#888"}66`,
+                          color: f?.color || "var(--text-secondary)",
+                          fontWeight: castle.grade !== "일반" ? 700 : 400,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {gradeSymbol}{castle.name}
+                        </span>
+                        {i < ordered.length - 1 && (
+                          <span style={{ fontSize: "8px", color: "var(--text-dim)" }}>→</span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

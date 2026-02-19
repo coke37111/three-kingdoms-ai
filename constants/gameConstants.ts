@@ -59,13 +59,24 @@ export const DP_REGEN_PER_TURN = 1;
 /** DP 전환: IP 1 → DP 변환량 */
 export const DP_CONVERSION_RATE = 0.5;
 
-/** 시설 건설 IP 기본 비용 (Lv0→1) */
+/** 시설 건설 IP 기본 비용 (1번째 건설) */
 export const FACILITY_BASE_COST = 30;
 
-/** 시설 건설 IP 비용 레벨당 추가분 */
+/** 시설 건설 IP 비용 추가분 (건설 수 × 이 값) */
 export const FACILITY_COST_PER_LEVEL = 10;
 
-/** 시설 업그레이드 비용 계산: 30 + currentLevel × 10 */
+/** 시장·논 신규 건설 비용 배율 (레벨업 비용의 10배) */
+export const FACILITY_CONSTRUCTION_MULTIPLIER = 10;
+
+/**
+ * 시장·논 신규 건설 비용: (30 + currentCount × 10) × 10
+ * 예: 0개 → 1개: 300, 1개 → 2개: 400, ...
+ */
+export function getFacilityBuildCost(currentCount: number): number {
+  return (FACILITY_BASE_COST + currentCount * FACILITY_COST_PER_LEVEL) * FACILITY_CONSTRUCTION_MULTIPLIER;
+}
+
+/** 은행 건설/업그레이드 비용: 30 + currentLevel × 10 (기존 공식 유지) */
 export function getFacilityUpgradeCost(currentLevel: number): number {
   return FACILITY_BASE_COST + currentLevel * FACILITY_COST_PER_LEVEL;
 }
@@ -93,6 +104,12 @@ export const MAX_SIEGE_FACILITY_DAMAGE = 2;
 
 /** 이벤트 발생 확률 */
 export const EVENT_TRIGGER_CHANCE = 0.3;
+
+/** 병사 유지비: 병력 5,000명당 내정포인트 1 소모 */
+export const TROOP_MAINTENANCE_DIVISOR = 5000;
+
+/** 유지비 부족 시 병력 감소율 (1%) */
+export const TROOP_STARVATION_RATE = 0.01;
 
 /** 특수 전략 SP 비용 */
 export const SPECIAL_STRATEGY_SP_COST = 5;
