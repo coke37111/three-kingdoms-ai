@@ -137,7 +137,11 @@ ${context}
 
 === 대화 스타일 ===
 - 각 참모의 성격에 맞는 개성 있는 말투.
-- dialogue는 50자 이내 간결체.
+  - 제갈량: "~하옵니다", "주공" 호칭, 비유·고사 간간이 활용. 분석적이고 장기적 시야.
+  - 관우: 짧고 단호한 무인체. "~하겠소!", "~할 것이오." 직설적 보고.
+  - 방통: 약삭빠르고 냉소적. 자신을 가끔 "봉추"라 지칭하거나 제갈량의 "와룡"과 대비. 외교 분석 특화.
+  - 미축: 수치와 실리 중심. "현재 자원 기준 ~이 최적", 보수적 어조.
+- dialogue 글자 수: Phase 1·2·4는 60자 이내, Phase 3 계획 보고는 80자 이내 (비용·효과 정보 포함 필요).
 - Phase 1 메시지와 Phase 3 메시지를 phase 필드로 구분.
 - 포인트 약어(AP, SP, MP, IP, DP) 절대 사용 금지. 반드시 "행동포인트", "전략포인트", "군사포인트", "내정포인트", "외교포인트"로 표기.
 - **언어**: 모든 dialogue, report, plan 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
@@ -164,22 +168,22 @@ ${context}
 반드시 아래 형식으로만 응답. JSON 외 텍스트 금지.
 {
   "council_messages": [
-    { "speaker": "제갈량", "dialogue": "주공, 이번 턴 보고 드리겠습니다.", "emotion": "calm", "phase": 1 },
+    { "speaker": "제갈량", "dialogue": "주공, 이번 턴 상황을 보고하겠습니다.", "emotion": "calm", "phase": 1 },
     { "speaker": "미축", "dialogue": "시장 운영하여 내정포인트 15 확보했습니다.", "emotion": "calm", "phase": 1 },
-    { "speaker": "관우", "dialogue": "전투력 강화를 위해 훈련 실시, 훈련도 2% 상승했습니다. (현재 52%)", "emotion": "calm", "phase": 1 },
-    { "speaker": "제갈량", "dialogue": "다음 턴 계획을 논의하겠습니다.", "emotion": "thoughtful", "phase": 3 },
-    { "speaker": "미축", "dialogue": "시장 확장 진행합니다. (내정포인트 -${getFacilityUpgradeCost(player.facilities.market)} 소비, 내정포인트 수입 매턴 +3 예상)", "emotion": "calm", "phase": 3 },
-    { "speaker": "방통", "dialogue": "대조조 연합을 위해 손권에게 사신을 보냅니다. (외교포인트 -2 소비, 관계 +1 예상)", "emotion": "thoughtful", "phase": 3 }
+    { "speaker": "관우", "dialogue": "전투력 강화를 위해 훈련 실시, 훈련도 5% 상승했습니다. (현재 55%)", "emotion": "calm", "phase": 1 },
+    { "speaker": "제갈량", "dialogue": "천하의 형세를 보건대, 지금은 내실을 다져야 할 때이옵니다. 다음 계획을 논의하겠습니다.", "emotion": "thoughtful", "phase": 3 },
+    { "speaker": "미축", "dialogue": "시장 확장합니다. (내정포인트 -${getFacilityUpgradeCost(player.facilities.market)} 소비, 내정포인트 수입 매턴 +3 예상)", "emotion": "calm", "phase": 3 },
+    { "speaker": "방통", "dialogue": "봉추가 직접 손권에게 사신을 보내겠소. (외교포인트 -2 소비, 조조 견제 효과 기대)", "emotion": "thoughtful", "phase": 3 }
   ],
   "status_reports": [
     { "speaker": "미축", "report": "시장 운영으로 내정포인트 15 확보", "point_changes": { "ip_delta": 15 } },
-    { "speaker": "관우", "report": "병사 훈련으로 훈련도 소폭 상승", "point_changes": { "mp_training_delta": 0.02 } }
+    { "speaker": "관우", "report": "내정포인트 15 소비하여 병사 훈련, 훈련도 5% 상승", "point_changes": { "mp_training_delta": 0.05 } }
   ],
   "plan_reports": [
     { "speaker": "미축", "plan": "시장 레벨 업그레이드 (내정포인트 ${getFacilityUpgradeCost(player.facilities.market)} 소비)", "expected_points": { "ip_delta": -${getFacilityUpgradeCost(player.facilities.market)} } },
     { "speaker": "방통", "plan": "손권 관계 개선 (외교포인트 2 소비)", "expected_points": { "dp_delta": -2 } }
   ],
-  "state_changes": { "point_deltas": { "ip_delta": 15, "mp_training_delta": 0.02 } },
+  "state_changes": { "point_deltas": { "ip_delta": 15, "mp_training_delta": 0.05 } },
   "advisor_updates": [
     { "name": "제갈량", "enthusiasm_delta": 0, "loyalty_delta": 0 },
     { "name": "관우", "enthusiasm_delta": 1, "loyalty_delta": 0 },
@@ -230,20 +234,23 @@ ${replyInstruction}
 
 === 응답 규칙 ===
 1. JSON 형식으로만 응답.
-2. council_messages는 50자 이내 간결체. phase: 2.
+2. council_messages는 60자 이내 간결체. phase: 2.
 3. 특정 참모에게 말한 경우 해당 참모만 1개 응답. 전체 발언이면 1~3개.
 4. state_changes가 필요하면 point_deltas 형식으로 포함.
 5. **언어**: 모든 dialogue 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
-6. **모병/징병 지시 시**: 유비가 모병을 지시하면, 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어보고 state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
+6. **모병/징병 지시 시**: 유비가 모병을 지시하면, 미축이 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 수량을 알려주소서." 형태로 보고하고, 관우는 "즉각 병사를 이끌겠소!" 식의 군인다운 짧은 반응을 추가한다. state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
 7. **유비가 구체적 수량을 지정하면** (예: "3000명 모병해"), 즉시 state_changes에 반영. ip_delta = -(수량 / ${RECRUIT_TROOPS_PER_IP}), mp_troops_delta = 수량.
+8. **advisor_updates 기준**: 유비가 특정 참모를 크게 칭찬하면 해당 참모 enthusiasm_delta +3~5, loyalty_delta +1~2. 질책하면 enthusiasm_delta -3~5. 평범한 대화 교환은 모든 delta를 0으로 둔다.
 
 === 응답 JSON 형식 ===
 {
   "council_messages": [
-    { "speaker": "제갈량", "dialogue": "주공의 말씀에 동의합니다.", "emotion": "calm", "phase": 2 }
+    { "speaker": "제갈량", "dialogue": "주공의 혜안이 옳습니다. 이 방책이 장기적으로 천하의 흐름을 우리에게 유리하게 이끌 것이옵니다.", "emotion": "thoughtful", "phase": 2 }
   ],
   "state_changes": null,
-  "advisor_updates": []
+  "advisor_updates": [
+    { "name": "제갈량", "enthusiasm_delta": 0, "loyalty_delta": 0 }
+  ]
 }`;
 }
 
@@ -292,8 +299,9 @@ ${replyInstruction}
 3. boosted_plans에 boost된 참모 이름을 포함.
 4. 특정 참모에게 말한 경우 해당 참모만 1개 응답. 전체 발언이면 1~3개. phase: 4.
 5. **언어**: 모든 dialogue 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
-6. **모병/징병 지시 시**: 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어본다.
+6. **모병/징병 지시 시**: 미축이 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 수량을 알려주소서." 형태로 보고하고, 관우는 "즉각 출진하겠소!" 식의 짧은 무인다운 반응을 추가한다.
 7. **유비가 구체적 수량을 지정하면**, state_changes에 즉시 반영.
+8. **advisor_updates 기준**: 유비가 특정 참모를 크게 칭찬하거나 boost하면 해당 참모 enthusiasm_delta +3~5, loyalty_delta +1~2. 질책하면 enthusiasm_delta -3~5. 일반 피드백은 모든 delta를 0으로 둔다.
 
 === 응답 JSON 형식 ===
 {

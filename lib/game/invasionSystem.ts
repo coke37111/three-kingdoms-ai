@@ -7,7 +7,7 @@ import type {
 } from "@/types/game";
 import {
   SPECIAL_STRATEGY_SP_COST,
-  SPECIAL_STRATEGY_SUCCESS_RATE,
+  SPECIAL_STRATEGY_INITIAL_RATE,
   SUPPORT_REQUEST_DP_COST,
   SUPPORT_REQUEST_BASE_RATE,
   SUPPORT_REQUEST_RELATION_BONUS,
@@ -48,14 +48,16 @@ export function getResponseOptions(
   }
   const supportRate = Math.min(0.9, SUPPORT_REQUEST_BASE_RATE + bestRelationScore * SUPPORT_REQUEST_RELATION_BONUS);
 
+  const currentRate = world.specialStrategyRate ?? SPECIAL_STRATEGY_INITIAL_RATE;
+
   return [
     {
       type: "특수_전략",
       label: "특수 전략",
-      description: "제갈량의 묘책으로 적을 퇴각시킨다.",
+      description: `제갈량의 묘책으로 적을 퇴각시킨다. (성공률 ${Math.round(currentRate * 100)}%)`,
       cost: `전략포인트 ${SPECIAL_STRATEGY_SP_COST}`,
       costValue: SPECIAL_STRATEGY_SP_COST,
-      successRate: SPECIAL_STRATEGY_SUCCESS_RATE,
+      successRate: currentRate,
       available: player.points.sp >= SPECIAL_STRATEGY_SP_COST,
       unavailableReason: player.points.sp < SPECIAL_STRATEGY_SP_COST ? "전략포인트 부족" : undefined,
     },
@@ -102,7 +104,8 @@ export function executeInvasionResponse(
 
   switch (responseType) {
     case "특수_전략": {
-      const success = Math.random() < SPECIAL_STRATEGY_SUCCESS_RATE;
+      const currentRate = world.specialStrategyRate ?? SPECIAL_STRATEGY_INITIAL_RATE;
+      const success = Math.random() < currentRate;
       return {
         responseType,
         success,

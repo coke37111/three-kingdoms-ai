@@ -4,7 +4,7 @@ import type { ChatMessage } from "@/types/chat";
 import { applyStateChanges } from "@/lib/game/stateManager";
 import { INITIAL_FACTIONS, INITIAL_RELATIONS } from "@/constants/factions";
 import { INITIAL_CASTLES } from "@/constants/castles";
-import { TURN_LIMIT } from "@/constants/gameConstants";
+import { TURN_LIMIT, SPECIAL_STRATEGY_INITIAL_RATE } from "@/constants/gameConstants";
 import { syncGarrisonToState } from "@/lib/game/garrisonSystem";
 
 function syncAllGarrisons(state: WorldState): WorldState {
@@ -30,6 +30,8 @@ function createInitialWorldState(): WorldState {
     castles: INITIAL_CASTLES,
     relations: INITIAL_RELATIONS,
     turnOrder: ["liu_bei", "cao_cao", "sun_quan"],
+    specialStrategyRate: SPECIAL_STRATEGY_INITIAL_RATE,
+    specialStrategyLastChangedTurn: 0,
   };
   return syncAllGarrisons(base);
 }

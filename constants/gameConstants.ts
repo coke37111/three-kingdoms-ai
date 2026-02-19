@@ -97,8 +97,23 @@ export const EVENT_TRIGGER_CHANCE = 0.3;
 /** 특수 전략 SP 비용 */
 export const SPECIAL_STRATEGY_SP_COST = 5;
 
-/** 특수 전략 성공률 */
-export const SPECIAL_STRATEGY_SUCCESS_RATE = 0.5;
+/** 특수 전략 초기 성공률 (100%) */
+export const SPECIAL_STRATEGY_INITIAL_RATE = 1.0;
+
+/** 특수 전략 사용 시 성공률 감소 (-10%) */
+export const SPECIAL_STRATEGY_USE_PENALTY = 0.1;
+
+/** 특수 전략 쿨타임 후 성공률 회복 (+10%) */
+export const SPECIAL_STRATEGY_RECOVERY = 0.1;
+
+/** 특수 전략 최저 성공률 (30%) */
+export const SPECIAL_STRATEGY_MIN_RATE = 0.3;
+
+/** 특수 전략 최대 성공률 (100%) */
+export const SPECIAL_STRATEGY_MAX_RATE = 1.0;
+
+/** 특수 전략 성공률 회복 쿨타임 (턴) */
+export const SPECIAL_STRATEGY_COOLDOWN_TURNS = 10;
 
 /** 지원 요청 DP 비용 */
 export const SUPPORT_REQUEST_DP_COST = 3;

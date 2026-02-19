@@ -136,6 +136,8 @@ export interface WorldState {
   castles: Castle[];
   relations: DiplomaticRelation[];
   turnOrder: FactionId[];
+  specialStrategyRate?: number;           // 특수 전략 현재 성공률 (0.3~1.0)
+  specialStrategyLastChangedTurn?: number; // 마지막 변동 턴
 }
 
 // ===================== 전투 =====================

@@ -23,7 +23,7 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost, SPECIAL_STRATEGY_INITIAL_RATE, SPECIAL_STRATEGY_USE_PENALTY, SPECIAL_STRATEGY_MIN_RATE, SPECIAL_STRATEGY_MAX_RATE, SPECIAL_STRATEGY_RECOVERY, SPECIAL_STRATEGY_COOLDOWN_TURNS } from "@/constants/gameConstants";
 import { POINT_COLORS, getDeltaColor } from "@/constants/uiConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
@@ -1034,6 +1034,10 @@ export default function GameContainer() {
           // 비용 차감
           if (responseType === "특수_전략") {
             applyPlayerChanges({ point_deltas: { sp_delta: -5 } }, addMsgToCouncil);
+            // 특수 전략 성공률 감소
+            const prevRate = worldStateRef.current.specialStrategyRate ?? SPECIAL_STRATEGY_INITIAL_RATE;
+            const nextRate = Math.max(SPECIAL_STRATEGY_MIN_RATE, prevRate - SPECIAL_STRATEGY_USE_PENALTY);
+            setWorldState(prev => ({ ...prev, specialStrategyRate: nextRate, specialStrategyLastChangedTurn: prev.currentTurn }));
           } else if (responseType === "지원_요청") {
             applyPlayerChanges({ point_deltas: { dp_delta: -3 } }, addMsgToCouncil);
           } else if (responseType === "조공") {
@@ -1120,6 +1124,17 @@ export default function GameContainer() {
 
       // ④ 턴 전진 (포인트 충전, 부상 회복)
       advanceWorldTurn();
+
+      // 특수 전략 성공률 쿨타임 회복
+      {
+        const ws = worldStateRef.current;
+        const rate = ws.specialStrategyRate ?? SPECIAL_STRATEGY_INITIAL_RATE;
+        const lastChanged = ws.specialStrategyLastChangedTurn ?? 0;
+        if (rate < SPECIAL_STRATEGY_MAX_RATE && ws.currentTurn - lastChanged >= SPECIAL_STRATEGY_COOLDOWN_TURNS) {
+          const recovered = Math.min(SPECIAL_STRATEGY_MAX_RATE, rate + SPECIAL_STRATEGY_RECOVERY);
+          setWorldState(prev => ({ ...prev, specialStrategyRate: recovered, specialStrategyLastChangedTurn: prev.currentTurn }));
+        }
+      }
 
       // 수성 내정 억제: 수성 방어 시 해당 턴 IP 충전량의 50% 감산
       if (playerDefendedThisTurn) {
