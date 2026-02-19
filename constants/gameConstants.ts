@@ -35,8 +35,20 @@ export const WOUNDED_CONVERSION_RATE = 0.7;
 /** 레벨업 필요 경험치 기본값 */
 export const BASE_XP_TO_LEVEL = 100;
 
+/** 레벨당 XP 증가량 (level 1→100, level 2→150, level 3→200, ...) */
+export const XP_PER_LEVEL_SCALING = 50;
+
 /** AP 1 소비 시 경험치 획득 */
 export const XP_PER_AP_SPENT = 15;
+
+/** 성채 획득 시 경험치 */
+export const XP_PER_CASTLE_GAINED = 30;
+
+/** 전투 승리 시 경험치 */
+export const XP_PER_BATTLE_WIN = 20;
+
+/** 외교 성공 시 경험치 */
+export const XP_PER_DIPLOMACY_SUCCESS = 10;
 
 /** 전투 승리 시 SP 획득 */
 export const SP_PER_BATTLE_WIN = 5;

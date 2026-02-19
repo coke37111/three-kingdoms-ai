@@ -1,5 +1,5 @@
 import type { Faction, FactionPoints, StateChanges, PointDeltas, Castle, Facilities } from "@/types/game";
-import { DEPLOYMENT_PER_LEVEL, BASE_XP_TO_LEVEL } from "@/constants/gameConstants";
+import { DEPLOYMENT_PER_LEVEL, BASE_XP_TO_LEVEL, XP_PER_LEVEL_SCALING } from "@/constants/gameConstants";
 
 export interface ApplyResult {
   nextFaction: Faction;
@@ -75,7 +75,7 @@ export function applyStateChanges(
       rl.xp -= rl.xpToNext;
       rl.level += 1;
       rl.deploymentCap = rl.level * DEPLOYMENT_PER_LEVEL;
-      rl.xpToNext = BASE_XP_TO_LEVEL + rl.level * 20;
+      rl.xpToNext = BASE_XP_TO_LEVEL + (rl.level - 1) * XP_PER_LEVEL_SCALING;
     }
     nextFaction.rulerLevel = rl;
   }

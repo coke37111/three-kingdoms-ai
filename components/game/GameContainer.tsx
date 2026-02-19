@@ -23,7 +23,7 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, XP_PER_DIPLOMACY_SUCCESS, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
 import TitleScreen from "./TitleScreen";
@@ -41,6 +41,7 @@ import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
 import { analyzeGameSituation, shouldFallbackToLLM, runPhase1FromCases, runPhase3FromCases } from "@/lib/council/engine";
 import { createInitialTurnContext } from "@/lib/council/types";
+import AttackModal from "./AttackModal";
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -164,6 +165,8 @@ export default function GameContainer() {
 
   // 모병 팝업
   const [recruitmentPopup, setRecruitmentPopup] = useState<{ maxIP: number } | null>(null);
+  // 공격 개시 모달
+  const [showAttackModal, setShowAttackModal] = useState(false);
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
@@ -811,6 +814,87 @@ export default function GameContainer() {
     });
   }, []);
 
+  // ---- 플레이어 공격 개시 ----
+  const handlePlayerAttack = useCallback(async (targetCastleName: string, attackTroops: number) => {
+    setShowAttackModal(false);
+    setIsLoading(true);
+    processingTurnRef.current = true;
+
+    try {
+      const world = worldStateRef.current;
+      const player = world.factions.find(f => f.isPlayer);
+      const targetCastle = world.castles.find(c => c.name === targetCastleName);
+      if (!player || !targetCastle) return;
+      const defenderFaction = world.factions.find(f => f.id === targetCastle.owner);
+      if (!defenderFaction) return;
+
+      const defTroops = Math.min(defenderFaction.points.mp_troops, targetCastle.garrison);
+      const result = resolveBattle(player, defenderFaction, "공성", targetCastle, attackTroops, defTroops);
+      result.narrative = generateBattleNarrative(result, player.rulerName, defenderFaction.rulerName, player.id);
+
+      // 공격측(플레이어) 손실 적용
+      applyPlayerChanges({
+        point_deltas: { mp_troops_delta: -result.attackerLosses },
+      }, addMsgToCouncil);
+      if (result.attackerWounded > 0) {
+        const pFac = worldStateRef.current.factions.find(f => f.isPlayer)!;
+        pFac.woundedPool = [...pFac.woundedPool, createWoundedPool(result.attackerWounded)];
+      }
+
+      // 수비측(NPC) 손실 적용
+      applyNPCChanges(defenderFaction.id, {
+        point_deltas: { mp_troops_delta: -result.defenderLosses },
+        castle_updates: [{ castle: targetCastleName, garrison_delta: -result.defenderLosses }],
+      });
+      if (result.defenderWounded > 0) {
+        const dFac = worldStateRef.current.factions.find(f => f.id === defenderFaction.id)!;
+        dFac.woundedPool = [...dFac.woundedPool, createWoundedPool(result.defenderWounded)];
+      }
+
+      // 시설 피해 적용 (수비측)
+      if (result.facilityDamage) {
+        const dmg: { type: "farm" | "market"; levels: number }[] = [];
+        if (result.facilityDamage.farm_damage > 0) dmg.push({ type: "farm", levels: -result.facilityDamage.farm_damage });
+        if (result.facilityDamage.market_damage > 0) dmg.push({ type: "market", levels: -result.facilityDamage.market_damage });
+        if (dmg.length > 0) applyNPCChanges(defenderFaction.id, { facility_upgrades: dmg });
+      }
+
+      // 성채 점령 처리
+      if (result.castleConquered) {
+        applyPlayerChanges({
+          conquered_castles: [result.castleConquered],
+          castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
+          xp_gain: XP_PER_CASTLE_GAINED,
+        }, addMsgToCouncil);
+
+        // 수비측 도주
+        const updatedWorld = worldStateRef.current;
+        const loser = updatedWorld.factions.find(f => f.id === defenderFaction.id);
+        if (loser) {
+          const retreat = resolveRetreat(loser, result.castleConquered, updatedWorld.castles);
+          if (retreat) {
+            result.retreatInfo = retreat;
+            applyNPCChanges(defenderFaction.id, { point_deltas: { mp_troops_delta: -retreat.troopsLost, mp_morale_delta: retreat.moralePenalty } });
+          }
+        }
+      }
+
+      // 전투 승리 XP
+      if (result.winner === "liu_bei") {
+        applyPlayerChanges({ xp_gain: XP_PER_BATTLE_WIN }, addMsgToCouncil);
+      }
+
+      addSystemCouncilMsg(result.narrative);
+      setBattleReport(result);
+      await waitForBattleReportClose();
+
+      if (doCheckGameEnd()) return;
+    } finally {
+      setIsLoading(false);
+      processingTurnRef.current = false;
+    }
+  }, [worldStateRef, applyPlayerChanges, applyNPCChanges, addMsgToCouncil, addSystemCouncilMsg, doCheckGameEnd, waitForBattleReportClose]);
+
   const handleInvasionSelect = useCallback((type: InvasionResponseType) => {
     setPendingInvasion(null);
     invasionResolveRef.current?.(type);
@@ -838,6 +922,7 @@ export default function GameContainer() {
     let turnHadInvasion = false;
     let turnCastlesLost = false;
     let turnCastlesGained = false;
+    let playerDefendedThisTurn = false; // 수성 내정 억제용
 
     try {
       // ① 케이스 기반 planReport 실행 (state_changes가 null이었던 경우)
@@ -879,6 +964,7 @@ export default function GameContainer() {
           const result = resolveBattle(attackerFaction, player, "수성", targetCastle, invasion.attackerTroops, defTroops);
           result.narrative = generateBattleNarrative(result, attackerFaction.rulerName, player.rulerName, invasion.attackerFactionId);
           turnBattleOccurred = true;
+          playerDefendedThisTurn = true;
           if (result.winner === "liu_bei") turnPlayerWon = true;
           else turnPlayerLost = true;
 
@@ -923,6 +1009,11 @@ export default function GameContainer() {
             }
           }
 
+          // 전투 승리 시 XP 획득
+          if (result.winner === "liu_bei") {
+            applyPlayerChanges({ xp_gain: XP_PER_BATTLE_WIN }, addMsgToCouncil);
+          }
+
           addSystemCouncilMsg(result.narrative);
           setBattleReport(result);
           await waitForBattleReportClose();
@@ -953,6 +1044,7 @@ export default function GameContainer() {
 
             const result = resolveBattle(freshAttacker, freshPlayer, "수성", freshCastle, invasion.attackerTroops, defTroops);
             result.narrative = generateBattleNarrative(result, freshAttacker.rulerName, freshPlayer.rulerName, invasion.attackerFactionId);
+            playerDefendedThisTurn = true;
 
             applyNPCChanges(invasion.attackerFactionId, { point_deltas: { mp_troops_delta: -result.attackerLosses } });
             if (result.attackerWounded > 0) {
@@ -1018,6 +1110,18 @@ export default function GameContainer() {
 
       // ④ 턴 전진 (포인트 충전, 부상 회복)
       advanceWorldTurn();
+
+      // 수성 내정 억제: 수성 방어 시 해당 턴 IP 충전량의 50% 감산
+      if (playerDefendedThisTurn) {
+        const playerAfterTurn = worldStateRef.current.factions.find(f => f.isPlayer);
+        if (playerAfterTurn && playerAfterTurn.points.ip_regen > 0) {
+          const ipPenalty = Math.floor(playerAfterTurn.points.ip_regen * 0.5);
+          if (ipPenalty > 0) {
+            applyPlayerChanges({ point_deltas: { ip_delta: -ipPenalty } }, addMsgToCouncil);
+            addSystemCouncilMsg(`⚔️ 수성 전란으로 내정이 위축되었습니다. (내정포인트 -${ipPenalty})`);
+          }
+        }
+      }
 
       if (doCheckGameEnd()) return;
 
@@ -1555,6 +1659,13 @@ export default function GameContainer() {
             fontSize: "13px", cursor: !canInput ? "not-allowed" : "pointer", fontWeight: 700,
           }}
         >전송</button>
+        {showNextButton && meetingPhase === 4 && (
+          <button onClick={() => setShowAttackModal(true)} style={{
+            background: "rgba(196,68,68,0.15)", color: "#c44",
+            border: "1px solid rgba(196,68,68,0.4)", borderRadius: "8px",
+            padding: "10px 12px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600,
+          }}>⚔️ 공격</button>
+        )}
         {showNextButton && (
           <button onClick={handleAdvancePhase} style={{
             background: "rgba(255,255,255,0.05)", color: "var(--gold)",
@@ -1572,6 +1683,16 @@ export default function GameContainer() {
           maxIP={recruitmentPopup.maxIP}
           onConfirm={handleRecruitConfirm}
           onCancel={() => setRecruitmentPopup(null)}
+        />
+      )}
+
+      {/* 공격 개시 모달 */}
+      {showAttackModal && (
+        <AttackModal
+          worldState={worldState}
+          playerFaction={playerFaction}
+          onConfirm={handlePlayerAttack}
+          onClose={() => setShowAttackModal(false)}
         />
       )}
 
