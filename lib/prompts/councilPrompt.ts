@@ -219,7 +219,9 @@ ${replyInstruction}
 === 비용 체계 ===
 - 모병: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정포인트 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정포인트 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시설: 시장 Lv${player.facilities.market}→${player.facilities.market + 1}: ${getFacilityUpgradeCost(player.facilities.market)}, 논 Lv${player.facilities.farm}→${player.facilities.farm + 1}: ${getFacilityUpgradeCost(player.facilities.farm)}, 은행 Lv${player.facilities.bank}→${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}
+- 시설 효과: 시장 Lv1당 내정포인트 수입 +3/턴 | 논 Lv1당 내정포인트 수입 +2/턴 | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
+- 시설 비용: 시장 Lv${player.facilities.market}→${player.facilities.market + 1}: ${getFacilityUpgradeCost(player.facilities.market)}, 논 Lv${player.facilities.farm}→${player.facilities.farm + 1}: ${getFacilityUpgradeCost(player.facilities.farm)}, 은행 Lv${player.facilities.bank}→${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}
+- 내정포인트 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 
 === 응답 규칙 ===
 1. JSON 형식으로만 응답.
@@ -275,7 +277,9 @@ ${replyInstruction}
 === 비용 체계 ===
 - 모병: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정포인트 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정포인트 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시설: 시장 Lv${player.facilities.market}→${player.facilities.market + 1}: ${getFacilityUpgradeCost(player.facilities.market)}, 논 Lv${player.facilities.farm}→${player.facilities.farm + 1}: ${getFacilityUpgradeCost(player.facilities.farm)}, 은행 Lv${player.facilities.bank}→${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}
+- 시설 효과: 시장 Lv1당 내정포인트 수입 +3/턴 | 논 Lv1당 내정포인트 수입 +2/턴 | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
+- 시설 비용: 시장 Lv${player.facilities.market}→${player.facilities.market + 1}: ${getFacilityUpgradeCost(player.facilities.market)}, 논 Lv${player.facilities.farm}→${player.facilities.farm + 1}: ${getFacilityUpgradeCost(player.facilities.farm)}, 은행 Lv${player.facilities.bank}→${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}
+- 내정포인트 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 
 === 응답 규칙 ===
 1. JSON 형식으로만 응답.
