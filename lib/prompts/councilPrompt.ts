@@ -53,6 +53,13 @@ function getPointsSummary(world: WorldState, playerId: FactionId): string {
   return `행동포인트: ${p.ap}/${p.ap_max} (매턴 +${p.ap_regen}) | 전략포인트: ${p.sp} | 군사포인트: ${p.mp.toLocaleString()} (병력 ${p.mp_troops.toLocaleString()}, 훈련 ${(p.mp_training * 100).toFixed(0)}%, 사기 ${p.mp_morale.toFixed(1)}) | 내정포인트: ${p.ip}/${p.ip_cap} (매턴 +${p.ip_regen}) | 외교포인트: ${p.dp}`;
 }
 
+function getOtherFactionsSummary(world: WorldState): string {
+  return world.factions
+    .filter(f => !f.isPlayer)
+    .map(f => `${f.rulerName}: 군사포인트 ${f.points.mp.toLocaleString()}, 성채 ${f.castles.length}개, 내정포인트 ${f.points.ip}`)
+    .join("\n");
+}
+
 // ── Phase 1+3 통합 프롬프트 ──
 
 export function buildPhase1And3Prompt(
@@ -67,10 +74,7 @@ export function buildPhase1And3Prompt(
   const castleSummary = getCastleSummary(world, player.id);
   const relationSummary = getRelationSummary(world, player.id);
 
-  const otherFactions = world.factions
-    .filter(f => !f.isPlayer)
-    .map(f => `${f.rulerName}: 군사포인트 ${f.points.mp.toLocaleString()}, 성채 ${f.castles.length}개, 내정포인트 ${f.points.ip}`)
-    .join("\n");
+  const otherFactions = getOtherFactionsSummary(world);
 
   return `너는 삼국지 시대 유비 진영의 **5단계 참모 회의**를 시뮬레이션하는 AI다.
 이번 호출에서 **Phase 1(상태 보고)과 Phase 3(계획 보고)**를 동시에 생성한다.
@@ -206,6 +210,7 @@ export function buildPhase2Prompt(
   const player = world.factions.find(f => f.isPlayer)!;
   const advisorSummary = advisors.map(a => `${a.name}(${a.role})`).join(", ");
   const pointsSummary = getPointsSummary(world, player.id);
+  const otherFactions = getOtherFactionsSummary(world);
 
   const replyInstruction = replyTo
     ? `⚠️ 유비가 **${replyTo}**에게 직접 말한 것이다.
@@ -222,6 +227,9 @@ export function buildPhase2Prompt(
 
 === 전체 전선 배치 (정확한 성채 이름만 사용할 것) ===
 ${getFrontlineSummary(world)}
+
+=== 천하 정세 (적군 정보) ===
+${otherFactions}
 
 플레이어(유비)의 발언: "${message}"
 
@@ -267,6 +275,7 @@ export function buildPhase4Prompt(
   const player = world.factions.find(f => f.isPlayer)!;
   const advisorSummary = advisors.map(a => `${a.name}(${a.role})`).join(", ");
   const pointsSummary = getPointsSummary(world, player.id);
+  const otherFactions = getOtherFactionsSummary(world);
 
   const replyInstruction = replyTo
     ? `⚠️ 유비가 **${replyTo}**에게 직접 피드백한 것이다.
@@ -283,6 +292,9 @@ export function buildPhase4Prompt(
 
 === 전체 전선 배치 (정확한 성채 이름만 사용할 것) ===
 ${getFrontlineSummary(world)}
+
+=== 천하 정세 (적군 정보) ===
+${otherFactions}
 
 플레이어(유비)의 피드백: "${feedback}"
 
