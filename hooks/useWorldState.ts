@@ -5,9 +5,25 @@ import { applyStateChanges } from "@/lib/game/stateManager";
 import { INITIAL_FACTIONS, INITIAL_RELATIONS } from "@/constants/factions";
 import { INITIAL_CASTLES } from "@/constants/castles";
 import { TURN_LIMIT } from "@/constants/gameConstants";
+import { syncGarrisonToState } from "@/lib/game/garrisonSystem";
+
+function syncAllGarrisons(state: WorldState): WorldState {
+  let castles = [...state.castles];
+  for (const faction of state.factions) {
+    const updates = syncGarrisonToState(faction, castles);
+    for (const cu of updates) {
+      castles = castles.map(c =>
+        c.name === cu.castle && cu.garrison_delta != null
+          ? { ...c, garrison: Math.max(0, Math.min(c.maxGarrison, c.garrison + cu.garrison_delta)) }
+          : c
+      );
+    }
+  }
+  return { ...state, castles };
+}
 
 function createInitialWorldState(): WorldState {
-  return {
+  const base: WorldState = {
     currentTurn: 1,
     maxTurns: TURN_LIMIT,
     factions: INITIAL_FACTIONS,
@@ -15,6 +31,7 @@ function createInitialWorldState(): WorldState {
     relations: INITIAL_RELATIONS,
     turnOrder: ["liu_bei", "cao_cao", "sun_quan"],
   };
+  return syncAllGarrisons(base);
 }
 
 export function useWorldState() {
@@ -117,8 +134,9 @@ export function useWorldState() {
   }, [setWorldState]);
 
   const loadWorldState = useCallback((state: WorldState) => {
-    worldStateRef.current = state;
-    setWorldStateRaw(state);
+    const synced = syncAllGarrisons(state);
+    worldStateRef.current = synced;
+    setWorldStateRaw(synced);
   }, []);
 
   return {

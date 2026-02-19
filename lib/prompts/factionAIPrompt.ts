@@ -1,6 +1,7 @@
 import type { WorldState, Faction, FactionId } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { scoreToLabel } from "@/lib/game/diplomacySystem";
+import { isFrontlineCastle } from "@/lib/game/garrisonSystem";
 
 function getRelationSummary(world: WorldState, factionId: FactionId): string {
   return world.relations
@@ -21,10 +22,20 @@ export function buildFactionAIPrompt(world: WorldState, npcFactions: Faction[]):
 
   const factionInstructions = npcFactions.map(f => {
     const relSummary = getRelationSummary(world, f.id);
+
+    // 전선 성채 garrison 정보
+    const frontlineCastles = world.castles
+      .filter(c => c.owner === f.id && isFrontlineCastle(c, world.castles, f.id))
+      .sort((a, b) => b.garrison - a.garrison)
+      .slice(0, 5);
+    const frontlineInfo = frontlineCastles.length > 0
+      ? `\n전선 주둔: ${frontlineCastles.map(c => `${c.name}(${Math.round(c.garrison / 1000)}천)`).join(" ")}`
+      : "";
+
     return `### ${f.rulerName} (${f.id})
 성격: 공격성 ${f.personality.aggression}, 외교 ${f.personality.diplomacy}, 개발 ${f.personality.development}, 모험 ${f.personality.riskTolerance}
 포인트: 군사포인트 ${f.points.mp.toLocaleString()} (병력 ${f.points.mp_troops.toLocaleString()}, 훈련 ${(f.points.mp_training * 100).toFixed(0)}%), 내정포인트 ${f.points.ip}/${f.points.ip_cap}, 외교포인트 ${f.points.dp}, 전략포인트 ${f.points.sp}
-성채: ${f.castles.join(", ")} (${f.castles.length}개)
+성채: ${f.castles.join(", ")} (${f.castles.length}개)${frontlineInfo}
 시설: 시장 Lv${f.facilities.market}, 논 Lv${f.facilities.farm}, 은행 Lv${f.facilities.bank}
 배치 상한: ${f.rulerLevel.deploymentCap.toLocaleString()}
 외교:

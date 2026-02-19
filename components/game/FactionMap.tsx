@@ -155,14 +155,17 @@ export default function FactionMap({ worldState, show, onClose }: FactionMapProp
   const [vy, setVy] = useState(0);
   const [zoom, setZoom] = useState(1);
 
-  const dragRef = useRef({ active: false, sx: 0, sy: 0, svx: 0, svy: 0 });
+  const dragRef = useRef({ active: false, sx: 0, sy: 0, svx: 0, svy: 0, moved: false });
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+
+  // 선택된 성채
+  const [selectedCastle, setSelectedCastle] = useState<string | null>(null);
 
   const positions = useMemo(() => computePositions(), []);
   const connections = useMemo(() => computeConnections(), []);
 
   // 모달 열릴 때 리셋
-  useEffect(() => { if (show) { setVx(0); setVy(0); setZoom(1); } }, [show]);
+  useEffect(() => { if (show) { setVx(0); setVy(0); setZoom(1); setSelectedCastle(null); } }, [show]);
 
   // 휠 줌 (passive: false 필요)
   useEffect(() => {
@@ -189,22 +192,31 @@ export default function FactionMap({ worldState, show, onClose }: FactionMapProp
   // ── 마우스 드래그 ──
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    dragRef.current = { active: true, sx: e.clientX, sy: e.clientY, svx: vx, svy: vy };
+    dragRef.current = { active: true, sx: e.clientX, sy: e.clientY, svx: vx, svy: vy, moved: false };
   }, [vx, vy]);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragRef.current.active) return;
+    const dx = e.clientX - dragRef.current.sx;
+    const dy = e.clientY - dragRef.current.sy;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragRef.current.moved = true;
     const s = svgScale();
-    setVx(dragRef.current.svx - (e.clientX - dragRef.current.sx) * s.sx);
-    setVy(dragRef.current.svy - (e.clientY - dragRef.current.sy) * s.sy);
+    setVx(dragRef.current.svx - dx * s.sx);
+    setVy(dragRef.current.svy - dy * s.sy);
   }, [svgScale]);
 
-  const onMouseUp = useCallback(() => { dragRef.current.active = false; }, []);
+  const onMouseUp = useCallback(() => {
+    if (!dragRef.current.moved) {
+      // 클릭 (드래그 아님) — 빈 공간 클릭 시 선택 해제
+      setSelectedCastle(null);
+    }
+    dragRef.current.active = false;
+  }, []);
 
   // ── 터치 드래그 / 핀치 ──
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      dragRef.current = { active: true, sx: e.touches[0].clientX, sy: e.touches[0].clientY, svx: vx, svy: vy };
+      dragRef.current = { active: true, sx: e.touches[0].clientX, sy: e.touches[0].clientY, svx: vx, svy: vy, moved: false };
     } else if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -214,9 +226,12 @@ export default function FactionMap({ worldState, show, onClose }: FactionMapProp
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1 && dragRef.current.active) {
+      const dx = e.touches[0].clientX - dragRef.current.sx;
+      const dy = e.touches[0].clientY - dragRef.current.sy;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragRef.current.moved = true;
       const s = svgScale();
-      setVx(dragRef.current.svx - (e.touches[0].clientX - dragRef.current.sx) * s.sx);
-      setVy(dragRef.current.svy - (e.touches[0].clientY - dragRef.current.sy) * s.sy);
+      setVx(dragRef.current.svx - dx * s.sx);
+      setVy(dragRef.current.svy - dy * s.sy);
     } else if (e.touches.length === 2 && pinchRef.current) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -225,7 +240,13 @@ export default function FactionMap({ worldState, show, onClose }: FactionMapProp
     }
   }, [svgScale]);
 
-  const onTouchEnd = useCallback(() => { dragRef.current.active = false; pinchRef.current = null; }, []);
+  const onTouchEnd = useCallback(() => {
+    if (!dragRef.current.moved && pinchRef.current == null) {
+      setSelectedCastle(null);
+    }
+    dragRef.current.active = false;
+    pinchRef.current = null;
+  }, []);
 
   const resetView = useCallback(() => { setVx(0); setVy(0); setZoom(1); }, []);
 
@@ -303,34 +324,94 @@ export default function FactionMap({ worldState, show, onClose }: FactionMapProp
               );
             })}
 
-            {/* 성채 노드 + 라벨 */}
+            {/* 성채 노드 + 라벨 + garrison */}
             {castles.map(castle => {
               const p = positions.get(castle.name);
               if (!p) return null;
               const r = nodeR(castle.grade);
               const color = FACTION_COLORS[castle.owner] || "#888";
+              const isSelected = selectedCastle === castle.name;
+              const garrisonLabel = castle.garrison >= 10000
+                ? `${Math.round(castle.garrison / 10000)}만`
+                : castle.garrison >= 1000
+                  ? `${Math.round(castle.garrison / 1000)}천`
+                  : `${castle.garrison}`;
               return (
-                <g key={castle.name}>
+                <g key={castle.name} style={{ cursor: "pointer" }}
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); setSelectedCastle(prev => prev === castle.name ? null : castle.name); }}>
+                  {/* 선택 하이라이트 링 */}
+                  {isSelected && (
+                    <circle cx={p.x} cy={p.y} r={r + 5}
+                      fill="none" stroke="var(--gold)" strokeWidth={2} strokeDasharray="4 2" opacity={0.8} />
+                  )}
                   <circle cx={p.x} cy={p.y} r={r}
                     fill={color} fillOpacity={0.85}
-                    stroke={nodeStroke(castle.grade)} strokeWidth={nodeStrokeW(castle.grade)} />
+                    stroke={isSelected ? "var(--gold)" : nodeStroke(castle.grade)}
+                    strokeWidth={isSelected ? 2.5 : nodeStrokeW(castle.grade)} />
                   <text x={p.x} y={p.y + r + 12}
-                    textAnchor="middle" fill="#ccc"
+                    textAnchor="middle" fill={isSelected ? "#fff" : "#ccc"}
                     fontSize={labelSize(castle.grade)}
-                    fontWeight={castle.grade === "본성" ? 700 : 400}
+                    fontWeight={castle.grade === "본성" || isSelected ? 700 : 400}
                     stroke="rgba(0,0,0,0.8)" strokeWidth={3} paintOrder="stroke">
                     {castle.name}
                   </text>
+                  {zoom >= 1.2 && (
+                    <text x={p.x} y={p.y + r + 12 + labelSize(castle.grade) + 1}
+                      textAnchor="middle" fill="rgba(255,255,255,0.5)"
+                      fontSize={7}
+                      stroke="rgba(0,0,0,0.8)" strokeWidth={2} paintOrder="stroke">
+                      {garrisonLabel}
+                    </text>
+                  )}
                 </g>
               );
             })}
           </svg>
         </div>
 
-        {/* 하단 힌트 */}
-        <div style={{ padding: "6px 16px", fontSize: "9px", color: "var(--text-dim)", textAlign: "center" }}>
-          드래그: 이동 · 휠/핀치: 확대축소
-        </div>
+        {/* 하단: 성채 정보 또는 힌트 */}
+        {selectedCastle ? (() => {
+          const castle = castles.find(c => c.name === selectedCastle);
+          if (!castle) return null;
+          const ownerFaction = factions.find(f => f.id === castle.owner);
+          const ownerName = ownerFaction?.rulerName ?? castle.owner;
+          const ownerColor = FACTION_COLORS[castle.owner] || "#888";
+          const gradeLabel = castle.grade === "본성" ? "본성" : castle.grade === "요새" ? "요새" : "일반";
+          const garrisonStr = castle.garrison.toLocaleString();
+          const maxStr = castle.maxGarrison.toLocaleString();
+          const fillRate = castle.maxGarrison > 0 ? Math.round((castle.garrison / castle.maxGarrison) * 100) : 0;
+          return (
+            <div style={{
+              padding: "8px 16px", borderTop: "1px solid var(--border)",
+              background: "rgba(201,168,76,0.06)", fontSize: "11px", color: "var(--text-secondary)",
+              display: "flex", flexDirection: "column", gap: "4px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: ownerColor, fontWeight: 700 }}>{castle.name}</span>
+                <span style={{ fontSize: "9px", opacity: 0.7 }}>{gradeLabel} · 방어 ×{castle.defenseMultiplier}</span>
+                <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-dim)" }}>{ownerName}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>주둔 병력 <b style={{ color: "var(--gold)" }}>{garrisonStr}</b> / {maxStr}</span>
+                <div style={{
+                  flex: 1, height: 4, borderRadius: 2,
+                  background: "rgba(255,255,255,0.1)", overflow: "hidden", maxWidth: 120,
+                }}>
+                  <div style={{
+                    width: `${fillRate}%`, height: "100%", borderRadius: 2,
+                    background: fillRate > 70 ? "#4a8c5c" : fillRate > 30 ? "var(--gold)" : "#d4443e",
+                  }} />
+                </div>
+                <span style={{ fontSize: "9px", color: "var(--text-dim)" }}>{fillRate}%</span>
+              </div>
+            </div>
+          );
+        })() : (
+          <div style={{ padding: "6px 16px", fontSize: "9px", color: "var(--text-dim)", textAlign: "center" }}>
+            성채를 탭하여 병력 확인 · 드래그: 이동 · 휠/핀치: 확대축소
+          </div>
+        )}
       </div>
     </div>
   );

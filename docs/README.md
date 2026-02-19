@@ -2,10 +2,12 @@
 
 구현 완료된 현재 상태를 반영하는 문서. 계획 문서는 [`plans/`](../plans/)에 위치.
 
-> **최종 갱신**: 2026-02-19 (케이스 시스템 + 포인트 전환 액션 추가)
+> **최종 갱신**: 2026-02-19
 
 | 문서 | 내용 |
 |------|------|
+| [01-refactoring](./01-refactoring.md) | TypeScript 모듈형 리팩토링 이력 (완료) |
+| [02-gameplay-expansion](./02-gameplay-expansion.md) | 핵심 게임 시스템 확장 이력 (완료) |
 | [03-architecture](./03-architecture.md) | 기술 스택, 디렉토리 구조, 5-Phase 데이터 흐름, 설계 원칙 |
 | [04-game-systems](./04-game-systems.md) | 5-Phase 회의, 포인트 시스템, 성채/전투/외교, 승패 조건 |
 | [05-ai-system](./05-ai-system.md) | Phase 1+3 통합 AI, Phase 2/4 반응 AI, NPC AI, 캐시, 파싱 |

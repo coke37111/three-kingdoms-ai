@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { WorldState } from "@/types/game";
 import type { ChatMessage } from "@/types/chat";
 import { calcPointsForTurn } from "@/lib/game/pointCalculator";
+import { syncGarrisonToState } from "@/lib/game/garrisonSystem";
 
 interface UseWorldTurnParams {
   worldStateRef: React.MutableRefObject<WorldState>;
@@ -30,10 +31,24 @@ export function useWorldTurn({
         };
       });
 
+      // garrison 재배분: 모든 세력의 mp_troops를 성채별로 동기화
+      let nextCastles = [...prev.castles];
+      for (const faction of updatedFactions) {
+        const updates = syncGarrisonToState(faction, nextCastles);
+        for (const cu of updates) {
+          nextCastles = nextCastles.map(c =>
+            c.name === cu.castle && cu.garrison_delta != null
+              ? { ...c, garrison: Math.max(0, Math.min(c.maxGarrison, c.garrison + cu.garrison_delta)) }
+              : c
+          );
+        }
+      }
+
       return {
         ...prev,
         currentTurn: prev.currentTurn + 1,
         factions: updatedFactions,
+        castles: nextCastles,
       };
     });
 

@@ -102,3 +102,11 @@ export const TRIBUTE_IP_COST_MULTIPLIER = 0.0005;
 
 /** 조공 최소 IP 비용 */
 export const TRIBUTE_MIN_IP_COST = 20;
+
+// ===================== Garrison 배분 =====================
+
+/** 본성 병력 예약 비율 */
+export const GARRISON_CAPITAL_RATIO = 0.25;
+
+/** 전선 성채 병력 배분 비율 */
+export const GARRISON_FRONTLINE_RATIO = 0.55;

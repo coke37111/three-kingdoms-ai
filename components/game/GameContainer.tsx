@@ -477,9 +477,10 @@ export default function GameContainer() {
           const atkFac = world.factions.find(f => f.id === factionId)!;
           atkFac.woundedPool = [...atkFac.woundedPool, createWoundedPool(result.attackerWounded)];
         }
-        // 수비측 손실/부상 적용
+        // 수비측 손실/부상 적용 (garrison 차감 포함)
         applyNPCChanges(targetCastle.owner, {
           point_deltas: { mp_troops_delta: -result.defenderLosses },
+          castle_updates: [{ castle: targetCastle.name, garrison_delta: -result.defenderLosses }],
           ...(result.castleConquered ? { conquered_castles: [result.castleConquered] } : {}),
         });
         if (result.defenderWounded > 0) {
@@ -497,9 +498,12 @@ export default function GameContainer() {
           }
         }
 
-        // 점령 시 소유권 이전 + 도주 판정
+        // 점령 시 소유권 이전 + garrison 초기화 + 도주 판정
         if (result.castleConquered) {
-          applyNPCChanges(factionId, { conquered_castles: [result.castleConquered] });
+          applyNPCChanges(factionId, {
+            conquered_castles: [result.castleConquered],
+            castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
+          });
 
           // 도주 판정
           const updatedWorld = worldStateRef.current;
@@ -797,7 +801,10 @@ export default function GameContainer() {
             const atkFac = worldStateRef.current.factions.find(f => f.id === invasion.attackerFactionId)!;
             atkFac.woundedPool = [...atkFac.woundedPool, createWoundedPool(result.attackerWounded)];
           }
-          applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMsgToCouncil);
+          applyPlayerChanges({
+            point_deltas: { mp_troops_delta: -result.defenderLosses },
+            castle_updates: [{ castle: targetCastle.name, garrison_delta: -result.defenderLosses }],
+          }, addMsgToCouncil);
           if (result.defenderWounded > 0) {
             const pFac = worldStateRef.current.factions.find(f => f.isPlayer)!;
             pFac.woundedPool = [...pFac.woundedPool, createWoundedPool(result.defenderWounded)];
@@ -811,9 +818,12 @@ export default function GameContainer() {
             if (dmgUpgrades.length > 0) applyPlayerChanges({ facility_upgrades: dmgUpgrades }, addMsgToCouncil);
           }
 
-          // 성채 함락 시 소유권 이전 + 도주
+          // 성채 함락 시 소유권 이전 + garrison 초기화 + 도주
           if (result.castleConquered) {
-            applyNPCChanges(invasion.attackerFactionId, { conquered_castles: [result.castleConquered] });
+            applyNPCChanges(invasion.attackerFactionId, {
+              conquered_castles: [result.castleConquered],
+              castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
+            });
             const updatedWorld = worldStateRef.current;
             const loser = updatedWorld.factions.find(f => f.isPlayer);
             if (loser) {
@@ -861,7 +871,10 @@ export default function GameContainer() {
               const atkFac = worldStateRef.current.factions.find(f => f.id === invasion.attackerFactionId)!;
               atkFac.woundedPool = [...atkFac.woundedPool, createWoundedPool(result.attackerWounded)];
             }
-            applyPlayerChanges({ point_deltas: { mp_troops_delta: -result.defenderLosses } }, addMsgToCouncil);
+            applyPlayerChanges({
+              point_deltas: { mp_troops_delta: -result.defenderLosses },
+              castle_updates: [{ castle: invasion.targetCastle, garrison_delta: -result.defenderLosses }],
+            }, addMsgToCouncil);
             if (result.defenderWounded > 0) {
               const pFac = worldStateRef.current.factions.find(f => f.isPlayer)!;
               pFac.woundedPool = [...pFac.woundedPool, createWoundedPool(result.defenderWounded)];
@@ -875,7 +888,10 @@ export default function GameContainer() {
             }
 
             if (result.castleConquered) {
-              applyNPCChanges(invasion.attackerFactionId, { conquered_castles: [result.castleConquered] });
+              applyNPCChanges(invasion.attackerFactionId, {
+                conquered_castles: [result.castleConquered],
+                castle_updates: [{ castle: result.castleConquered, garrison_delta: -freshCastle.garrison }],
+              });
               const updatedWorld = worldStateRef.current;
               const loser = updatedWorld.factions.find(f => f.isPlayer);
               if (loser) {
@@ -1338,23 +1354,7 @@ export default function GameContainer() {
           <div>전략 포인트 {playerFaction.points.sp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+1)</span></div>
           <div>군사 포인트 {playerFaction.points.mp.toLocaleString()}</div>
           <div>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{ipRegen})</span></div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span>외교 포인트 {playerFaction.points.dp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></span>
-            {(meetingPhase === 2 || meetingPhase === 4) && playerFaction.points.sp >= SP_TO_DP_COST && (
-              <button
-                onClick={handleConvertSPtoDP}
-                disabled={isLoading}
-                title={`전략포인트 ${SP_TO_DP_COST} → 외교포인트 1 변환`}
-                style={{
-                  background: "rgba(100,180,200,0.15)",
-                  border: "1px solid rgba(100,180,200,0.3)",
-                  borderRadius: "6px", padding: "0 5px", fontSize: "9px",
-                  color: "#64b4c8", cursor: isLoading ? "not-allowed" : "pointer",
-                  fontWeight: 600, opacity: isLoading ? 0.5 : 1, lineHeight: "16px",
-                }}
-              >전략→외교</button>
-            )}
-          </div>
+          <div>외교 포인트 {playerFaction.points.dp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
         </div>
 
       <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>

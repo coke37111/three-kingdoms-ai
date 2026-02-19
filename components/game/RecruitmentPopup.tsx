@@ -67,7 +67,7 @@ export default function RecruitmentPopup({ maxIP, onConfirm, onCancel }: Recruit
                 {troops.toLocaleString()}명
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-dim)", marginTop: "4px" }}>
-                내정포인트 -{ipCost} 소비
+                내정포인트 <span style={{ color: "#d4443e", fontWeight: 700 }}>-{ipCost}</span> 소비
               </div>
             </div>
 
