@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { listSaveSlots, deleteSave, type SaveSlotInfo } from "@/lib/game/saveSystem";
+import { listSaveSlots, deleteSave, deleteChatLog, type SaveSlotInfo } from "@/lib/game/saveSystem";
 
 interface SaveLoadPanelProps {
   show: boolean;
@@ -33,6 +33,7 @@ export default function SaveLoadPanel({ show, mode, onClose, onSave, onLoad, uid
   const handleDelete = async (index: number) => {
     if (confirmDelete === index) {
       await deleteSave(index, uid);
+      deleteChatLog(index.toString());
       const s = await listSaveSlots(uid);
       setSlots(s);
       setConfirmDelete(null);

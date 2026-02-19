@@ -196,7 +196,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       { dialogue: "이 관우가 선봉에 서겠소! 전군 돌격으로 적 본성을 함락합시다!", emotion: "excited" },
-      { dialogue: "본성 공략에 정예 병력을 투입하겠소. 한 번에 끝냅시다!", emotion: "excited" },
+      { dialogue: "본성 공략에 정예 군사포인트(병력)을 투입하겠소. 한 번에 끝냅시다!", emotion: "excited" },
     ],
   },
 
@@ -265,7 +265,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     variations: [
       { dialogue: "모병이 급하나 자금이 없소... 미축, 내정포인트 10이라도 마련해 달라!", emotion: "angry" },
       { dialogue: "내정포인트가 최소 10은 있어야 모병 가능하오. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
-      { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 병력으로 버텨야 하오.", emotion: "worried" },
+      { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 군사포인트(병력)으로 버텨야 하오.", emotion: "worried" },
     ],
   },
   {
@@ -495,7 +495,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "병력을 더 늘릴 수 없소. 훈련도를 올려 질적으로 강화하겠소. (훈련도 +5%)", emotion: "calm" },
+      { dialogue: "군사포인트(병력)을 더 늘릴 수 없소. 훈련도를 올려 질적으로 강화하겠소. (훈련도 +5%)", emotion: "calm" },
     ],
   },
   {
@@ -572,7 +572,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       };
     },
     variations: [
-      { dialogue: "초반부터 병력을 갖춰야 적이 얕보지 않소. 기초 모병을 실시하겠소.", emotion: "calm" },
+      { dialogue: "초반부터 군사포인트(병력)을 갖춰야 적이 얕보지 않소. 기초 모병을 실시하겠소.", emotion: "calm" },
     ],
   },
 
@@ -592,9 +592,9 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_troops_delta: -300, ip_delta: 20 },
     }),
     variations: [
-      { dialogue: "영내 산적을 토벌하여 백성의 민심을 얻겠소! 병력 300을 투입하면 세수가 20 늘 것이오.", emotion: "excited" },
+      { dialogue: "영내 산적을 토벌하여 백성의 민심을 얻겠소! 군사포인트(병력) 300을 투입하면 세수가 20 늘 것이오.", emotion: "excited" },
       { dialogue: "산적 무리가 치안을 어지럽히고 있소. 이 관우가 직접 정리하겠소. (군사포인트(병력) 300 소모, 내정포인트 +20)", emotion: "calm" },
-      { dialogue: "도적 떼를 쓸어내면 상인들이 돌아올 것이오. 소규모 병력으로 충분하오.", emotion: "thoughtful" },
+      { dialogue: "도적 떼를 쓸어내면 상인들이 돌아올 것이오. 소규모 군사포인트(병력)으로 충분하오.", emotion: "thoughtful" },
     ],
   },
   {
@@ -611,7 +611,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_troops_delta: -300, ip_delta: 20 },
     }),
     variations: [
-      { dialogue: "병력이 남아도니 산적 토벌에 쓰겠소. 병력 300으로 내정포인트 20을 벌 수 있소.", emotion: "calm" },
+      { dialogue: "군사포인트(병력)이 남아도니 산적 토벌에 쓰겠소. 군사포인트(병력) 300으로 내정포인트 20을 벌 수 있소.", emotion: "calm" },
     ],
   },
 
@@ -628,8 +628,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_troops_delta: -500, dp_delta: 1 },
     }),
     variations: [
-      { dialogue: "힘을 보여주는 것도 외교요. 병력 500을 시위에 투입하면 외교포인트를 얻을 수 있소.", emotion: "calm" },
-      { dialogue: "병력을 과시하면 적국도 함부로 대하지 못할 것이오. 군사 시위로 외교포인트를 확보하겠소.", emotion: "excited" },
+      { dialogue: "힘을 보여주는 것도 외교요. 군사포인트(병력) 500을 시위에 투입하면 외교포인트를 얻을 수 있소.", emotion: "calm" },
+      { dialogue: "군사포인트(병력)을 과시하면 적국도 함부로 대하지 못할 것이오. 군사 시위로 외교포인트를 확보하겠소.", emotion: "excited" },
     ],
   },
   {
@@ -643,8 +643,8 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2, mp_troops_delta: 5000 },
     }),
     variations: [
-      { dialogue: "병력이 부족하오! 외교포인트 2로 용병 5000을 즉시 확보하겠소.", emotion: "angry" },
-      { dialogue: "모병이 느리니 외교포인트를 써서 용병을 고용하겠소. (외교포인트 2 소모, 병력 +5000)", emotion: "thoughtful" },
+      { dialogue: "군사포인트(병력)이 부족하오! 외교포인트 2로 용병 5000을 즉시 확보하겠소.", emotion: "angry" },
+      { dialogue: "모병이 느리니 외교포인트를 써서 용병을 고용하겠소. (외교포인트 2 소모, 군사포인트(병력) +5000)", emotion: "thoughtful" },
     ],
   },
   {
@@ -1272,7 +1272,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_troops_delta: -100, ip_delta: 10 },
     }),
     variations: [
-      { dialogue: "병사들을 백성 지원에 투입하겠습니다. 병력 100을 써서 내정포인트 10을 확보할 수 있습니다.", emotion: "calm" },
+      { dialogue: "병사들을 백성 지원에 투입하겠습니다. 군사포인트(병력) 100을 써서 내정포인트 10을 확보할 수 있습니다.", emotion: "calm" },
       { dialogue: "군사력을 민정에 활용하면 민심도 얻고 세수도 늘어납니다. 대민 지원을 실시하겠습니다.", emotion: "thoughtful" },
     ],
   },
@@ -1291,7 +1291,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { mp_troops_delta: -100, ip_delta: 10 },
     }),
     variations: [
-      { dialogue: "평화로운 지금이 민심을 다질 최적의 시기입니다. 잉여 병력으로 대민 지원을 진행하겠습니다.", emotion: "calm" },
+      { dialogue: "평화로운 지금이 민심을 다질 최적의 시기입니다. 잉여 군사포인트(병력)으로 대민 지원을 진행하겠습니다.", emotion: "calm" },
     ],
   },
   {
@@ -1770,12 +1770,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       s.strategic.overallStrength !== "critical",
     planReport: () => ({
       speaker: "방통",
-      plan: "약탈 — 비상 자금 조달 (군사포인트(병력) 20 소모, 내정포인트 +40, 외교포인트 -50)",
-      expected_points: { mp_troops_delta: -20, ip_delta: 40, dp_delta: -50 },
+      plan: "약탈 — 비상 자금 조달 (군사포인트(병력) 20 소모, 내정포인트 +40, 외교포인트 -3)",
+      expected_points: { mp_troops_delta: -20, ip_delta: 40, dp_delta: -3 },
     }),
     variations: [
       { dialogue: "달리 방도가 없소. 인근 지역을 약탈하여 자금을 조달합시다. 외교 관계는 망가지겠지만... 지금은 살아남는 게 먼저요.", emotion: "worried" },
-      { dialogue: "비상 수단이오. 병력 20을 풀어 즉각 자금을 확보하겠소. 외교 손실은 각오해야 하오.", emotion: "thoughtful" },
+      { dialogue: "비상 수단이오. 군사포인트(병력) 20을 풀어 즉각 자금을 확보하겠소. 외교 손실은 각오해야 하오.", emotion: "thoughtful" },
     ],
   },
 
@@ -1822,7 +1822,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -3, mp_troops_delta: 8000 },
     }),
     variations: [
-      { dialogue: "병력이 부족하오. 외교포인트 3을 써서 우방에 지원군을 요청하겠소. 8000명이 올 것이오.", emotion: "thoughtful" },
+      { dialogue: "군사포인트(병력)이 부족하오. 외교포인트 3을 써서 우방에 지원군을 요청하겠소. 8000명이 올 것이오.", emotion: "thoughtful" },
       { dialogue: "외교 자산을 군사력으로 전환할 시기요. 동맹 지원군으로 전력을 보충합시다.", emotion: "calm" },
     ],
   },
@@ -2337,7 +2337,7 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       { dialogue: "병사들의 사기가 떨어지면 전투력도 반감됩니다. 내정포인트 15로 포상을 내려 사기를 끌어올리겠습니다.", emotion: "worried" },
-      { dialogue: "사기를 높이는 것이 병력을 늘리는 것 이상의 효과를 냅니다. 포상에 투자하겠습니다.", emotion: "thoughtful" },
+      { dialogue: "사기를 높이는 것이 군사포인트(병력)을 늘리는 것 이상의 효과를 냅니다. 포상에 투자하겠습니다.", emotion: "thoughtful" },
     ],
   },
 ];

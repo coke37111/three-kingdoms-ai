@@ -12,6 +12,8 @@ import { callCouncilLLM, callReactionLLM, type CallLLMOptions } from "@/lib/api/
 import { buildPhase1And3Prompt, buildPhase2Prompt, buildPhase4Prompt } from "@/lib/prompts/councilPrompt";
 import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
 import { autoSave, loadAutoSave, hasAutoSave, loadChatLog } from "@/lib/game/saveSystem";
+import { getFirebaseAnalytics } from "@/lib/firebase/config";
+import { logEvent } from "firebase/analytics";
 import { checkGameEnd } from "@/lib/game/victorySystem";
 import { resolveBattle, generateBattleNarrative, resolveRetreat } from "@/lib/game/combatSystem";
 import { createWoundedPool } from "@/lib/game/pointCalculator";
@@ -540,6 +542,8 @@ export default function GameContainer() {
     const result = checkGameEnd(worldStateRef.current);
     if (result) {
       setGameEndResult(result);
+      const analytics = getFirebaseAnalytics();
+      if (analytics) logEvent(analytics, "game_end", { type: result.type, turn: result.turn });
       return true;
     }
     return false;
@@ -911,6 +915,9 @@ export default function GameContainer() {
 
       if (doCheckGameEnd()) return;
 
+      const analyticsInst = getFirebaseAnalytics();
+      if (analyticsInst) logEvent(analyticsInst, "turn_complete", { turn: worldStateRef.current.currentTurn });
+
       await delay(800);
       doAutoSave();
 
@@ -969,6 +976,8 @@ export default function GameContainer() {
     setTokenUsage({ input: 0, output: 0 });
     setStarted(true);
     sessionStorage.setItem("gameActive", "true");
+    const analytics = getFirebaseAnalytics();
+    if (analytics) logEvent(analytics, "game_start");
 
     try {
       // 도입 서사
@@ -1134,6 +1143,8 @@ export default function GameContainer() {
         if (reaction.state_changes) {
           applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
         } else {
+          // 참모가 질문만 하고 실제 행동 없으면 AP 환불 (예: "얼마나 모병할까요?")
+          applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
           // 모병 수량 질문이면 팝업 오픈
           const isRecruitQuestion = reaction.council_messages.some(m =>
             (m.dialogue.includes("모병") || m.dialogue.includes("징병")) &&
