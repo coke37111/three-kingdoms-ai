@@ -135,9 +135,9 @@ API 호출 실패 시 소비한 AP를 복구하고 오류 메시지 표시.
 
 ## NPC AI (Phase 5)
 
-> 파일: `lib/prompts/factionAIPrompt.ts`
+> 파일: `lib/game/npcAI.ts` (Utility AI, Plan 06 이후)
 
-2개 NPC 세력의 상황을 한 프롬프트에 배치하여 API 비용 절감.
+4-레이어 Utility AI로 완전 결정론적 NPC 행동 결정. LLM 호출 없음.
 
 ### NPC 행동 종류
 
@@ -148,13 +148,24 @@ API 호출 실패 시 소비한 AP를 복구하고 오류 메시지 표시.
 | 훈련 | 훈련도 향상 (IP 소비) |
 | 공격 | 타 세력 성채 공격 (MP 소비) |
 | 외교 | 외교 행동 (DP 소비) |
-| 방어 | 방어 강화 |
-| 스킬 | 스킬 트리 해금 (SP 소비) |
+| 방어 | 방어 강화 (사기 +0.02) |
 
-### 결정론적 폴백 (AI 실패 시)
+### 레이어 구조
 
-- 기본 행동: 개발 (안전한 선택)
-- NPC 턴 알림에 "(AI 응답 없음, 기본 행동)" 표시
+```
+CommonFactors → StrategyContext → DomesticContext → CombatContext → DiplomacyContext
+```
+
+세력 개성(personality.aggression/diplomacy/development)이 각 레이어 팩터에 반영됨.
+
+자세한 내용: `docs/12-npc-ai-system.md`
+
+### 폴백 체계
+
+```
+Utility AI (calcAllNPCActions)
+  → 실패 시: 결정론적 폴백 (기본 행동: "개발")
+```
 
 ---
 
