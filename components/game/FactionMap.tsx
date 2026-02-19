@@ -14,8 +14,8 @@ interface FactionMapProps {
 // ═══════════════ 삼각형 꼭지점 (SVG 좌표) ═══════════════
 
 const VTX: Record<FactionId, { x: number; y: number }> = {
-  liu_bei: { x: 400, y: 40 },
-  cao_cao: { x: 75, y: 560 },
+  liu_bei: { x: 75, y: 560 },
+  cao_cao: { x: 400, y: 40 },
   sun_quan: { x: 725, y: 560 },
 };
 
@@ -47,9 +47,9 @@ const EDGES: Record<string, EdgeDef> = {
     from: "sun_quan", to: "cao_cao",
     main: ["건업", "여강", "합비", "수춘", "허창"],
     branches: [
-      { castles: ["건업", "시상", "강릉", "계양", "영릉"], angle: -20 },
-      { castles: ["허창", "장안", "천수", "안정", "무위"], angle: 25 },
-      { castles: ["허창", "하내", "홍농"], angle: -10 },
+      { castles: ["건업", "시상", "강릉", "계양", "영릉"], angle: 32 },
+      { castles: ["허창", "장안", "천수", "안정", "무위"], angle: -26 },
+      { castles: ["허창", "하내", "홍농"], angle: -90 },
     ],
   },
 };

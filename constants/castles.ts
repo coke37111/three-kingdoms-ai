@@ -3,10 +3,10 @@ import type { Castle } from "@/types/game";
 /**
  * 성채 배치 구조 (삼각형)
  *
- * 유비(신야) ←── liu_cao 라인 (~12성) ──→ 조조(허창)
- *   ↓                                       ↑
- * liu_sun 라인 (~5성)              sun_cao 라인 (~9성)
- *   ↓                                       ↑
+ * 조조(허창) ←── liu_cao 라인 (~12성) ──→ 유비(신야)
+ *   ↓                                       ↓
+ * sun_cao 라인 (~9성)              liu_sun 라인 (~5성)
+ *   ↓                                       ↓
  * 손권(건업) ←────────────────────────────────┘
  */
 export const INITIAL_CASTLES: Castle[] = [

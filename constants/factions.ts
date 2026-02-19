@@ -6,7 +6,7 @@ export const INITIAL_FACTIONS: Faction[] = [
     rulerName: "유비",
     isPlayer: true,
     points: {
-      ap: 3, ap_max: 6, ap_regen: 3,
+      ap: 3, ap_max: 10, ap_regen: 5,
       sp: 0,
       mp: 0, mp_troops: 50000, mp_training: 0.5, mp_morale: 1.0,
       ip: 30, ip_cap: 100, ip_regen: 10,

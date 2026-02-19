@@ -152,11 +152,20 @@ ${context}
 - 포인트 약어(AP, SP, MP, IP, DP) 절대 사용 금지. 반드시 "행동포인트", "전략포인트", "군사포인트", "내정포인트", "외교포인트"로 표기.
 - **언어**: 모든 dialogue, report, plan 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
 
+=== 시설 종류 제한 (절대 규칙) ===
+- 이 게임에 존재하는 시설은 **시장(market), 논(farm), 은행(bank)** 세 가지뿐이다.
+- 서원, 훈련소, 조선소, 병기창, 성벽, 관청 등 게임에 없는 시설을 절대 언급하지 마라.
+- 시설 관련 계획은 반드시 "시장 건설", "논 건설", "시장 레벨업", "논 레벨업", "은행 건설/레벨업" 중 하나여야 한다.
+
 === 일관성 규칙 (매우 중요) ===
 - dialogue에서 효과를 언급하면 반드시 해당 point_changes/expected_points에 수치가 있어야 한다.
 - point_changes가 없는 항목은 dialogue에서 마치 변화가 있는 것처럼 표현하지 마라.
 - 예: 훈련을 하지 않았는데 "병사들이 강해지고 있습니다"라고 하면 안 된다. mp_training_delta가 0이면 훈련 효과를 언급하지 마라.
 - 예: 징병을 하지 않았는데 "병력이 증가했습니다"라고 하면 안 된다.
+- **Phase 1→3 문제-대응 일관성**: Phase 1 보고에서 특정 문제를 지적한 참모는 Phase 3 계획에서 반드시 그 문제에 대한 대응책을 제안해야 한다.
+  - 예: 미축이 Phase 1에서 "수입이 너무 적습니다"라고 했다면, Phase 3에서 미축은 반드시 시장 건설·논 건설·레벨업 등 수입 확보 계획을 제안해야 한다.
+  - 예: 관우가 Phase 1에서 "군사력이 부족합니다"라고 했다면, Phase 3에서 징병·훈련 계획을 제안해야 한다.
+  - Phase 1에서 문제를 지적하고 Phase 3에서 관계없는 계획(예: 수입 문제인데 외교 계획)을 제안하거나 아무 대응도 없는 것은 금지.
 
 === 군사포인트 용어 규칙 ===
 - 군사포인트 = 병력 × 훈련도 × 사기. 복합 수치이다.
@@ -175,21 +184,21 @@ ${context}
 {
   "council_messages": [
     { "speaker": "제갈량", "dialogue": "주공, 이번 턴 상황을 보고하겠습니다.", "emotion": "calm", "phase": 1 },
-    { "speaker": "미축", "dialogue": "시장 운영하여 내정포인트 15 확보했습니다.", "emotion": "calm", "phase": 1 },
+    { "speaker": "미축", "dialogue": "내정포인트 수입이 너무 적습니다. 이 속도로는 아무것도 할 수 없습니다.", "emotion": "worried", "phase": 1 },
     { "speaker": "관우", "dialogue": "전투력 강화를 위해 훈련 실시, 훈련도 5% 상승했습니다. (현재 55%)", "emotion": "calm", "phase": 1 },
-    { "speaker": "제갈량", "dialogue": "천하의 형세를 보건대, 지금은 내실을 다져야 할 때이옵니다. 다음 계획을 논의하겠습니다.", "emotion": "thoughtful", "phase": 3 },
-    { "speaker": "미축", "dialogue": "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 내정포인트 수입 매턴 +3 예상)", "emotion": "calm", "phase": 3 },
+    { "speaker": "제갈량", "dialogue": "수입 기반을 먼저 다져야 하옵니다. 계획을 논의하겠습니다.", "emotion": "thoughtful", "phase": 3 },
+    { "speaker": "미축", "dialogue": "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 내정포인트 수입 매턴 +3 확보)", "emotion": "calm", "phase": 3 },
     { "speaker": "방통", "dialogue": "봉추가 직접 손권에게 사신을 보내겠소. (외교포인트 -2 소비, 조조 견제 효과 기대)", "emotion": "thoughtful", "phase": 3 }
   ],
   "status_reports": [
-    { "speaker": "미축", "report": "시장 운영으로 내정포인트 15 확보", "point_changes": { "ip_delta": 15 } },
+    { "speaker": "미축", "report": "내정포인트 수입 부족 경고", "point_changes": {} },
     { "speaker": "관우", "report": "내정포인트 15 소비하여 병사 훈련, 훈련도 5% 상승", "point_changes": { "mp_training_delta": 0.05 } }
   ],
   "plan_reports": [
     { "speaker": "미축", "plan": "시장 1개 건설 (내정포인트 ${getFacilityBuildCost(player.facilities.market.count)} 소비)", "expected_points": { "ip_delta": -${getFacilityBuildCost(player.facilities.market.count)} } },
     { "speaker": "방통", "plan": "손권 관계 개선 (외교포인트 2 소비)", "expected_points": { "dp_delta": -2 } }
   ],
-  "state_changes": { "point_deltas": { "ip_delta": 15, "mp_training_delta": 0.05 } },
+  "state_changes": { "point_deltas": { "mp_training_delta": 0.05 } },
   "advisor_updates": [
     { "name": "제갈량", "enthusiasm_delta": 0, "loyalty_delta": 0 },
     { "name": "관우", "enthusiasm_delta": 1, "loyalty_delta": 0 },
@@ -251,6 +260,7 @@ ${replyInstruction}
 6. **모병/징병 지시 시**: 유비가 모병을 지시하면, 미축이 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 수량을 알려주소서." 형태로 보고하고, 관우는 "즉각 병사를 이끌겠소!" 식의 군인다운 짧은 반응을 추가한다. state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
 7. **유비가 구체적 수량을 지정하면** (예: "3000명 모병해"), 즉시 state_changes에 반영. ip_delta = -(수량 / ${RECRUIT_TROOPS_PER_IP}), mp_troops_delta = 수량.
 8. **advisor_updates 기준**: 유비가 특정 참모를 크게 칭찬하면 해당 참모 enthusiasm_delta +3~5, loyalty_delta +1~2. 질책하면 enthusiasm_delta -3~5. 평범한 대화 교환은 모든 delta를 0으로 둔다.
+9. **참모 호명 응답 규칙**: council_messages에서 어떤 참모가 다른 참모를 이름으로 직접 호명한 경우(예: "방통, 외교로 시간을 벌 수는 없겠소?"), 호명된 참모도 반드시 council_messages에 반응을 추가한다.
 
 === 응답 JSON 형식 ===
 {
@@ -316,6 +326,7 @@ ${replyInstruction}
 6. **모병/징병 지시 시**: 미축이 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 수량을 알려주소서." 형태로 보고하고, 관우는 "즉각 출진하겠소!" 식의 짧은 무인다운 반응을 추가한다.
 7. **유비가 구체적 수량을 지정하면**, state_changes에 즉시 반영.
 8. **advisor_updates 기준**: 유비가 특정 참모를 크게 칭찬하거나 boost하면 해당 참모 enthusiasm_delta +3~5, loyalty_delta +1~2. 질책하면 enthusiasm_delta -3~5. 일반 피드백은 모든 delta를 0으로 둔다.
+9. **참모 호명 응답 규칙**: council_messages에서 어떤 참모가 다른 참모를 이름으로 직접 호명한 경우(예: "방통, 외교로 시간을 벌 수는 없겠소?"), 호명된 참모도 반드시 council_messages에 반응을 추가한다.
 
 === 응답 JSON 형식 ===
 {

@@ -174,9 +174,9 @@ export default function WorldStatus({ worldState, show, onClose }: WorldStatusPr
             ⚔️ 전선 현황
           </div>
           {([
-            { lineId: "liu_cao", label: "유비↔조조", start: "신야" },
+            { lineId: "liu_cao", label: "조조↔유비", start: "허창" },
+            { lineId: "sun_cao", label: "조조↔손권", start: "허창" },
             { lineId: "liu_sun", label: "유비↔손권", start: "하비" },
-            { lineId: "sun_cao", label: "손권↔조조", start: "건업" },
           ] as const).map(({ lineId, label, start }) => {
             const ordered = getLineOrder(worldState.castles, lineId, start);
             return (
