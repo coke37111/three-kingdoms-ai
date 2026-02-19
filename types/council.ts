@@ -40,7 +40,7 @@ export interface PlanReport {
   speaker: string;
   plan: string;             // 계획 설명
   expected_points?: PointDeltas;  // 기대 포인트 변동
-  facility_upgrades?: { type: "market" | "farm" | "bank"; levels: number }[];  // 시설 레벨 변동
+  facility_upgrades?: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number }[];  // 시설 변동
 }
 
 // ===================== Phase 1+3 통합 응답 =====================

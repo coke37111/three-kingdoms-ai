@@ -36,7 +36,7 @@ export function buildFactionAIPrompt(world: WorldState, npcFactions: Faction[]):
 성격: 공격성 ${f.personality.aggression}, 외교 ${f.personality.diplomacy}, 개발 ${f.personality.development}, 모험 ${f.personality.riskTolerance}
 포인트: 군사포인트 ${f.points.mp.toLocaleString()} (병력 ${f.points.mp_troops.toLocaleString()}, 훈련 ${(f.points.mp_training * 100).toFixed(0)}%), 내정포인트 ${f.points.ip}/${f.points.ip_cap}, 외교포인트 ${f.points.dp}, 전략포인트 ${f.points.sp}
 성채: ${f.castles.join(", ")} (${f.castles.length}개)${frontlineInfo}
-시설: 시장 Lv${f.facilities.market}, 논 Lv${f.facilities.farm}, 은행 Lv${f.facilities.bank}
+시설: 시장 ${f.facilities.market.count}개(Lv${f.facilities.market.level}), 논 ${f.facilities.farm.count}개(Lv${f.facilities.farm.level}), 은행 Lv${f.facilities.bank}
 배치 상한: ${f.rulerLevel.deploymentCap.toLocaleString()}
 외교:
 ${relSummary}`;

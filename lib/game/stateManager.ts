@@ -1,4 +1,4 @@
-import type { Faction, FactionPoints, StateChanges, PointDeltas, Castle, Facilities } from "@/types/game";
+import type { Faction, FactionPoints, StateChanges, PointDeltas, Castle, Facilities, FacilityBuilding } from "@/types/game";
 import { DEPLOYMENT_PER_LEVEL, BASE_XP_TO_LEVEL, XP_PER_LEVEL_SCALING } from "@/constants/gameConstants";
 
 export interface ApplyResult {
@@ -31,18 +31,30 @@ function applyPointDeltas(points: FactionPoints, deltas: PointDeltas): FactionPo
   return p;
 }
 
-/** 시설 업그레이드 적용 (시장·논은 보유 성채 수 상한 적용) */
+/** 시설 업그레이드 적용 */
 function applyFacilityUpgrades(
   facilities: Facilities,
-  upgrades: { type: keyof Facilities; levels: number }[],
+  upgrades: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number }[],
   castleCount: number,
 ): Facilities {
-  const f = { ...facilities };
+  const f: Facilities = {
+    market: { ...facilities.market },
+    farm: { ...facilities.farm },
+    bank: facilities.bank,
+  };
   for (const u of upgrades) {
-    f[u.type] = Math.max(0, f[u.type] + u.levels);
-    // 시장·논은 보유 성채 수를 초과할 수 없음
-    if ((u.type === "market" || u.type === "farm") && castleCount > 0) {
-      f[u.type] = Math.min(f[u.type], castleCount);
+    if (u.type === "bank") {
+      if (u.level_delta) f.bank = Math.max(0, f.bank + u.level_delta);
+    } else {
+      const b = f[u.type] as FacilityBuilding;
+      if (u.count_delta) {
+        b.count = Math.max(0, b.count + u.count_delta);
+        // 보유 성채 수를 초과할 수 없음
+        if (castleCount > 0) b.count = Math.min(b.count, castleCount);
+      }
+      if (u.level_delta) {
+        b.level = Math.max(1, b.level + u.level_delta);
+      }
     }
   }
   return f;

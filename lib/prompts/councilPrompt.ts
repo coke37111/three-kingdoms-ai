@@ -88,7 +88,7 @@ ${castleSummary}
 ${getFrontlineSummary(world)}
 
 === 군주 레벨: ${player.rulerLevel.level} (배치 상한: ${player.rulerLevel.deploymentCap.toLocaleString()}) ===
-시설: 시장 ${player.facilities.market}개 (건설 비용: ${getFacilityBuildCost(player.facilities.market)}IP, 최대 ${castleCount}개), 논 ${player.facilities.farm}개 (건설 비용: ${getFacilityBuildCost(player.facilities.farm)}IP, 최대 ${castleCount}개), 은행 Lv${player.facilities.bank} (건설 비용: ${getFacilityUpgradeCost(player.facilities.bank)}IP)
+시설: 시장 ${player.facilities.market.count}개(Lv${player.facilities.market.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.market.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP, 최대 ${castleCount}개), 논 ${player.facilities.farm.count}개(Lv${player.facilities.farm.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.farm.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP), 은행 Lv${player.facilities.bank} (업그레이드: ${getFacilityUpgradeCost(player.facilities.bank)}IP)
 
 === 비용 체계 ===
 - 모병: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 가능 (현재 내정포인트 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
@@ -124,13 +124,13 @@ ${context}
 - 각 참모가 다음 턴에 수행할 계획을 제안.
 - plan_reports에 계획과 기대 포인트 변동을 기록.
 - **보고 원칙**: "[행동] 예정. (비용 + 기대 효과)" — 비용만 말하고 기대 효과를 빠뜨리면 안 됨.
-  예: "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market)} 소비, 내정포인트 수입 매턴 +3 예상)"
+  예: "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 내정포인트 수입 매턴 +3 예상)"
   예: "20 내정포인트로 징병합니다. (군사포인트(병력) +${20 * RECRUIT_TROOPS_PER_IP} 확보)"
   예: "훈련 실시합니다. (내정포인트 -${TRAIN_IP_COST} 소비, 훈련도 +5% 향상)"
   예: "은행 건설합니다. (내정포인트 -${getFacilityUpgradeCost(player.facilities.bank)} 소비, 저장 상한 +50)"
   ✗ 나쁜 예: "시장 업그레이드 진행합니다. (내정포인트 -30 예상)" ← 기대 효과 누락!
 - **모병 비용**: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명. 소비량은 참모가 적절히 결정하되, 현재 보유 내정포인트를 초과하지 말 것.
-- **시설 비용**: 시장·논은 개수에 따라 증가. 시장 ${player.facilities.market}개→+1개: ${getFacilityBuildCost(player.facilities.market)}IP | 논 ${player.facilities.farm}개→+1개: ${getFacilityBuildCost(player.facilities.farm)}IP | 최대 ${castleCount}개 (현재 성채 ${castleCount}개) | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
+- **시설 비용**: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 최대 ${castleCount}개 | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - **내정포인트 상한 우선 규칙**: 현재 내정포인트가 상한의 80% 이상이면(현재 ${player.points.ip}/${player.points.ip_cap}), 시장·논 확장보다 **은행 건설/확장을 우선 제안**할 것. 수입을 늘려도 상한에 막혀 쌓이지 않으면 의미 없음. 은행 비용: 내정포인트 ${getFacilityUpgradeCost(player.facilities.bank)} → 상한 +50.
 - **외교 계획 구체성 규칙**: 방통의 외교 계획은 반드시 "누구와(조조/손권)" + "무슨 행동(긴장 완화/동맹 강화/사신 파견 등)"을 명시할 것. "외교로 시간을 번다" 같은 모호한 표현 금지.
   ✓ "조조와 긴장 완화 협상. (외교포인트 2 소비, 조조 관계 +1 기대)"
@@ -174,7 +174,7 @@ ${context}
     { "speaker": "미축", "dialogue": "시장 운영하여 내정포인트 15 확보했습니다.", "emotion": "calm", "phase": 1 },
     { "speaker": "관우", "dialogue": "전투력 강화를 위해 훈련 실시, 훈련도 5% 상승했습니다. (현재 55%)", "emotion": "calm", "phase": 1 },
     { "speaker": "제갈량", "dialogue": "천하의 형세를 보건대, 지금은 내실을 다져야 할 때이옵니다. 다음 계획을 논의하겠습니다.", "emotion": "thoughtful", "phase": 3 },
-    { "speaker": "미축", "dialogue": "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market)} 소비, 내정포인트 수입 매턴 +3 예상)", "emotion": "calm", "phase": 3 },
+    { "speaker": "미축", "dialogue": "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 내정포인트 수입 매턴 +3 예상)", "emotion": "calm", "phase": 3 },
     { "speaker": "방통", "dialogue": "봉추가 직접 손권에게 사신을 보내겠소. (외교포인트 -2 소비, 조조 견제 효과 기대)", "emotion": "thoughtful", "phase": 3 }
   ],
   "status_reports": [
@@ -182,7 +182,7 @@ ${context}
     { "speaker": "관우", "report": "내정포인트 15 소비하여 병사 훈련, 훈련도 5% 상승", "point_changes": { "mp_training_delta": 0.05 } }
   ],
   "plan_reports": [
-    { "speaker": "미축", "plan": "시장 1개 건설 (내정포인트 ${getFacilityBuildCost(player.facilities.market)} 소비)", "expected_points": { "ip_delta": -${getFacilityBuildCost(player.facilities.market)} } },
+    { "speaker": "미축", "plan": "시장 1개 건설 (내정포인트 ${getFacilityBuildCost(player.facilities.market.count)} 소비)", "expected_points": { "ip_delta": -${getFacilityBuildCost(player.facilities.market.count)} } },
     { "speaker": "방통", "plan": "손권 관계 개선 (외교포인트 2 소비)", "expected_points": { "dp_delta": -2 } }
   ],
   "state_changes": { "point_deltas": { "ip_delta": 15, "mp_training_delta": 0.05 } },
@@ -230,8 +230,8 @@ ${replyInstruction}
 === 비용 체계 ===
 - 모병: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정포인트 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정포인트 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시설 효과: 시장 1개당 내정포인트 수입 +3/턴 | 논 1개당 내정포인트 수입 +2/턴 | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
-- 시설 비용: 시장 ${player.facilities.market}개→+1개: ${getFacilityBuildCost(player.facilities.market)}IP | 논 ${player.facilities.farm}개→+1개: ${getFacilityBuildCost(player.facilities.farm)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
+- 시설 효과: 시장 개수×레벨×3 IP/턴, 논 개수×레벨×2 IP/턴 (현재 시장 ${player.facilities.market.count}×${player.facilities.market.level}×3=${player.facilities.market.count * player.facilities.market.level * 3}/턴) | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
+- 시설 비용: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - 내정포인트 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 
 === 응답 규칙 ===
@@ -291,8 +291,8 @@ ${replyInstruction}
 === 비용 체계 ===
 - 모병: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정포인트 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정포인트 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시설 효과: 시장 1개당 내정포인트 수입 +3/턴 | 논 1개당 내정포인트 수입 +2/턴 | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
-- 시설 비용: 시장 ${player.facilities.market}개→+1개: ${getFacilityBuildCost(player.facilities.market)}IP | 논 ${player.facilities.farm}개→+1개: ${getFacilityBuildCost(player.facilities.farm)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
+- 시설 효과: 시장 개수×레벨×3 IP/턴, 논 개수×레벨×2 IP/턴 (현재 시장 ${player.facilities.market.count}×${player.facilities.market.level}×3=${player.facilities.market.count * player.facilities.market.level * 3}/턴) | **은행 Lv1당 내정포인트 상한 +50** (현재 상한: ${player.points.ip_cap})
+- 시설 비용: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - 내정포인트 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 
 === 응답 규칙 ===

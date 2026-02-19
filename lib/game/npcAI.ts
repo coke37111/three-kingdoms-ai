@@ -15,6 +15,7 @@ import {
   RECRUIT_TROOPS_PER_IP,
   TRAIN_IP_COST,
   getFacilityUpgradeCost,
+  getFacilityBuildCost,
 } from "@/constants/gameConstants";
 
 // ===================== 공통 팩터 =====================
@@ -143,8 +144,16 @@ function calcDomesticContext(
   const wasteRate = ipRegen > 0 ? overflow / ipRegen : 0;
 
   // 업그레이드 비용 계산
-  const marketCost = getFacilityUpgradeCost(faction.facilities.market);
-  const farmCost = getFacilityUpgradeCost(faction.facilities.farm);
+  const castleCountForFaction = world.castles.filter(c => c.owner === faction.id).length;
+  const marketCount = faction.facilities.market.count;
+  const farmCount = faction.facilities.farm.count;
+  // 성채 슬롯이 남아 있으면 건설(비용 높음), 꽉 찼으면 레벨업(비용 낮음)
+  const marketCost = marketCount < castleCountForFaction
+    ? getFacilityBuildCost(marketCount)
+    : getFacilityUpgradeCost(faction.facilities.market.level);
+  const farmCost = farmCount < castleCountForFaction
+    ? getFacilityBuildCost(farmCount)
+    : getFacilityUpgradeCost(faction.facilities.farm.level);
   const bankCost = getFacilityUpgradeCost(faction.facilities.bank);
 
   // 우선순위 결정

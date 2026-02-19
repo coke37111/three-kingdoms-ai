@@ -53,16 +53,25 @@ export interface GameSituation {
     ipAtCap: boolean;             // >= ipCap
     ipNearCap: boolean;           // >= ipCap * 0.9
     // 시설
-    marketLv: number;
-    farmLv: number;
-    bankLv: number;
-    noFacilities: boolean;        // 모두 Lv0
-    canUpgrade: boolean;          // ip >= getFacilityUpgradeCost(lowest level)
-    /** 각 시설의 다음 레벨 업그레이드 비용 */
+    marketCount: number;          // 건설된 시장 수 (성채당 1개)
+    marketLv: number;             // 시장 레벨
+    farmCount: number;            // 건설된 논 수
+    farmLv: number;               // 논 레벨
+    bankLv: number;               // 은행 레벨
+    castleCount: number;          // 보유 성채 수 (시설 한도)
+    noFacilities: boolean;        // market.count+farm.count+bank === 0
+    canBuildMarket: boolean;      // marketCount < castleCount && ip >= buildCost
+    canBuildFarm: boolean;        // farmCount < castleCount && ip >= buildCost
+    canUpgradeMarket: boolean;    // ip >= marketUpgradeCost
+    canUpgradeFarm: boolean;      // ip >= farmUpgradeCost
+    canUpgradeBank: boolean;      // ip >= bankUpgradeCost
+    /** 다음 건설/업그레이드 비용 */
+    marketBuildCost: number;
+    farmBuildCost: number;
     marketUpgradeCost: number;
     farmUpgradeCost: number;
     bankUpgradeCost: number;
-    facilityImbalance: boolean;   // |market - farm| >= 3
+    facilityImbalance: boolean;   // |marketCount - farmCount| >= 3
     highIncome: boolean;          // ipRegen >= 20
     lowIncome: boolean;           // ipRegen <= 5
   };

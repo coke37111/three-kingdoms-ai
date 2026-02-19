@@ -17,7 +17,7 @@ import type {
   Phase3Result,
 } from "./types";
 import { scoreToLabel } from "@/lib/game/diplomacySystem";
-import { getFacilityUpgradeCost } from "@/constants/gameConstants";
+import { getFacilityUpgradeCost, getFacilityBuildCost } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { CAPITAL_CASTLES } from "@/constants/castles";
 import { ALL_PHASE1_CASES } from "./phase1Cases";
@@ -75,10 +75,18 @@ export function analyzeGameSituation(
   const ip = player.points.ip;
   const ipCap = player.points.ip_cap;
   const ipRegen = player.points.ip_regen;
-  const market = player.facilities.market;
-  const farm = player.facilities.farm;
+  const marketCount = player.facilities.market.count;
+  const marketLv = player.facilities.market.level;
+  const farmCount = player.facilities.farm.count;
+  const farmLv = player.facilities.farm.level;
   const bank = player.facilities.bank;
-  const lowestFacLv = Math.min(market, farm, bank);
+  const castleCountVal = world.castles.filter(c => c.owner === player.id).length;
+
+  const marketBuildCost = getFacilityBuildCost(marketCount);
+  const farmBuildCost = getFacilityBuildCost(farmCount);
+  const marketUpgCost = getFacilityUpgradeCost(marketLv);
+  const farmUpgCost = getFacilityUpgradeCost(farmLv);
+  const bankUpgCost = getFacilityUpgradeCost(bank);
 
   const economy: GameSituation["economy"] = {
     ip,
@@ -90,15 +98,24 @@ export function analyzeGameSituation(
     ipRich: ip > 50,
     ipAtCap: ip >= ipCap,
     ipNearCap: ip >= ipCap * 0.9,
-    marketLv: market,
-    farmLv: farm,
+    marketCount,
+    marketLv,
+    farmCount,
+    farmLv,
     bankLv: bank,
-    noFacilities: market === 0 && farm === 0 && bank === 0,
-    canUpgrade: ip >= getFacilityUpgradeCost(lowestFacLv),
-    marketUpgradeCost: getFacilityUpgradeCost(market),
-    farmUpgradeCost: getFacilityUpgradeCost(farm),
-    bankUpgradeCost: getFacilityUpgradeCost(bank),
-    facilityImbalance: Math.abs(market - farm) >= 3,
+    castleCount: castleCountVal,
+    noFacilities: marketCount === 0 && farmCount === 0 && bank === 0,
+    canBuildMarket: marketCount < castleCountVal && ip >= marketBuildCost,
+    canBuildFarm: farmCount < castleCountVal && ip >= farmBuildCost,
+    canUpgradeMarket: marketCount > 0 && ip >= marketUpgCost,
+    canUpgradeFarm: farmCount > 0 && ip >= farmUpgCost,
+    canUpgradeBank: ip >= bankUpgCost,
+    marketBuildCost,
+    farmBuildCost,
+    marketUpgradeCost: marketUpgCost,
+    farmUpgradeCost: farmUpgCost,
+    bankUpgradeCost: bankUpgCost,
+    facilityImbalance: Math.abs(marketCount - farmCount) >= 3,
     highIncome: ipRegen >= 20,
     lowIncome: ipRegen <= 5,
   };

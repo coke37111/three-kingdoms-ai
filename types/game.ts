@@ -56,10 +56,16 @@ export interface Castle {
 
 // ===================== 시설 시스템 =====================
 
+/** 시장·논용: 개수(성채당 1개 한도) × 레벨(업그레이드) */
+export interface FacilityBuilding {
+  count: number;  // 건설된 건물 수 (보유 성채 수 상한)
+  level: number;  // 각 건물의 레벨 (업그레이드)
+}
+
 export interface Facilities {
-  market: number;  // 시장 레벨 (IP 충전 증가)
-  farm: number;    // 논 레벨 (IP 충전 증가)
-  bank: number;    // 은행 레벨 (IP 상한 증가)
+  market: FacilityBuilding;  // 시장 (IP 충전 증가: count×level×3)
+  farm: FacilityBuilding;    // 논   (IP 충전 증가: count×level×2)
+  bank: number;              // 은행 레벨 (IP 상한 증가)
 }
 
 // ===================== 군주 레벨 =====================
@@ -212,7 +218,7 @@ export interface StateChanges {
   point_deltas?: PointDeltas;
   castle_updates?: CastleUpdate[];
   conquered_castles?: string[];
-  facility_upgrades?: { type: keyof Facilities; levels: number }[];
+  facility_upgrades?: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number }[];
   skill_unlocks?: string[];
   xp_gain?: number;
   result_message?: string;

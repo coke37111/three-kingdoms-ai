@@ -6,7 +6,7 @@ import {
   cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave, cloudHasAutoSave,
 } from "@/lib/firebase/firestore";
 
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 // ---- 채팅 로그 localStorage 헬퍼 ----
 const CHAT_LOG_KEY = (slot: string) => `tk_chatlog_${slot}`;

@@ -1200,7 +1200,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     id: "mi_only_market",
     advisor: "미축",
     priority: 30,
-    condition: (s) => s.economy.marketLv > 0 && s.economy.farmLv === 0 && s.economy.bankLv === 0,
+    condition: (s) => s.economy.marketCount > 0 && s.economy.farmCount === 0 && s.economy.bankLv === 0,
     variations: [
       { dialogue: "시장만으로는 한계가 있습니다. 논을 건설하여 수입을 다각화합시다.", emotion: "thoughtful" },
     ],
@@ -1231,7 +1231,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     id: "mi_need_bank",
     advisor: "미축",
     priority: 36,
-    condition: (s) => s.economy.bankLv === 0 && s.economy.ipNearCap && s.economy.marketLv >= 2,
+    condition: (s) => s.economy.bankLv === 0 && s.economy.ipNearCap && s.economy.marketCount >= 2,
     variations: [
       { dialogue: "은행이 없어 저장 한계가 낮습니다. 은행 건설을 건의합니다.", emotion: "thoughtful" },
       { dialogue: "내정포인트를 더 비축하려면 은행이 필요합니다.", emotion: "calm" },
@@ -1499,7 +1499,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     id: "mi_upgrade_cost_info",
     advisor: "미축",
     priority: 14,
-    condition: (s) => s.economy.canUpgrade && s.economy.ipAdequate,
+    condition: (s) => (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm || s.economy.canUpgradeBank) && s.economy.ipAdequate,
     variations: [
       {
         dialogue: (s) => `시설 업그레이드 가능합니다. 시장 업그레이드에 내정포인트 ${s.economy.marketUpgradeCost}이 필요합니다.`,
@@ -1520,7 +1520,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     id: "mi_mid_investment_timing",
     advisor: "미축",
     priority: 18,
-    condition: (s) => s.gamePhase === "mid" && s.economy.canUpgrade && s.economy.ipAdequate,
+    condition: (s) => s.gamePhase === "mid" && (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm || s.economy.canUpgradeBank) && s.economy.ipAdequate,
     variations: [
       { dialogue: "중반부 투자의 적기입니다. 지금 시설을 키워 두면 후반에 큰 이득이 됩니다.", emotion: "thoughtful" },
       { dialogue: "지금 투자하면 수익이 배로 돌아옵니다. 과감하게 투자합시다.", emotion: "excited" },

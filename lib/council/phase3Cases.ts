@@ -10,6 +10,7 @@ import {
   RECRUIT_TROOPS_PER_IP,
   TRAIN_IP_COST,
   getFacilityUpgradeCost,
+  getFacilityBuildCost,
 } from "@/constants/gameConstants";
 
 // =====================================================================
@@ -693,27 +694,27 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_build_market_first",
     advisor: "미축",
     priority: 60,
-    condition: (s) => s.economy.marketLv === 0 && s.economy.ip >= getFacilityUpgradeCost(0),
-    planReport: () => {
-      const cost = getFacilityUpgradeCost(0);
+    condition: (s) => s.economy.marketCount === 0 && s.economy.canBuildMarket,
+    planReport: (s) => {
+      const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
-        plan: `시장 건설 (내정포인트 ${cost} 소비)`,
+        plan: `시장 1개 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "market", levels: 1 }],
+        facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: () => `시장을 건설하여 세수를 확보해야 합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 내정포인트 +3)`,
+        dialogue: (s) => `시장을 건설하여 세수를 확보해야 합니다. (내정포인트 ${s.economy.marketBuildCost} 소비, 턴당 내정포인트 +3)`,
         emotion: "calm",
       },
       {
-        dialogue: () => `경제의 기초는 시장입니다. 건설을 서두르시죠. (비용: ${getFacilityUpgradeCost(0)}, 효과: 매턴 +3)`,
+        dialogue: (s) => `경제의 기초는 시장입니다. 건설을 서두르시죠. (비용: ${s.economy.marketBuildCost}, 효과: 매턴 +3)`,
         emotion: "thoughtful",
       },
       {
-        dialogue: () => `군의 자금을 대려면 시장부터 지어야 합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 투자)`,
+        dialogue: (s) => `군의 자금을 대려면 시장부터 지어야 합니다. (내정포인트 ${s.economy.marketBuildCost} 투자)`,
         emotion: "calm",
       },
     ],
@@ -722,28 +723,28 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_expand_market",
     advisor: "미축",
     priority: 40,
-    condition: (s) => s.economy.marketLv > 0 && s.economy.marketLv < 5 &&
-      s.economy.ip >= getFacilityUpgradeCost(s.economy.marketLv) && !s.economy.facilityImbalance,
+    condition: (s) => s.economy.marketCount > 0 && s.economy.marketLv < 5 &&
+      s.economy.canUpgradeMarket && !s.economy.facilityImbalance,
     planReport: (s) => {
-      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      const cost = s.economy.marketUpgradeCost;
       return {
         speaker: "미축",
-        plan: `시장 확장 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정포인트 ${cost} 소비)`,
+        plan: `시장 레벨업 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "market", levels: 1 }],
+        facility_upgrades: [{ type: "market", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비, 턴당 수입 +3)`,
+        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 업그레이드하겠습니다. (내정포인트 ${s.economy.marketUpgradeCost} 소비, 시장당 수입 +3)`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `수입 증대를 위해 시장을 증축합시다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 투자, 매턴 +3 효과)`,
+        dialogue: (s) => `시장 품질을 높여 수입을 증대하겠습니다. (내정포인트 ${s.economy.marketUpgradeCost} 투자, 전체 수입 +${s.economy.marketCount * 3})`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `상업을 장려하여 국고를 채우겠습니다. 시장 확장 비용은 ${getFacilityUpgradeCost(s.economy.marketLv)}입니다.`,
+        dialogue: (s) => `상업 효율을 높이겠습니다. 시장 레벨업 비용은 ${s.economy.marketUpgradeCost}입니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -755,20 +756,19 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_build_farm_first",
     advisor: "미축",
     priority: 45,
-    condition: (s) => s.economy.farmLv === 0 && s.economy.marketLv >= 2 &&
-      s.economy.ip >= getFacilityUpgradeCost(0),
-    planReport: () => {
-      const cost = getFacilityUpgradeCost(0);
+    condition: (s) => s.economy.farmCount === 0 && s.economy.marketCount >= 2 && s.economy.canBuildFarm,
+    planReport: (s) => {
+      const cost = s.economy.farmBuildCost;
       return {
         speaker: "미축",
-        plan: `논 건설 (내정포인트 ${cost} 소비)`,
+        plan: `논 1개 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "farm", levels: 1 }],
+        facility_upgrades: [{ type: "farm", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: () => `논을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +2)`,
+        dialogue: (s) => `논을 건설하여 농업 수입을 확보하겠습니다. (내정포인트 ${s.economy.farmBuildCost} 소비, 턴당 수입 +2)`,
         emotion: "thoughtful",
       },
     ],
@@ -777,20 +777,20 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_expand_farm",
     advisor: "미축",
     priority: 38,
-    condition: (s) => s.economy.farmLv > 0 && s.economy.farmLv < s.economy.marketLv &&
-      s.economy.ip >= getFacilityUpgradeCost(s.economy.farmLv),
+    condition: (s) => s.economy.farmCount > 0 && s.economy.farmLv < s.economy.marketLv &&
+      s.economy.canUpgradeFarm,
     planReport: (s) => {
-      const cost = getFacilityUpgradeCost(s.economy.farmLv);
+      const cost = s.economy.farmUpgradeCost;
       return {
         speaker: "미축",
-        plan: `논 확장 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정포인트 ${cost} 소비)`,
+        plan: `논 레벨업 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "farm", levels: 1 }],
+        facility_upgrades: [{ type: "farm", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `논을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.farmLv)} 소비, 턴당 수입 +2)`,
+        dialogue: (s) => `논 품질을 높이겠습니다. (내정포인트 ${s.economy.farmUpgradeCost} 소비, 전체 수입 +${s.economy.farmCount * 2})`,
         emotion: "calm",
       },
     ],
@@ -810,7 +810,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
         speaker: "미축",
         plan: `은행 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "bank", levels: 1 }],
+        facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
@@ -837,7 +837,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
         speaker: "미축",
         plan: `은행 확장 Lv${s.economy.bankLv}→${s.economy.bankLv + 1} (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "bank", levels: 1 }],
+        facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
@@ -858,7 +858,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_austerity",
     advisor: "미축",
     priority: 55,
-    condition: (s) => s.economy.ipCritical && !s.economy.canUpgrade,
+    condition: (s) => s.economy.ipCritical && !s.economy.canBuildMarket && !s.economy.canBuildFarm && !s.economy.canUpgradeBank,
     planReport: () => ({
       speaker: "미축",
       plan: "긴축 재정 — 불필요한 지출 동결",
@@ -873,12 +873,12 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 35,
     condition: (s) => {
-      const targetCost = getFacilityUpgradeCost(Math.min(s.economy.marketLv, s.economy.farmLv));
+      const targetCost = Math.min(s.economy.marketBuildCost, s.economy.farmBuildCost);
       return s.economy.ip >= 15 && s.economy.ip < targetCost &&
-        (s.economy.marketLv < 3 || s.economy.farmLv < 2);
+        (s.economy.marketCount < 3 || s.economy.farmCount < 2);
     },
     planReport: (s) => {
-      const targetCost = getFacilityUpgradeCost(Math.min(s.economy.marketLv, s.economy.farmLv));
+      const targetCost = Math.min(s.economy.marketBuildCost, s.economy.farmBuildCost);
       return {
         speaker: "미축",
         plan: `내정포인트 비축 (현재 ${s.economy.ip}/${targetCost} 목표)`,
@@ -914,7 +914,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_invest_balanced",
     advisor: "미축",
     priority: 30,
-    condition: (s) => s.economy.ipRich && s.economy.canUpgrade &&
+    condition: (s) => s.economy.ipRich && (s.economy.canUpgradeMarket || s.economy.canUpgradeFarm) &&
       s.economy.marketLv < 5 && s.economy.farmLv < 5,
     planReport: (s) => {
       const cost = getFacilityUpgradeCost(s.economy.marketLv);
@@ -947,7 +947,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_maximize_income",
     advisor: "미축",
     priority: 25,
-    condition: (s) => s.economy.lowIncome && s.economy.canUpgrade,
+    condition: (s) => s.economy.lowIncome && (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm),
     planReport: (s) => {
       const cost = getFacilityUpgradeCost(s.economy.marketLv);
       return {
@@ -969,16 +969,16 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = getFacilityUpgradeCost(0);
       return {
         speaker: "미축",
-        plan: s.economy.canUpgrade
+        plan: s.economy.canBuildMarket
           ? `신규 성채 경제 기반 구축 (내정포인트 ${cost} 소비)`
           : `신규 성채 투자 준비 (자금 비축 중, ${s.economy.ip}/${cost})`,
-        expected_points: s.economy.canUpgrade ? { ip_delta: -cost } : undefined,
+        expected_points: s.economy.canBuildMarket ? { ip_delta: -cost } : undefined,
       };
     },
     variations: [
       { dialogue: "새 영토의 경제 기반을 서둘러 구축하겠습니다.", emotion: "excited" },
       {
-        dialogue: (s) => s.economy.canUpgrade
+        dialogue: (s) => s.economy.canBuildMarket
           ? "새 성채에 즉시 시설을 건설하겠습니다!"
           : `새 성채 투자를 위해 자금을 더 모아야 합니다. (필요 ${getFacilityUpgradeCost(0)}) 비축에 집중하겠습니다.`,
         emotion: "thoughtful",
@@ -1041,7 +1041,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_efficiency",
     advisor: "미축",
     priority: 12,
-    condition: (s) => s.economy.ipAdequate && !s.economy.canUpgrade,
+    condition: (s) => s.economy.ipAdequate && !s.economy.canBuildMarket && !s.economy.canBuildFarm && !s.economy.canUpgradeMarket && !s.economy.canUpgradeFarm,
     planReport: () => ({
       speaker: "미축",
       plan: "효율적 자원 운영",
@@ -1057,20 +1057,19 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_market_priority",
     advisor: "미축",
     priority: 42,
-    condition: (s) => s.economy.farmLv === 0 && s.economy.marketLv < 2 &&
-      s.economy.ip >= getFacilityUpgradeCost(0),
-    planReport: () => {
-      const cost = getFacilityUpgradeCost(0);
+    condition: (s) => s.economy.farmCount === 0 && s.economy.marketCount < 2 && s.economy.canBuildMarket,
+    planReport: (s) => {
+      const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
         plan: `시장 우선 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "market", levels: 1 }],
+        facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: () => `먼저 시장을 지어 수입을 만들겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비)`,
+        dialogue: (s) => `먼저 시장을 지어 수입을 만들겠습니다. (내정포인트 ${s.economy.marketBuildCost} 소비)`,
         emotion: "calm",
       },
     ],
@@ -1079,17 +1078,17 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_double_invest",
     advisor: "미축",
     priority: 38,
-    condition: (s) => s.economy.ipAtCap && s.economy.canUpgrade &&
+    condition: (s) => s.economy.ipAtCap && (s.economy.canUpgradeMarket || s.economy.canUpgradeFarm) &&
       s.economy.marketLv < 5 && s.economy.farmLv < 5,
     planReport: (s) => {
-      const cost1 = getFacilityUpgradeCost(s.economy.marketLv);
-      const cost2 = getFacilityUpgradeCost(s.economy.farmLv);
+      const cost1 = s.economy.marketUpgradeCost;
+      const cost2 = s.economy.farmUpgradeCost;
       const total = cost1 + cost2;
       return {
         speaker: "미축",
-        plan: `내정포인트 만충 — 시장+논 동시 투자 (${total} 소비)`,
+        plan: `내정포인트 만충 — 시장+논 레벨업 동시 투자 (${total} 소비)`,
         expected_points: { ip_delta: -total },
-        facility_upgrades: [{ type: "market", levels: 1 }, { type: "farm", levels: 1 }],
+        facility_upgrades: [{ type: "market", level_delta: 1 }, { type: "farm", level_delta: 1 }],
       };
     },
     variations: [
@@ -1100,14 +1099,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_early_setup",
     advisor: "미축",
     priority: 28,
-    condition: (s) => s.gamePhase === "early" && s.economy.noFacilities && s.economy.ip >= getFacilityUpgradeCost(0),
-    planReport: () => {
-      const cost = getFacilityUpgradeCost(0);
+    condition: (s) => s.gamePhase === "early" && s.economy.noFacilities && s.economy.canBuildMarket,
+    planReport: (s) => {
+      const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
         plan: `초반 내정 기반 — 시장 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "market", levels: 1 }],
+        facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
     },
     variations: [
@@ -1119,14 +1118,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     advisor: "미축",
     priority: 45,
     condition: (s) => s.economy.bankLv === 0 && !s.economy.facilityImbalance &&
-      s.economy.marketLv >= 2 && s.economy.farmLv >= 2 && s.economy.ip >= getFacilityUpgradeCost(0),
-    planReport: () => {
-      const cost = getFacilityUpgradeCost(0);
+      s.economy.marketCount >= 2 && s.economy.farmCount >= 2 && s.economy.canUpgradeBank,
+    planReport: (s) => {
+      const cost = s.economy.bankUpgradeCost;
       return {
         speaker: "미축",
         plan: `시장·논 균형 완성 — 이제 은행 건설 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "bank", levels: 1 }],
+        facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
@@ -1137,7 +1136,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_maintain_max",
     advisor: "미축",
     priority: 22,
-    condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5,
+    condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 && s.economy.marketCount >= 5,
     planReport: (s) => ({
       speaker: "미축",
       plan: `최고 시설 유지 — 매턴 내정포인트 +${s.economy.ipRegen} 고정`,
@@ -1202,9 +1201,9 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_rebuild",
     advisor: "미축",
     priority: 56,
-    condition: (s) => s.strategic.recentCastleLost && s.economy.canUpgrade,
+    condition: (s) => s.strategic.recentCastleLost && (s.economy.canBuildMarket || s.economy.canUpgradeMarket),
     planReport: (s) => {
-      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      const cost = s.economy.canBuildMarket ? s.economy.marketBuildCost : s.economy.marketUpgradeCost;
       return {
         speaker: "미축",
         plan: `성채 손실 후 경제 재건 (내정포인트 ${cost} 소비)`,
@@ -1220,14 +1219,17 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_income_boost",
     advisor: "미축",
     priority: 34,
-    condition: (s) => s.economy.lowIncome && s.economy.ip >= getFacilityUpgradeCost(s.economy.marketLv),
+    condition: (s) => s.economy.lowIncome && (s.economy.canBuildMarket || s.economy.canUpgradeMarket),
     planReport: (s) => {
-      const cost = getFacilityUpgradeCost(s.economy.marketLv);
+      const buildNew = s.economy.canBuildMarket;
+      const cost = buildNew ? s.economy.marketBuildCost : s.economy.marketUpgradeCost;
       return {
         speaker: "미축",
-        plan: `수입 증대 — 시장 확장 (내정포인트 ${cost} 소비)`,
+        plan: buildNew
+          ? `수입 증대 — 시장 추가 건설 (내정포인트 ${cost} 소비)`
+          : `수입 증대 — 시장 레벨업 (내정포인트 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
-        facility_upgrades: [{ type: "market", levels: 1 }],
+        facility_upgrades: buildNew ? [{ type: "market", count_delta: 1 }] : [{ type: "market", level_delta: 1 }],
       };
     },
     variations: [
@@ -1251,7 +1253,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_surplus_to_military",
     advisor: "미축",
     priority: 26,
-    condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 &&
+    condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 && s.economy.marketCount >= 5 &&
       s.economy.ipRich && s.military.troopShortage,
     planReport: (s) => {
       const ipToSpend = Math.min(s.economy.ip, 30);
@@ -1277,7 +1279,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_mi_castle_loss_austerity",
     advisor: "미축",
     priority: 54,
-    condition: (s) => s.strategic.recentCastleLost && !s.economy.canUpgrade,
+    condition: (s) => s.strategic.recentCastleLost && !s.economy.canBuildMarket && !s.economy.canBuildFarm && !s.economy.canUpgradeMarket && !s.economy.canUpgradeFarm,
     planReport: () => ({
       speaker: "미축",
       plan: "성채 손실 후 긴축 — 자금 비축 우선",
@@ -1965,7 +1967,7 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_zhuge_economy_first",
     advisor: "제갈량",
     priority: 42,
-    condition: (s) => s.economy.lowIncome && s.economy.canUpgrade && !s.strategic.enemyNearCapital,
+    condition: (s) => s.economy.lowIncome && (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm) && !s.strategic.enemyNearCapital,
     planReport: () => ({
       speaker: "제갈량",
       plan: "내정 우선 — 경제 기반 확충",

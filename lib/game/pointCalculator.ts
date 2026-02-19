@@ -34,8 +34,8 @@ export function calcPointsForTurn(faction: Faction): {
 
   // ── IP 충전 (시설 기반: 시장×3 + 논×2) ──
   const ipRegenBase =
-    faction.facilities.market * IP_REGEN_PER_MARKET_LEVEL +
-    faction.facilities.farm * IP_REGEN_PER_FARM_LEVEL;
+    faction.facilities.market.count * faction.facilities.market.level * IP_REGEN_PER_MARKET_LEVEL +
+    faction.facilities.farm.count * faction.facilities.farm.level * IP_REGEN_PER_FARM_LEVEL;
   let ipBonus = 0;
   for (const sid of skills) {
     const def = SKILL_TREE.find(s => s.id === sid);

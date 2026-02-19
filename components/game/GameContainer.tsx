@@ -458,13 +458,28 @@ export default function GameContainer() {
         const facType = (action.target === "farm" || action.target === "bank")
           ? action.target
           : "market";
-        const currentLv = faction?.facilities[facType] ?? 0;
-        const devCost = facType === "bank" ? getFacilityUpgradeCost(currentLv) : getFacilityBuildCost(currentLv);
+        const facilitiesNow = faction?.facilities;
+        let devCost: number;
+        let facUpgrade: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number };
+        if (facType === "bank") {
+          devCost = getFacilityUpgradeCost(facilitiesNow?.bank ?? 0);
+          facUpgrade = { type: "bank", level_delta: 1 };
+        } else {
+          const fb = facilitiesNow?.[facType];
+          const npcCastleCount = worldStateRef.current.castles.filter(c => c.owner === factionId).length;
+          if ((fb?.count ?? 0) < npcCastleCount) {
+            devCost = getFacilityBuildCost(fb?.count ?? 0);
+            facUpgrade = { type: facType, count_delta: 1 };
+          } else {
+            devCost = getFacilityUpgradeCost(fb?.level ?? 1);
+            facUpgrade = { type: facType, level_delta: 1 };
+          }
+        }
         const npcIp = faction?.points.ip ?? 0;
         if (npcIp < devCost) break; // IP 부족 시 스킵
         applyNPCChanges(factionId, {
           point_deltas: { ip_delta: -devCost },
-          facility_upgrades: [{ type: facType, levels: 1 }],
+          facility_upgrades: [facUpgrade],
         });
         break;
       }
