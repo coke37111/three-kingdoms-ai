@@ -23,7 +23,7 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, XP_PER_DIPLOMACY_SUCCESS, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
 import TitleScreen from "./TitleScreen";
@@ -149,6 +149,7 @@ export default function GameContainer() {
   const pendingInvasionsRef = useRef<PendingInvasion[]>([]);
   const pendingCasePlanReportsRef = useRef<import("@/types/council").PlanReport[]>([]);
   const turnCtxRef = useRef(createInitialTurnContext());
+  const playerConqueredThisTurnRef = useRef(false); // Phase 4 공격으로 성채 획득 여부 추적
 
   // 침공 대응 모달
   const [pendingInvasion, setPendingInvasion] = useState<PendingInvasion | null>(null);
@@ -816,6 +817,7 @@ export default function GameContainer() {
 
   // ---- 플레이어 공격 개시 ----
   const handlePlayerAttack = useCallback(async (targetCastleName: string, attackTroops: number) => {
+    if (processingTurnRef.current) return;
     setShowAttackModal(false);
     setIsLoading(true);
     processingTurnRef.current = true;
@@ -861,6 +863,7 @@ export default function GameContainer() {
 
       // 성채 점령 처리
       if (result.castleConquered) {
+        playerConqueredThisTurnRef.current = true;
         applyPlayerChanges({
           conquered_castles: [result.castleConquered],
           castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
@@ -923,6 +926,12 @@ export default function GameContainer() {
     let turnCastlesLost = false;
     let turnCastlesGained = false;
     let playerDefendedThisTurn = false; // 수성 내정 억제용
+
+    // 레벨업/스킬 해금 감지용: 턴 시작 기준값 기록
+    const playerAtTurnStart = worldStateRef.current.factions.find(f => f.isPlayer);
+    const levelAtTurnStart = playerAtTurnStart?.rulerLevel.level ?? 1;
+    const skillsAtTurnStart = playerAtTurnStart?.skills.length ?? 0;
+    playerConqueredThisTurnRef.current = false; // Phase 4 공격 성채 획득 플래그 초기화
 
     try {
       // ① 케이스 기반 planReport 실행 (state_changes가 null이었던 경우)
@@ -1139,14 +1148,14 @@ export default function GameContainer() {
         lastTurnBattleWon: turnPlayerWon,
         lastTurnBattleLost: turnPlayerLost,
         lastTurnInvasion: turnHadInvasion,
-        lastTurnCastleGained: turnCastlesGained,
+        lastTurnCastleGained: turnCastlesGained || playerConqueredThisTurnRef.current,
         lastTurnCastleLost: turnCastlesLost,
         lastTurnEvents: events.map(e => e.type),
         consecutiveWins: turnPlayerWon ? prevCtx.consecutiveWins + 1 : (turnBattleOccurred ? 0 : prevCtx.consecutiveWins),
         consecutiveLosses: turnPlayerLost ? prevCtx.consecutiveLosses + 1 : (turnBattleOccurred ? 0 : prevCtx.consecutiveLosses),
         phase2Messages: [],
-        lastLevelUp: false,
-        lastSkillUnlock: false,
+        lastLevelUp: (worldStateRef.current.factions.find(f => f.isPlayer)?.rulerLevel.level ?? 1) > levelAtTurnStart,
+        lastSkillUnlock: (worldStateRef.current.factions.find(f => f.isPlayer)?.skills.length ?? 0) > skillsAtTurnStart,
       };
 
       // ⑤ Phase 1 복귀: 다음 턴 참모 회의
