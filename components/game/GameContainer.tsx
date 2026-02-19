@@ -24,6 +24,7 @@ import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
 import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost } from "@/constants/gameConstants";
+import { POINT_COLORS, getDeltaColor } from "@/constants/uiConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
 import TitleScreen from "./TitleScreen";
@@ -76,7 +77,7 @@ export default function GameContainer() {
   const setTokenUsage = useCallback((updater: { input: number; output: number } | ((prev: { input: number; output: number }) => { input: number; output: number })) => {
     setTokenUsageRaw((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      try { localStorage.setItem("tk_usage", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem("tk_usage", JSON.stringify(next)); } catch { }
       return next;
     });
   }, []);
@@ -1484,7 +1485,7 @@ export default function GameContainer() {
         <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-dim)" }}>
           성채 {playerFaction.castles.length}
         </span>
-        <UserBadge user={user} onLogin={() => {}} onLogout={logout} />
+        <UserBadge user={user} onLogin={() => { }} onLogout={logout} />
         <button onClick={() => setShowFactionMap(true)} style={{
           background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
@@ -1567,46 +1568,46 @@ export default function GameContainer() {
           display: "flex", flexDirection: "column", gap: "4px",
           pointerEvents: "auto",
         }}>
-          <div style={{ color: currentAP >= 1 ? "#64b464" : "var(--text-dim)" }}>
-            행동 포인트 {currentAP.toFixed(1)}/{playerFaction.points.ap_max} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{apRegenTotal % 1 === 0 ? apRegenTotal : apRegenTotal.toFixed(1)})</span>
+          <div style={{ color: currentAP >= 1 ? POINT_COLORS.AP.color : "var(--text-dim)" }}>
+            행동 포인트 {currentAP.toFixed(1)}/{playerFaction.points.ap_max} <span style={{ color: getDeltaColor(apRegenTotal), fontSize: "10px" }}>(+{apRegenTotal % 1 === 0 ? apRegenTotal : apRegenTotal.toFixed(1)})</span>
           </div>
-          <div>전략 포인트 {playerFaction.points.sp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+1)</span></div>
-          <div>군사 포인트 {playerFaction.points.mp.toLocaleString()}</div>
-          <div>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{ipRegen})</span></div>
-          <div>외교 포인트 {playerFaction.points.dp} <span style={{ color: "#64b464", fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
+          <div style={{ color: POINT_COLORS.SP.color }}>전략 포인트 {playerFaction.points.sp} <span style={{ color: getDeltaColor(1), fontSize: "10px" }}>(+1)</span></div>
+          <div style={{ color: POINT_COLORS.MP.color }}>군사 포인트 {playerFaction.points.mp.toLocaleString()}</div>
+          <div style={{ color: POINT_COLORS.IP.color }}>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: getDeltaColor(ipRegen), fontSize: "10px" }}>(+{ipRegen})</span></div>
+          <div style={{ color: POINT_COLORS.DP.color }}>외교 포인트 {playerFaction.points.dp} <span style={{ color: getDeltaColor(dpRegenTotal), fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
         </div>
 
-      <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
-        {prevCouncil && (
-          <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
+        <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
+          {prevCouncil && (
+            <div style={prevCouncil.number > 0 ? { opacity: 0.5 } : undefined}>
+              <CouncilChat
+                messages={prevCouncil.messages}
+                advisors={advisors}
+                councilNumber={prevCouncil.number}
+              />
+            </div>
+          )}
+
+          {(councilMessages.length > 0 || typingIndicator || (isLoading && councilNumber > 0 && !typingIndicator)) && (
             <CouncilChat
-              messages={prevCouncil.messages}
+              messages={councilMessages}
               advisors={advisors}
-              councilNumber={prevCouncil.number}
+              councilNumber={councilNumber}
+              typingIndicator={typingIndicator}
+              threads={threads}
+              threadTyping={threadTyping}
+              onMessageClick={handleMessageClick}
+              replyTarget={replyTarget}
+              disabled={isLoading}
             />
-          </div>
-        )}
+          )}
 
-        {(councilMessages.length > 0 || typingIndicator || (isLoading && councilNumber > 0 && !typingIndicator)) && (
-          <CouncilChat
-            messages={councilMessages}
-            advisors={advisors}
-            councilNumber={councilNumber}
-            typingIndicator={typingIndicator}
-            threads={threads}
-            threadTyping={threadTyping}
-            onMessageClick={handleMessageClick}
-            replyTarget={replyTarget}
-            disabled={isLoading}
-          />
-        )}
-
-        {isLoading && !typingIndicator && !threadTyping && (
-          <div style={{ padding: "8px 56px", fontSize: "12px", color: "var(--text-dim)", animation: "pulse 1.5s infinite" }}>
-            🪶 참모들이 논의 중...
-          </div>
-        )}
-      </div>
+          {isLoading && !typingIndicator && !threadTyping && (
+            <div style={{ padding: "8px 56px", fontSize: "12px", color: "var(--text-dim)", animation: "pulse 1.5s infinite" }}>
+              🪶 참모들이 논의 중...
+            </div>
+          )}
+        </div>
       </div>{/* /Chat Area wrapper */}
 
       {/* 답장 인디케이터 */}

@@ -269,13 +269,25 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
   // ─── 특수 상황 ───
 
   {
-    id: "zhuge_enemy_near_capital",
+    id: "zhuge_enemy_near_capital_active",
+    advisor: "제갈량",
+    priority: 75,
+    condition: (s) => s.strategic.enemyNearCapital && s.strategic.recentInvasion,
+    variations: [
+      { dialogue: "주공! 적이 우리 본성까지 밀고 들어왔습니다. 긴급 방어 태세를 갖춰야 합니다!", emotion: "worried" },
+      { dialogue: "본성이 공격받고 있습니다! 모든 내정을 중단하고 수비에 집중해야 합니다.", emotion: "angry" },
+      { dialogue: "적의 기세가 본성을 위협하고 있습니다. 사력을 다해 막아야 합니다.", emotion: "worried" },
+    ],
+  },
+  {
+    id: "zhuge_enemy_near_capital_static",
     advisor: "제갈량",
     priority: 70,
-    condition: (s) => s.strategic.enemyNearCapital,
+    condition: (s) => s.strategic.enemyNearCapital && !s.strategic.recentInvasion,
     variations: [
-      { dialogue: "주공! 적이 우리 본성 근처까지 밀고 왔습니다. 긴급 대응이 필요합니다!", emotion: "worried" },
-      { dialogue: "본성이 위협받고 있습니다. 모든 것에 우선하여 방어해야 합니다.", emotion: "angry" },
+      { dialogue: "적군이 여전히 본성 인근에 주둔하고 있습니다. 경계를 늦추면 안 됩니다.", emotion: "thoughtful" },
+      { dialogue: "본성 위협이 지속되고 있습니다. 반격의 기회를 엿봐야 합니다.", emotion: "calm" },
+      { dialogue: "적과의 대치가 길어지고 있습니다. 보급로를 끊고 지구전을 준비합시다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -512,18 +524,23 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 75,
     condition: (s) => s.military.troopsCritical,
     variations: [
-      { dialogue: "군사포인트(병력)이 만도 안 되오! 이래서야 한 번 싸움도 못 하오.", emotion: "angry" },
+      { dialogue: "군사포인트(병력)이 1만도 안 되오! 적이 알면 당장 쳐들어올 것이오.", emotion: "angry" },
       {
-        dialogue: (s) => `겨우 ${s.military.troops.toLocaleString()}명... 당장 모병하지 않으면 멸망이오!`,
-        emotion: "angry",
+        dialogue: (s) => `병력 ${s.military.troops.toLocaleString()}명... 이래서는 성문조차 지키기 어렵소.`,
+        emotion: "worried",
       },
-      { dialogue: "주공, 병사가 없으면 나라도 없소. 모병이 급선무요!", emotion: "angry",
-        passiveDialogue: "병력이... 심히 부족합니다.",
+      {
+        dialogue: "주공, 병사가 전멸 위기요! 내정을 멈추고라도 모병해야 하오!", emotion: "angry",
+        passiveDialogue: "병력이... 너무 부족합니다. 면목이 없습니다.",
+      },
+      {
+        dialogue: (s) => `현재 병력 ${s.military.troops.toLocaleString()}명. 바람 앞의 등불과 같소. 즉시 충원해야 하오.`,
+        emotion: "worried",
       },
     ],
     statusReport: (s) => ({
       speaker: "관우",
-      report: `현재 병력 ${s.military.troops.toLocaleString()}명, 위급한 상태`,
+      report: `현재 병력 ${s.military.troops.toLocaleString()}명, 위급 단계`,
     }),
   },
   {
@@ -532,16 +549,17 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 60,
     condition: (s) => s.military.troopShortage && !s.military.troopsCritical,
     variations: [
-      { dialogue: "군사포인트(병력)이 태부족이오. 모병이 시급합니다.", emotion: "angry" },
-      { dialogue: "이 군사포인트(병력)으로는 싸움이 되지 않소. 모병을 서둘러야 하오.", emotion: "worried" },
+      { dialogue: "군사포인트(병력)이 부족하오. 전선을 유지하기엔 벅찹니다.", emotion: "worried" },
+      { dialogue: "이 병력으로는 장기전을 버틸 수 없소. 꾸준히 모병해야 하오.", emotion: "thoughtful" },
       {
-        dialogue: (s) => `병력이 ${Math.round(s.military.troops / 10000)}만에 불과하오. 보충이 필요합니다.`,
-        emotion: "worried",
+        dialogue: (s) => `병력 ${Math.round(s.military.troops / 1000)}천 명. 아직 안심할 단계가 아니오.`,
+        emotion: "calm",
       },
+      { dialogue: "적의 침공에 대비하려면 군사포인트(병력)을 더 늘려야 하오.", emotion: "calm" },
     ],
     statusReport: (s) => ({
       speaker: "관우",
-      report: `현재 병력 ${s.military.troops.toLocaleString()}명, 모병 필요`,
+      report: `현재 병력 ${s.military.troops.toLocaleString()}명, 보충 필요`,
     }),
   },
   {
@@ -781,7 +799,8 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     variations: [
       { dialogue: "... 이번 패배, 부끄럽소. 반드시 설욕하겠소!", emotion: "angry" },
       { dialogue: "이 치욕을 잊지 않겠소. 다시는 지지 않겠소!", emotion: "angry" },
-      { dialogue: "패했으나 의기를 잃지는 않겠소. 재기를 도모합시다.", emotion: "thoughtful",
+      {
+        dialogue: "패했으나 의기를 잃지는 않겠소. 재기를 도모합시다.", emotion: "thoughtful",
         passiveDialogue: "... 할 말이 없소.",
       },
     ],

@@ -1,8 +1,8 @@
 "use client";
 
-import type { CouncilMessage, ThreadMessage } from "@/types/council";
-import type { AdvisorState } from "@/types/council";
+import type { AdvisorState, CouncilMessage, ThreadMessage } from "@/types/council";
 import type { Emotion } from "@/types/chat";
+import { getPointColor, POINT_REGEX } from "@/constants/uiConstants";
 
 const EMOTION_EMOJI: Record<Emotion, string> = {
   calm: "😌",
@@ -11,6 +11,26 @@ const EMOTION_EMOJI: Record<Emotion, string> = {
   angry: "😠",
   thoughtful: "🤔",
 };
+
+/** 대사 내의 포인트 용어를 감지하여 컬러링 */
+function formatDialogue(text: string) {
+  if (!text) return null;
+  const parts = text.split(POINT_REGEX);
+  return (
+    <>
+      {parts.map((part, index) => {
+        const color = getPointColor(part);
+        return color !== "inherit" ? (
+          <span key={index} style={{ color, fontWeight: 600 }}>
+            {part}
+          </span>
+        ) : (
+          part
+        );
+      })}
+    </>
+  );
+}
 
 function getSpeakerInfo(speaker: string, advisors: AdvisorState[]): { icon: string; color: string; role: string } {
   const advisor = advisors.find((a) => a.name === speaker);
@@ -87,7 +107,7 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
                 color: "var(--text-primary)",
                 wordBreak: "break-word",
               }}>
-                {tm.text}
+                {formatDialogue(tm.text)}
               </div>
             </div>
           </div>
@@ -202,7 +222,7 @@ export default function CouncilChat({
                 letterSpacing: "0.5px",
                 whiteSpace: "pre-line",
               }}>
-                {msg.dialogue}
+                {formatDialogue(msg.dialogue)}
               </span>
             </div>
           );
@@ -353,7 +373,7 @@ export default function CouncilChat({
                     display: "inline-block",
                     textAlign: "left",
                   }}>
-                  {msg.dialogue}
+                  {formatDialogue(msg.dialogue)}
                 </div>
               </div>
             </div>

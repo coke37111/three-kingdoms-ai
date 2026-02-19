@@ -25,28 +25,29 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     priority: 75,
     condition: (s) => s.military.troopsCritical && s.economy.ip >= 10,
     planReport: (s) => {
-      const ipToSpend = Math.min(s.economy.ip, 30);
+      // 위급 시에는 가용 IP의 80%를 쏟아붓는다 (최대 100)
+      const ipToSpend = Math.min(100, Math.floor(s.economy.ip * 0.8));
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `긴급 모병 (내정포인트 ${ipToSpend} 소비)`,
+        plan: `긴급 모병 (내정포인트 ${ipToSpend} 전력 투입)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
     variations: [
       {
         dialogue: (s) => {
-          const ipToSpend = Math.min(s.economy.ip, 30);
+          const ipToSpend = Math.min(100, Math.floor(s.economy.ip * 0.8));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `긴급 모병에 들어가겠소! (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+          return `사태가 위급하오! 내정포인트 ${ipToSpend}를 투입해 ${troops.toLocaleString()}명을 즉시 징병하겠소!`;
         },
         emotion: "angry",
       },
       {
         dialogue: (s) => {
-          const ipToSpend = Math.min(s.economy.ip, 30);
+          const ipToSpend = Math.min(100, Math.floor(s.economy.ip * 0.8));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `긴급 모병령을 내리겠소! (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+          return `모든 자금을 털어서라도 병력을 모아야 하오. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
         },
         emotion: "angry",
       },
@@ -56,9 +57,10 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_guan_recruit_normal",
     advisor: "관우",
     priority: 55,
-    condition: (s) => s.military.troopShortage && !s.military.troopsCritical && s.economy.ip >= 10,
+    condition: (s) => s.military.troopShortage && !s.military.troopsCritical && s.economy.ip >= 15,
     planReport: (s) => {
-      const ipToSpend = Math.min(s.economy.ip, 20);
+      // 통상 시에는 가용 IP의 40% 투자 (최소 15, 최대 50)
+      const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
@@ -69,19 +71,27 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     variations: [
       {
         dialogue: (s) => {
-          const ipToSpend = Math.min(s.economy.ip, 20);
+          const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `모병을 실시하겠소. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+          return `안정적인 방어를 위해 내정포인트 ${ipToSpend}로 병력 ${troops.toLocaleString()}명을 충원하겠소.`;
         },
         emotion: "calm",
       },
       {
         dialogue: (s) => {
-          const ipToSpend = Math.min(s.economy.ip, 20);
+          const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `모병 실시합니다. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops})`;
+          return `꾸준한 모병이 필요하오. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
         },
         emotion: "calm",
+      },
+      {
+        dialogue: (s) => {
+          const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
+          const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
+          return `병력을 늘려 후일을 도모합시다. (내정포인트 ${ipToSpend} 투자, +${troops.toLocaleString()}명)`;
+        },
+        emotion: "thoughtful",
       },
     ],
   },
@@ -89,21 +99,29 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     id: "p3_guan_mass_recruit",
     advisor: "관우",
     priority: 50,
-    condition: (s) => s.military.troopShortage && s.economy.ip >= 40,
+    condition: (s) => s.military.troopShortage && s.economy.ip >= 60,
     planReport: (s) => {
-      const ipToSpend = 40;
+      // 자금이 풍부하면 과감하게 60 (6천명) 투자
+      const ipToSpend = 60;
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `대규모 모병 (내정포인트 ${ipToSpend} 소비)`,
+        plan: `대규모 모병 (내정포인트 ${ipToSpend} 집중 투자)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
     variations: [
       {
         dialogue: (s) => {
-          const troops = 40 * RECRUIT_TROOPS_PER_IP;
-          return `대규모 모병 실시합니다! (내정포인트 40 소비, 군사포인트(병력) +${troops})`;
+          const troops = 60 * RECRUIT_TROOPS_PER_IP;
+          return `자금이 넉넉하니 대규모로 징병하겠소! (내정포인트 60 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
+        },
+        emotion: "excited",
+      },
+      {
+        dialogue: (s) => {
+          const troops = 60 * RECRUIT_TROOPS_PER_IP;
+          return `지금이 군세를 불릴 기회요. (내정포인트 60 투자, 병력 +${troops.toLocaleString()}명)`;
         },
         emotion: "excited",
       },
@@ -687,12 +705,16 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     variations: [
       {
-        dialogue: () => `시장을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +3)`,
+        dialogue: () => `시장을 건설하여 세수를 확보해야 합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 내정포인트 +3)`,
         emotion: "calm",
       },
       {
-        dialogue: () => `시장 건설이 최우선입니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 턴당 수입 +3)`,
+        dialogue: () => `경제의 기초는 시장입니다. 건설을 서두르시죠. (비용: ${getFacilityUpgradeCost(0)}, 효과: 매턴 +3)`,
         emotion: "thoughtful",
+      },
+      {
+        dialogue: () => `군의 자금을 대려면 시장부터 지어야 합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 투자)`,
+        emotion: "calm",
       },
     ],
   },
@@ -713,12 +735,16 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     variations: [
       {
-        dialogue: (s) => `시장을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비, 턴당 수입 +3)`,
+        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비, 턴당 수입 +3)`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 올리면 턴당 수입이 3 늘어납니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 소비)`,
+        dialogue: (s) => `수입 증대를 위해 시장을 증축합시다. (내정포인트 ${getFacilityUpgradeCost(s.economy.marketLv)} 투자, 매턴 +3 효과)`,
         emotion: "calm",
+      },
+      {
+        dialogue: (s) => `상업을 장려하여 국고를 채우겠습니다. 시장 확장 비용은 ${getFacilityUpgradeCost(s.economy.marketLv)}입니다.`,
+        emotion: "thoughtful",
       },
     ],
   },
@@ -775,9 +801,9 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
   {
     id: "p3_mi_build_bank",
     advisor: "미축",
-    priority: 48,
-    condition: (s) => s.economy.bankLv === 0 && s.economy.ipNearCap &&
-      s.economy.marketLv >= 2 && s.economy.ip >= getFacilityUpgradeCost(0),
+    priority: 65,
+    condition: (s) => s.economy.bankLv === 0 && (s.economy.ipNearCap || s.economy.ip >= s.economy.ipCap * 0.9) &&
+      s.economy.ip >= getFacilityUpgradeCost(0),
     planReport: () => {
       const cost = getFacilityUpgradeCost(0);
       return {
@@ -789,21 +815,22 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     variations: [
       {
-        dialogue: () => `은행을 건설하겠습니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 상한 +50)`,
-        emotion: "thoughtful",
+        dialogue: () => `내정포인트가 한계에 달했습니다! 낭비를 막으려면 은행을 지어 상한을 늘려야 합니다.`,
+        emotion: "worried",
       },
       {
-        dialogue: () => `은행 건설이 급합니다. (내정포인트 ${getFacilityUpgradeCost(0)} 소비, 상한 +50)`,
-        emotion: "worried",
+        dialogue: () => `수입이 늘었으니 보관할 곳이 필요합니다. 은행을 건설하겠습니다. (상한 +50)`,
+        emotion: "thoughtful",
       },
     ],
   },
   {
     id: "p3_mi_expand_bank",
     advisor: "미축",
-    priority: 36,
+    priority: 62,
     condition: (s) => s.economy.bankLv > 0 && s.economy.bankLv < 3 &&
-      s.economy.ipNearCap && s.economy.ip >= getFacilityUpgradeCost(s.economy.bankLv),
+      (s.economy.ipNearCap || s.economy.ip >= s.economy.ipCap * 0.9) &&
+      s.economy.ip >= getFacilityUpgradeCost(s.economy.bankLv),
     planReport: (s) => {
       const cost = getFacilityUpgradeCost(s.economy.bankLv);
       return {
@@ -815,7 +842,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     variations: [
       {
-        dialogue: (s) => `은행을 확장하겠습니다. (내정포인트 ${getFacilityUpgradeCost(s.economy.bankLv)} 소비, 상한 +50)`,
+        dialogue: (s) => `내정포인트 상한이 부족합니다. 은행을 확장하여 자금을 더 비축합시다. (내정포인트 ${getFacilityUpgradeCost(s.economy.bankLv)} 소비, 상한 +50)`,
+        emotion: "worried",
+      },
+      {
+        dialogue: (s) => `더 큰 자금을 운용하려면 은행 확장이 필수입니다. (Lv${s.economy.bankLv + 1} 증축)`,
         emotion: "calm",
       },
     ],
