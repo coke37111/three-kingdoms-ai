@@ -117,6 +117,7 @@ ${context}
 - dialogue는 50자 이내 간결체.
 - Phase 1 메시지와 Phase 3 메시지를 phase 필드로 구분.
 - 포인트 약어(AP, SP, MP, IP, DP) 절대 사용 금지. 반드시 "행동포인트", "전략포인트", "군사포인트", "내정포인트", "외교포인트"로 표기.
+- **언어**: 모든 dialogue, report, plan 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
 
 === 일관성 규칙 (매우 중요) ===
 - dialogue에서 효과를 언급하면 반드시 해당 point_changes/expected_points에 수치가 있어야 한다.
@@ -185,8 +186,10 @@ export function buildPhase2Prompt(
 
   return `너는 삼국지 유비 진영 참모 회의의 Phase 2(군주 토론)를 처리하는 AI다.
 
+⚠️ 포인트 값은 반드시 아래 [현재 포인트 현황]의 수치만 사용할 것. 대화 기록에 등장하는 이전 포인트 값은 무시한다.
+
 참모진: ${advisorSummary}
-포인트: ${pointsSummary}
+[현재 포인트 현황]: ${pointsSummary}
 
 플레이어(유비)의 발언: "${message}"
 
@@ -202,8 +205,9 @@ ${replyInstruction}
 2. council_messages는 50자 이내 간결체. phase: 2.
 3. 특정 참모에게 말한 경우 해당 참모만 1개 응답. 전체 발언이면 1~3개.
 4. state_changes가 필요하면 point_deltas 형식으로 포함.
-5. **모병/징병 지시 시**: 유비가 모병을 지시하면, 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어보고 state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
-6. **유비가 구체적 수량을 지정하면** (예: "3000명 모병해"), 즉시 state_changes에 반영. ip_delta = -(수량 / ${RECRUIT_TROOPS_PER_IP}), mp_troops_delta = 수량.
+5. **언어**: 모든 dialogue 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
+6. **모병/징병 지시 시**: 유비가 모병을 지시하면, 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어보고 state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
+7. **유비가 구체적 수량을 지정하면** (예: "3000명 모병해"), 즉시 state_changes에 반영. ip_delta = -(수량 / ${RECRUIT_TROOPS_PER_IP}), mp_troops_delta = 수량.
 
 === 응답 JSON 형식 ===
 {
@@ -235,8 +239,10 @@ export function buildPhase4Prompt(
 
   return `너는 삼국지 유비 진영 참모 회의의 Phase 4(군주 피드백)를 처리하는 AI다.
 
+⚠️ 포인트 값은 반드시 아래 [현재 포인트 현황]의 수치만 사용할 것. 대화 기록에 등장하는 이전 포인트 값은 무시한다.
+
 참모진: ${advisorSummary}
-포인트: ${pointsSummary}
+[현재 포인트 현황]: ${pointsSummary}
 
 플레이어(유비)의 피드백: "${feedback}"
 
@@ -252,8 +258,9 @@ ${replyInstruction}
 2. 피드백에 따라 계획 수정/boost 반영.
 3. boosted_plans에 boost된 참모 이름을 포함.
 4. 특정 참모에게 말한 경우 해당 참모만 1개 응답. 전체 발언이면 1~3개. phase: 4.
-5. **모병/징병 지시 시**: 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어본다.
-6. **유비가 구체적 수량을 지정하면**, state_changes에 즉시 반영.
+5. **언어**: 모든 dialogue 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
+6. **모병/징병 지시 시**: 관우가 "현재 내정포인트 X로 최대 Y명 모병 가능합니다. 얼마나 모병할까요?"라고 물어본다.
+7. **유비가 구체적 수량을 지정하면**, state_changes에 즉시 반영.
 
 === 응답 JSON 형식 ===
 {

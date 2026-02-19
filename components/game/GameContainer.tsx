@@ -32,6 +32,7 @@ import GameEndScreen from "./GameEndScreen";
 import UserBadge from "./UserBadge";
 import CouncilChat from "./CouncilChat";
 import InvasionModal from "./InvasionModal";
+import RecruitmentPopup from "./RecruitmentPopup";
 import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
 
@@ -153,6 +154,9 @@ export default function GameContainer() {
       setHasSave(false);
     }
   }, [uid]);
+
+  // 모병 팝업
+  const [recruitmentPopup, setRecruitmentPopup] = useState<{ maxIP: number } | null>(null);
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
@@ -550,6 +554,19 @@ export default function GameContainer() {
       console.warn("자동 저장 실패:", err);
     }
   }, [worldStateRef, messagesRef, convHistoryRef, uid]);
+
+  // ---- 모병 팝업 확인 ----
+  const handleRecruitConfirm = useCallback((troops: number) => {
+    const ipCost = Math.ceil(troops / RECRUIT_TROOPS_PER_IP);
+    applyPlayerChanges({ point_deltas: { ip_delta: -ipCost, mp_troops_delta: troops } }, addMsgToCouncil);
+    setCouncilMessages(prev => [...prev, {
+      speaker: "관우",
+      dialogue: `${troops.toLocaleString()}명 모병 완료! (내정포인트 -${ipCost})`,
+      emotion: "excited" as const,
+    }]);
+    setRecruitmentPopup(null);
+    doAutoSave();
+  }, [applyPlayerChanges, addMsgToCouncil, doAutoSave]);
 
   // ---- AP 소비 ----
   const consumeAP = useCallback((amount: number) => {
@@ -1096,6 +1113,15 @@ export default function GameContainer() {
         } else {
           // 참모가 질문만 하고 실제 행동 없으면 AP 환불 (예: "얼마나 모병할까요?")
           applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
+          // 모병 수량 질문이면 팝업 오픈
+          const isRecruitQuestion = reaction.council_messages.some(m =>
+            (m.dialogue.includes("모병") || m.dialogue.includes("징병")) &&
+            (m.dialogue.includes("얼마") || m.dialogue.includes("수량") || m.dialogue.includes("몇"))
+          );
+          if (isRecruitQuestion) {
+            const ip = worldStateRef.current.factions.find(f => f.isPlayer)!.points.ip;
+            setRecruitmentPopup({ maxIP: ip });
+          }
         }
         updateAdvisorStats(advisorUpdates);
       } else if (meetingPhase === 4) {
@@ -1105,7 +1131,19 @@ export default function GameContainer() {
         } else {
           await animateCouncilMessages(reaction.council_messages, false, { apiElapsedMs: elapsedMs });
         }
-        if (reaction.state_changes) applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
+        if (reaction.state_changes) {
+          applyPlayerChanges(reaction.state_changes, addMsgToCouncil);
+        } else {
+          // 모병 수량 질문이면 팝업 오픈
+          const isRecruitQuestion = reaction.council_messages.some(m =>
+            (m.dialogue.includes("모병") || m.dialogue.includes("징병")) &&
+            (m.dialogue.includes("얼마") || m.dialogue.includes("수량") || m.dialogue.includes("몇"))
+          );
+          if (isRecruitQuestion) {
+            const ip = worldStateRef.current.factions.find(f => f.isPlayer)!.points.ip;
+            setRecruitmentPopup({ maxIP: ip });
+          }
+        }
         updateAdvisorStats(advisorUpdates);
       }
       doAutoSave();
@@ -1402,6 +1440,15 @@ export default function GameContainer() {
           </button>
         )}
       </div>
+
+      {/* 모병 팝업 */}
+      {recruitmentPopup && (
+        <RecruitmentPopup
+          maxIP={recruitmentPopup.maxIP}
+          onConfirm={handleRecruitConfirm}
+          onCancel={() => setRecruitmentPopup(null)}
+        />
+      )}
 
       {/* Modals */}
       <WorldStatus worldState={worldState} show={showWorldStatus} onClose={() => setShowWorldStatus(false)} />
