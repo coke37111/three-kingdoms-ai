@@ -903,6 +903,8 @@ export default function GameContainer() {
     let turnCastlesLost = false;
     let turnCastlesGained = false;
     let playerDefendedThisTurn = false; // 수성 내정 억제용
+    const lostCastleNames: string[] = [];
+    const gainedCastleNames: string[] = [];
 
     // 레벨업/스킬 해금 감지용: 턴 시작 기준값 기록
     const playerAtTurnStart = worldStateRef.current.factions.find(f => f.isPlayer);
@@ -980,6 +982,7 @@ export default function GameContainer() {
           // 성채 함락 시 소유권 이전 + garrison 초기화 + 도주
           if (result.castleConquered) {
             turnCastlesLost = true;
+            lostCastleNames.push(result.castleConquered);
             applyNPCChanges(invasion.attackerFactionId, {
               conquered_castles: [result.castleConquered],
               castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
@@ -1150,10 +1153,29 @@ export default function GameContainer() {
         lastSkillUnlock: (worldStateRef.current.factions.find(f => f.isPlayer)?.skills.length ?? 0) > skillsAtTurnStart,
       };
 
-      // ⑤ Phase 1 복귀: 다음 턴 참모 회의
-      await runMeetingPhase1And3(
-        "현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 담당 업무 현황을 보고하고, 다음 턴 계획을 제안하라."
-      );
+      // ⑤ Phase 1 복귀: 다음 턴 참모 회의 (전투 결과 반영 context)
+      {
+        const player = worldStateRef.current.factions.find(f => f.isPlayer)!;
+        let councilContext: string;
+
+        if (turnCastlesLost) {
+          const lostList = lostCastleNames.join(", ");
+          councilContext = `⚠️ 긴급 상황: ${lostList} 함락으로 영토가 축소되었다. 사기 저하와 병력 손실이 심각하다. 이번 회의의 최우선 의제는 (1) 피해 현황 파악, (2) 방어선 재구축 계획, (3) 병력·사기 회복 방안이다. 각 참모는 평상시 보고 대신 위기 대응을 중심으로 발언하라.`;
+        } else if (turnPlayerLost && turnHadInvasion) {
+          councilContext = `전투에서 패배했으나 성채는 지켰다. 병력 손실(현재 군사포인트: ${player.points.mp.toLocaleString()})과 사기 하락을 회복해야 한다. 이번 회의의 핵심은 (1) 피해 복구 계획, (2) 방어 강화 방안 논의다.`;
+        } else if (playerDefendedThisTurn && !turnPlayerLost) {
+          councilContext = `적의 침공을 막아냈다. 수성 전란으로 내정이 위축되었으니 빠른 복구가 필요하다. 각 참모가 수성 현황을 보고하고, 방어력 강화 및 내정 회복 계획을 제안하라.`;
+        } else if (turnCastlesGained || playerConqueredThisTurnRef.current) {
+          const gainedList = gainedCastleNames.join(", ");
+          councilContext = `${gainedList ? gainedList + " 점령 성공!" : "성채 점령 성공!"} 전선이 확장되었다. 점령지 방어 배치와 후속 전략을 논의하라. 각 참모가 현황을 보고하고 다음 턴 계획을 제안하라.`;
+        } else if (turnPlayerWon) {
+          councilContext = `전투에서 승리했다. 전력을 유지하며 다음 전략을 논의하라. 각 참모가 현황을 보고하고 다음 턴 계획을 제안하라.`;
+        } else {
+          councilContext = "현재 정세를 분석하고 참모 회의를 진행하라. 각 참모가 담당 업무 현황을 보고하고, 다음 턴 계획을 제안하라.";
+        }
+
+        await runMeetingPhase1And3(councilContext);
+      }
     } finally {
       setIsLoading(false);
     }
