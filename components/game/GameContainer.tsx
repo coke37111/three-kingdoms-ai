@@ -11,6 +11,7 @@ import { useTypewriter } from "@/hooks/useTypewriter";
 import { callCouncilLLM, callReactionLLM, type CallLLMOptions } from "@/lib/api/llmClient";
 import { buildPhase1And3Prompt, buildPhase2Prompt, buildPhase4Prompt } from "@/lib/prompts/councilPrompt";
 import { buildFactionAIPrompt, parseNPCResponse, type NPCActionType } from "@/lib/prompts/factionAIPrompt";
+import { calcAllNPCActions } from "@/lib/game/npcAI";
 import { autoSave, loadAutoSave, hasAutoSave, loadChatLog } from "@/lib/game/saveSystem";
 import { getFirebaseAnalytics } from "@/lib/firebase/config";
 import { logEvent } from "firebase/analytics";
@@ -338,7 +339,7 @@ export default function GameContainer() {
     }
   }, [scrollToBottom]);
 
-  // ---- NPC 턴 처리 ----
+  // ---- NPC 턴 처리 (Utility AI 기반) ----
   const processNPCTurns = useCallback(async (): Promise<TurnNotificationItem[]> => {
     const world = worldStateRef.current;
     const npcFactions = world.factions.filter(f => !f.isPlayer);
@@ -348,26 +349,8 @@ export default function GameContainer() {
     addSystemCouncilMsg("⏳ 타국 군주들이 행동 중...");
 
     try {
-      const prompt = buildFactionAIPrompt(world, npcFactions);
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system: "너는 삼국지 전략 게임의 심판이다. 반드시 JSON으로만 응답하라.",
-          messages: [{ role: "user", content: prompt }],
-          provider: llmProvider,
-        }),
-      });
-      const data = await res.json();
-      const raw = data.text || "";
-      if (data.usage && !data.cached) {
-        setTokenUsage((prev) => ({
-          input: prev.input + data.usage.input_tokens,
-          output: prev.output + data.usage.output_tokens,
-        }));
-      }
-      const npcResults = parseNPCResponse(raw);
-      if (npcResults.length === 0) throw new Error("NPC 응답 파싱 실패 — 폴백 실행");
+      // Utility AI로 NPC 행동 결정 (LLM 불필요)
+      const npcResults = calcAllNPCActions(world);
       const notifications: TurnNotificationItem[] = [];
 
       for (const result of npcResults) {
@@ -376,7 +359,7 @@ export default function GameContainer() {
 
         notifications.push({
           factionId: result.factionId,
-          summary: result.summary || result.actions.map(a => a.details || a.action).join(", "),
+          summary: result.summary || result.actions.map(a => a.action).join(", "),
           icon: faction.icon,
         });
 
@@ -393,20 +376,60 @@ export default function GameContainer() {
       setNpcProcessing(false);
       return notifications;
     } catch (err) {
-      console.error("NPC turn error:", err);
-      const notifications: TurnNotificationItem[] = [];
-      for (const npc of npcFactions) {
-        applyDeterministicAction(npc.id);
-        notifications.push({
-          factionId: npc.id,
-          summary: "내정에 집중하고 있습니다.",
-          icon: npc.icon,
+      console.error("NPC Utility AI error:", err);
+      // 폴백: LLM 호출 시도
+      try {
+        const prompt = buildFactionAIPrompt(world, npcFactions);
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system: "너는 삼국지 전략 게임의 심판이다. 반드시 JSON으로만 응답하라.",
+            messages: [{ role: "user", content: prompt }],
+            provider: llmProvider,
+          }),
         });
+        const data = await res.json();
+        const raw = data.text || "";
+        if (data.usage && !data.cached) {
+          setTokenUsage((prev) => ({
+            input: prev.input + data.usage.input_tokens,
+            output: prev.output + data.usage.output_tokens,
+          }));
+        }
+        const llmResults = parseNPCResponse(raw);
+        if (llmResults.length === 0) throw new Error("LLM NPC 응답 파싱 실패");
+        const notifications: TurnNotificationItem[] = [];
+        for (const result of llmResults) {
+          const faction = world.factions.find(f => f.id === result.factionId);
+          if (!faction) continue;
+          notifications.push({
+            factionId: result.factionId,
+            summary: result.summary || result.actions.map(a => a.action).join(", "),
+            icon: faction.icon,
+          });
+          for (const action of result.actions) {
+            applyNPCAction(result.factionId, action);
+          }
+        }
+        if (notifications.length > 0) {
+          const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
+          addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
+        }
+        setNpcProcessing(false);
+        return notifications;
+      } catch (llmErr) {
+        console.error("NPC LLM fallback error:", llmErr);
+        const notifications: TurnNotificationItem[] = [];
+        for (const npc of npcFactions) {
+          applyDeterministicAction(npc.id);
+          notifications.push({ factionId: npc.id, summary: "내정에 집중하고 있습니다.", icon: npc.icon });
+        }
+        const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
+        addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
+        setNpcProcessing(false);
+        return notifications;
       }
-      const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-      addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
-      setNpcProcessing(false);
-      return notifications;
     }
   }, [worldStateRef, addSystemCouncilMsg, llmProvider, setTokenUsage]);
 
@@ -426,11 +449,17 @@ export default function GameContainer() {
 
     switch (action.action) {
       case "개발": {
-        const npcMarketLv = faction?.facilities.market ?? 0;
-        const devCost = getFacilityUpgradeCost(npcMarketLv);
+        // target: "market" | "farm" | "bank" (Utility AI 지정) 또는 기본값 "market"
+        const facType = (action.target === "farm" || action.target === "bank")
+          ? action.target
+          : "market";
+        const currentLv = faction?.facilities[facType] ?? 0;
+        const devCost = getFacilityUpgradeCost(currentLv);
+        const npcIp = faction?.points.ip ?? 0;
+        if (npcIp < devCost) break; // IP 부족 시 스킵
         applyNPCChanges(factionId, {
           point_deltas: { ip_delta: -devCost },
-          facility_upgrades: [{ type: "market", levels: 1 }],
+          facility_upgrades: [{ type: facType, levels: 1 }],
         });
         break;
       }
