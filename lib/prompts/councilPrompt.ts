@@ -107,6 +107,7 @@ ${context}
 - 제갈량이 회의를 시작하고, 각 참모가 담당 분야를 보고.
 - 보고 중 자율적으로 수행한 업무의 포인트 변동을 status_reports에 기록.
 - 중요 보고가 있는 참모만 발언 (1~3명). 불필요한 보고는 생략.
+- **전선 기술 원칙 (반드시 준수)**: "적이 밀고 왔다", "적이 진격했다", "적이 공격해 왔다" 등 적의 최근 이동·행동을 암시하는 표현 절대 금지. 전선 배치는 "현재 전선 구도", "개전 이래 유지된 배치" 등 현황 기술로만 표현할 것. 특히 첫 번째 회의에서는 모든 성채 배치가 초기 상태임을 인식하고 위급 상황처럼 표현하지 말 것.
 - **보고 원칙 (반드시 준수)**:
   (a) 상위 목표가 있는 업무: "[목표]를 위해 [행동]했고, [구체적 성과]입니다."
       예: "장사 공략을 위해 징병하여 군사포인트(병력) 2만 확보했습니다."
@@ -128,6 +129,10 @@ ${context}
   ✗ 나쁜 예: "시장 업그레이드 진행합니다. (내정포인트 -30 예상)" ← 기대 효과 누락!
 - **모병 비용**: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명. 소비량은 참모가 적절히 결정하되, 현재 보유 내정포인트를 초과하지 말 것.
 - **시설 비용**: 레벨에 따라 증가. 시장 Lv${player.facilities.market}→${player.facilities.market + 1}: ${getFacilityUpgradeCost(player.facilities.market)}, 논 Lv${player.facilities.farm}→${player.facilities.farm + 1}: ${getFacilityUpgradeCost(player.facilities.farm)}, 은행 Lv${player.facilities.bank}→${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}
+- **내정포인트 상한 우선 규칙**: 현재 내정포인트가 상한의 80% 이상이면(현재 ${player.points.ip}/${player.points.ip_cap}), 시장·논 확장보다 **은행 건설/확장을 우선 제안**할 것. 수입을 늘려도 상한에 막혀 쌓이지 않으면 의미 없음. 은행 비용: 내정포인트 ${getFacilityUpgradeCost(player.facilities.bank)} → 상한 +50.
+- **외교 계획 구체성 규칙**: 방통의 외교 계획은 반드시 "누구와(조조/손권)" + "무슨 행동(긴장 완화/동맹 강화/사신 파견 등)"을 명시할 것. "외교로 시간을 번다" 같은 모호한 표현 금지.
+  ✓ "조조와 긴장 완화 협상. (외교포인트 2 소비, 조조 관계 +1 기대)"
+  ✗ "외교로 시간을 벌겠소." ← 대상·행동 불명확
 - 제갈량이 종합 정리.
 
 === 대화 스타일 ===
