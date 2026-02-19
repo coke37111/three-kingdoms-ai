@@ -38,6 +38,8 @@ import InvasionModal from "./InvasionModal";
 import RecruitmentPopup from "./RecruitmentPopup";
 import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
+import { analyzeGameSituation, shouldFallbackToLLM, runPhase1FromCases, runPhase3FromCases } from "@/lib/council/engine";
+import { createInitialTurnContext } from "@/lib/council/types";
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -144,6 +146,7 @@ export default function GameContainer() {
   const processingTurnRef = useRef(false);
   const pendingInvasionsRef = useRef<PendingInvasion[]>([]);
   const pendingCasePlanReportsRef = useRef<import("@/types/council").PlanReport[]>([]);
+  const turnCtxRef = useRef(createInitialTurnContext());
 
   // 침공 대응 모달
   const [pendingInvasion, setPendingInvasion] = useState<PendingInvasion | null>(null);
@@ -614,6 +617,49 @@ export default function GameContainer() {
     setIsLoading(true);
 
     try {
+      // ── 케이스 엔진 경로 ──
+      const situation = analyzeGameSituation(
+        worldStateRef.current,
+        advisorsRef.current,
+        turnCtxRef.current,
+      );
+      const consecutive = turnCtxRef.current.consecutiveCaseTurns;
+
+      if (!shouldFallbackToLLM(situation, consecutive)) {
+        const phase1 = runPhase1FromCases(situation, worldStateRef.current.currentTurn);
+        const phase3 = runPhase3FromCases(situation, worldStateRef.current.currentTurn, []);
+
+        if (phase1 && phase3) {
+          updateAdvisorStats(phase1.advisorUpdates);
+          pendingCasePlanReportsRef.current = phase3.planReports;
+          turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: consecutive + 1 };
+
+          await animateCouncilMessages(phase1.messages, true, {});
+          setStatusReports(phase1.statusReports);
+          setPlanReports(phase3.planReports);
+          setMeetingPhase(2);
+
+          const player = worldStateRef.current.factions.find(f => f.isPlayer);
+          if (player && player.points.ap >= 1) {
+            setIsLoading(false);
+            return { phase3Msgs: phase3.messages };
+          } else {
+            await delay(500);
+            setMeetingPhase(3);
+            setCouncilMessages(prev => [
+              ...prev,
+              { speaker: "__phase_divider__", dialogue: "3", emotion: "calm" as const },
+            ]);
+            await animateCouncilMessages(phase3.messages, false);
+            setMeetingPhase(4);
+            setIsLoading(false);
+            return { phase3Msgs: [] };
+          }
+        }
+      }
+
+      // ── LLM 폴백 경로 ──
+      turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: 0 };
       const { council, advisorUpdates, elapsedMs } = await doPhase1And3(context);
       updateAdvisorStats(advisorUpdates);
 
@@ -756,6 +802,14 @@ export default function GameContainer() {
     setIsLoading(true);
     pendingInvasionsRef.current = [];
 
+    // turnCtx 추적 변수
+    let turnBattleOccurred = false;
+    let turnPlayerWon = false;
+    let turnPlayerLost = false;
+    let turnHadInvasion = false;
+    let turnCastlesLost = false;
+    let turnCastlesGained = false;
+
     try {
       // ① 케이스 기반 planReport 실행 (state_changes가 null이었던 경우)
       if (pendingCasePlanReportsRef.current.length > 0) {
@@ -777,6 +831,7 @@ export default function GameContainer() {
       // ② 침공 순차 해결
       const invasions = [...pendingInvasionsRef.current];
       pendingInvasionsRef.current = [];
+      if (invasions.length > 0) turnHadInvasion = true;
 
       for (const invasion of invasions) {
         const world = worldStateRef.current;
@@ -794,6 +849,9 @@ export default function GameContainer() {
           const defTroops = Math.min(player.points.mp_troops, targetCastle.garrison);
           const result = resolveBattle(attackerFaction, player, "수성", targetCastle, invasion.attackerTroops, defTroops);
           result.narrative = generateBattleNarrative(result, attackerFaction.rulerName, player.rulerName, invasion.attackerFactionId);
+          turnBattleOccurred = true;
+          if (result.winner === "liu_bei") turnPlayerWon = true;
+          else turnPlayerLost = true;
 
           // 손실 적용
           applyNPCChanges(invasion.attackerFactionId, { point_deltas: { mp_troops_delta: -result.attackerLosses } });
@@ -820,6 +878,7 @@ export default function GameContainer() {
 
           // 성채 함락 시 소유권 이전 + garrison 초기화 + 도주
           if (result.castleConquered) {
+            turnCastlesLost = true;
             applyNPCChanges(invasion.attackerFactionId, {
               conquered_castles: [result.castleConquered],
               castle_updates: [{ castle: result.castleConquered, garrison_delta: -targetCastle.garrison }],
@@ -938,6 +997,24 @@ export default function GameContainer() {
 
       await delay(800);
       doAutoSave();
+
+      // turnCtxRef 업데이트 (다음 턴 케이스 엔진용)
+      const prevCtx = turnCtxRef.current;
+      turnCtxRef.current = {
+        ...prevCtx,
+        lastTurnBattle: turnBattleOccurred,
+        lastTurnBattleWon: turnPlayerWon,
+        lastTurnBattleLost: turnPlayerLost,
+        lastTurnInvasion: turnHadInvasion,
+        lastTurnCastleGained: turnCastlesGained,
+        lastTurnCastleLost: turnCastlesLost,
+        lastTurnEvents: events.map(e => e.type),
+        consecutiveWins: turnPlayerWon ? prevCtx.consecutiveWins + 1 : (turnBattleOccurred ? 0 : prevCtx.consecutiveWins),
+        consecutiveLosses: turnPlayerLost ? prevCtx.consecutiveLosses + 1 : (turnBattleOccurred ? 0 : prevCtx.consecutiveLosses),
+        phase2Messages: [],
+        lastLevelUp: false,
+        lastSkillUnlock: false,
+      };
 
       // ⑤ Phase 1 복귀: 다음 턴 참모 회의
       const result = await runMeetingPhase1And3(
