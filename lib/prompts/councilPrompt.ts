@@ -26,6 +26,21 @@ function getCastleSummary(world: WorldState, playerId: FactionId): string {
     .join(", ");
 }
 
+/** 전체 성채 배치도 (라인별 소유/인접 정보) — AI가 정확한 성채 이름과 위치를 참조하도록 */
+function getFrontlineSummary(world: WorldState): string {
+  const lineLabels: Record<string, string> = { liu_cao: "유비↔조조", liu_sun: "유비↔손권", sun_cao: "손권↔조조" };
+  const factionNames: Record<string, string> = { liu_bei: "유비", cao_cao: "조조", sun_quan: "손권" };
+  const lines: string[] = [];
+  for (const [lineId, label] of Object.entries(lineLabels)) {
+    const castles = world.castles.filter(c => c.lineId === lineId);
+    const items = castles.map(c =>
+      `${c.name}[${factionNames[c.owner] || c.owner},${c.grade},주둔${c.garrison.toLocaleString()},인접:${c.adjacentCastles.join("·")}]`
+    );
+    lines.push(`${label} 전선(${castles.length}성): ${items.join(" → ")}`);
+  }
+  return lines.join("\n");
+}
+
 function getAdvisorProfile(a: AdvisorState): string {
   const enthLabel = a.enthusiasm >= 70 ? "적극적" : a.enthusiasm >= 40 ? "보통" : "소극적";
   const loyLabel = a.loyalty >= 70 ? "충성" : a.loyalty >= 40 ? "불만" : "반감";
@@ -65,8 +80,11 @@ ${advisorProfiles}
 === 포인트 현황 ===
 ${pointsSummary}
 
-=== 성채 현황 ===
+=== 아군 성채 ===
 ${castleSummary}
+
+=== 전체 전선 배치 (정확한 성채 이름만 사용할 것) ===
+${getFrontlineSummary(world)}
 
 === 군주 레벨: ${player.rulerLevel.level} (배치 상한: ${player.rulerLevel.deploymentCap.toLocaleString()}) ===
 시설: 시장 Lv${player.facilities.market} (업그레이드 비용: ${getFacilityUpgradeCost(player.facilities.market)}), 논 Lv${player.facilities.farm} (비용: ${getFacilityUpgradeCost(player.facilities.farm)}), 은행 Lv${player.facilities.bank} (비용: ${getFacilityUpgradeCost(player.facilities.bank)})
@@ -191,6 +209,9 @@ export function buildPhase2Prompt(
 참모진: ${advisorSummary}
 [현재 포인트 현황]: ${pointsSummary}
 
+=== 전체 전선 배치 (정확한 성채 이름만 사용할 것) ===
+${getFrontlineSummary(world)}
+
 플레이어(유비)의 발언: "${message}"
 
 ${replyInstruction}
@@ -243,6 +264,9 @@ export function buildPhase4Prompt(
 
 참모진: ${advisorSummary}
 [현재 포인트 현황]: ${pointsSummary}
+
+=== 전체 전선 배치 (정확한 성채 이름만 사용할 것) ===
+${getFrontlineSummary(world)}
 
 플레이어(유비)의 피드백: "${feedback}"
 

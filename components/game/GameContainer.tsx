@@ -27,6 +27,7 @@ import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
 import TitleScreen from "./TitleScreen";
 import WorldStatus from "./WorldStatus";
+import FactionMap from "./FactionMap";
 import TurnNotification, { type TurnNotificationItem } from "./TurnNotification";
 import AdvisorBar from "./AdvisorBar";
 import BattleReport from "./BattleReport";
@@ -162,6 +163,7 @@ export default function GameContainer() {
 
   // Phase C states
   const [showWorldStatus, setShowWorldStatus] = useState(false);
+  const [showFactionMap, setShowFactionMap] = useState(false);
   const [battleReport, setBattleReport] = useState<import("@/types/game").BattleResult | null>(null);
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
   const [npcProcessing, setNpcProcessing] = useState(false);
@@ -1248,6 +1250,12 @@ export default function GameContainer() {
           성채 {playerFaction.castles.length}
         </span>
         <UserBadge user={user} onLogin={() => {}} onLogout={logout} />
+        <button onClick={() => setShowFactionMap(true)} style={{
+          background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
+          padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
+        }}>
+          🗺️
+        </button>
         <button onClick={() => setShowWorldStatus(true)} style={{
           background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "16px",
           padding: "3px 10px", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer",
@@ -1463,6 +1471,7 @@ export default function GameContainer() {
 
       {/* Modals */}
       <WorldStatus worldState={worldState} show={showWorldStatus} onClose={() => setShowWorldStatus(false)} />
+      <FactionMap worldState={worldState} show={showFactionMap} onClose={() => setShowFactionMap(false)} />
       {battleReport && (
         <BattleReport result={battleReport} onClose={handleBattleReportClose} />
       )}
