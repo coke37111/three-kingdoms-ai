@@ -287,6 +287,34 @@ export default function GameContainer() {
       const baseMultiplier = options?.speedMultiplier ?? 1;
       const speed = (options?.speedDecay ? Math.pow(options.speedDecay, decayIndex) : 1) * baseMultiplier;
 
+      // replyTo가 설정된 경우 → 해당 참모 메시지의 쓰레드로 추가
+      if (msg.replyTo) {
+        const targetIndex = councilMsgsRef.current.findIndex(m => m.speaker === msg.replyTo);
+        if (targetIndex >= 0) {
+          setThreadTyping({ msgIndex: targetIndex, speaker: msg.speaker });
+          scrollToBottom();
+          const typingDuration = Math.max(400, msg.dialogue.length * 30 * speed);
+          const actualTyping = Math.max(0, typingDuration - credit);
+          credit = Math.max(0, credit - typingDuration);
+          await delay(actualTyping);
+          setThreadTyping(null);
+          addThreadMessage(targetIndex, {
+            type: "advisor",
+            speaker: msg.speaker,
+            text: msg.dialogue,
+            emotion: msg.emotion,
+          });
+          scrollToBottom();
+          if (i < msgs.length - 1) {
+            const interDelay = (400 + Math.random() * 800) * speed;
+            const actualInter = Math.max(0, interDelay - credit);
+            credit = Math.max(0, credit - interDelay);
+            await delay(actualInter);
+          }
+          continue;
+        }
+      }
+
       if (i === 0 && options?.firstImmediate) {
         setCouncilMessages((prev) => [...prev, msg]);
         scrollToBottom();
@@ -315,7 +343,7 @@ export default function GameContainer() {
   // ---- NPC 턴 처리 (Utility AI 기반) ----
   const processNPCTurns = useCallback(async (): Promise<TurnNotificationItem[]> => {
     const world = worldStateRef.current;
-    const npcFactions = world.factions.filter(f => !f.isPlayer);
+    const npcFactions = world.factions.filter(f => !f.isPlayer && f.id !== "neutral");
     if (npcFactions.length === 0) return [];
 
     setNpcProcessing(true);
@@ -700,18 +728,34 @@ export default function GameContainer() {
         pendingCasePlanReportsRef.current = council.plan_reports;
       }
 
+      // ── POST-PROCESSING: advisor_mentions 기반 replyTo 자동 주입 ──
+      let processedMessages = council.council_messages;
+      let remainingMentions = council.advisor_mentions ?? [];
+
+      if (remainingMentions.length > 0) {
+        processedMessages = council.council_messages.map(msg => {
+          if (msg.replyTo) return msg; // 이미 설정됨 → 유지
+          const mention = remainingMentions.find(m => m.to === msg.speaker);
+          return mention ? { ...msg, replyTo: mention.from } : msg;
+        });
+
+        // replyTo가 설정된 참모는 별도 mention API 호출 불필요
+        const handledAdvisors = new Set(processedMessages.filter(m => m.replyTo).map(m => m.speaker));
+        remainingMentions = remainingMentions.filter(m => !handledAdvisors.has(m.to));
+      }
+
       // 모든 메시지를 순서대로 애니메이션 (구분선 없음)
-      await animateCouncilMessages(council.council_messages, true, { apiElapsedMs: elapsedMs });
+      await animateCouncilMessages(processedMessages, true, { apiElapsedMs: elapsedMs });
       setStatusReports(council.status_reports);
       setPlanReports(council.plan_reports);
 
       // ── 멘션 응답 처리 ──
-      if (council.advisor_mentions && council.advisor_mentions.length > 0) {
+      if (remainingMentions.length > 0) {
         try {
           const mentionSystem = buildPhase1MentionResponsePrompt(
             worldStateRef.current,
             advisorsRef.current,
-            council.advisor_mentions,
+            remainingMentions,
             council.council_messages,
           );
           const { mentionResponses, usage: mentionUsage } = await callMentionResponseLLM(

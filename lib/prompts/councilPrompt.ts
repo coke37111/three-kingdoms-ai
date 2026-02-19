@@ -77,7 +77,7 @@ export function buildPhase1And3Prompt(
   const otherFactions = getOtherFactionsSummary(world);
 
   return `너는 삼국지 시대 유비 진영의 **참모 회의**를 시뮬레이션하는 AI다.
-각 참모가 **담당 분야의 현황(한 일)과 다음 턴 계획(할 일)을 한 번에 보고**한다. 참모 1인당 발언 1회.
+제갈량이 핵심 안건을 제시하고, 나머지 참모들이 각자 역할 관점에서 반응하는 **안건 중심 회의** 구조를 따른다.
 
 === 참모진 (4인) ===
 ${advisorProfiles}
@@ -109,9 +109,30 @@ ${relationSummary}
 === 맥락 ===
 ${context}
 
-=== 보고 규칙 ===
-- 제갈량이 회의를 열고, 각 참모가 **현황(한 일) + 계획(할 일)을 한 번에** 보고. 마지막에 제갈량이 종합 정리.
-- 중요 보고가 있는 참모만 발언 (1~4명). 제갈량 포함.
+=== 회의 진행 순서 (4단계, 반드시 이 순서를 따를 것) ===
+
+**1단계: 제갈량 안건 제시 (필수)**
+- 현재 게임 상황에서 가장 시급한 전략 안건 1개를 판단하여 제시한다.
+- 형식: "[안건]이 이번 핵심 사안이옵니다. [이유] + [자신이 할 구체적 행동 포함]"
+- 자신의 행동에 포인트 소비가 있으면 반드시 명시: "(전략포인트 N 소비, 기대 효과)"
+- phase: 1
+
+**2단계: 참모 반응 — 관우·미축·방통 (3명 모두, 독립 메시지)**
+- 3명 각자가 안건에 대해 자신의 역할 관점에서 의견을 표명한다 (찬성·보완·우려·대안 등 자유롭게).
+- 각자가 할 구체적 행동을 반드시 포함: 예) "수성에 주력하겠소. (군사포인트 병력 N 소비)"
+- **replyTo 사용 금지** — 3명 모두 독립 메시지 (replyTo 필드 자체를 포함하지 않는다).
+- phase: 1
+
+**3단계: 제갈량 마무리 (필수)**
+- 한 문장: "추가로 보고할 것이 있으십니까?"
+- phase: 1
+
+**4단계: 추가 보고 (선택, 0~2명)**
+- 안건과 별개로 이번 턴 특별히 중요한 보고가 있는 참모만 발언 (내정 수입 변동, 외교 관계 변화, 자원 위기 등).
+- 없으면 이 단계를 생략한다 (3단계로 끝).
+- phase: 1
+
+=== 보고 세부 규칙 ===
 - status_reports에 이번 턴 포인트 변동을, plan_reports에 다음 턴 계획을 기록.
 - **전선 기술 원칙**: "적이 밀고 왔다" 등 적의 최근 이동 암시 표현 절대 금지. "현재 전선 구도" 등 현황 기술로만 표현.
 - **현황 보고 원칙**: "[행동]하여 [구체적 수치 성과]." 모호한 표현 금지.
@@ -119,11 +140,8 @@ ${context}
   예: "시장 운영으로 내정포인트 15 확보했습니다."
 - **계획 보고 원칙**: "[행동] 예정. (비용 + 기대 효과)" — 기대 효과 생략 금지.
   예: "시장 1개 건설합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 수입 +3/턴)"
-  예: "내정포인트 20으로 모병합니다. (병력 +${20 * RECRUIT_TROOPS_PER_IP})"
+  예: "내정포인트 20으로 모병합니다. (군사포인트(병력) +${20 * RECRUIT_TROOPS_PER_IP})"
   예: "훈련 실시합니다. (내정포인트 -${TRAIN_IP_COST}, 훈련도 +5%)"
-- **자연스러운 연결**: 현황 후 계획으로 자연스럽게 이어질 것.
-  예: "훈련도 5% 올랐습니다. (현재 55%) 다음 턴에도 훈련을 계속하겠습니다. (내정포인트 -${TRAIN_IP_COST}, 훈련도 +5%)"
-  예: "수입이 너무 적습니다. 시장 1개 건설을 제안합니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)}, 수입 +3/턴)"
 - **모병 비용**: 내정포인트 1당 ${RECRUIT_TROOPS_PER_IP}명. 현재 보유 내정포인트 초과 금지.
 - **시설 비용**: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 최대 ${castleCount}개 | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - **내정포인트 상한 우선 규칙**: 현재 내정포인트가 상한의 80% 이상이면(현재 ${player.points.ip}/${player.points.ip_cap}), 은행 건설/확장 우선 제안. 은행 비용: ${getFacilityUpgradeCost(player.facilities.bank)}IP → 상한 +50.
@@ -167,12 +185,8 @@ ${context}
 - **현황-계획 일관성**: 각 참모는 자신이 언급한 문제에 대한 대응책을 같은 발언 안에서 제안해야 한다.
   - 예: 미축이 "수입이 너무 적습니다"라고 했다면, 같은 발언에서 시장 건설·레벨업 등 수입 확보 계획을 제안해야 한다.
   - 현황 문제를 지적하고 대응책 없이 끝내거나 관계없는 계획을 내는 것은 금지.
-- **참모 간 멘션**: 보고 중 다른 분야 참모의 협력이 진짜로 필요한 경우에만 advisor_mentions에 추가.
-  - 0~2개 제한. 단순 인사·일상 보고에는 멘션 사용 금지.
-  - 멘션 예: 미축이 외교적 무역 제안을 위해 방통의 의견을 구하는 경우
-  - 멘션 예: 관우가 특정 성채 공략 전에 방통에게 외교적 교란 협력을 요청하는 경우
-  - context: 멘션이 발생한 보고 맥락 (40자 이내)
-  - request: 구체적으로 무엇을 요청하는지 (40자 이내)
+- **replyTo 금지 (Phase 1)**: council_messages에 replyTo 필드를 포함하지 않는다. 모든 발언은 독립 메시지다.
+- **advisor_mentions 금지 (Phase 1)**: advisor_mentions 배열은 반드시 빈 배열 []로 설정한다. Phase 1에서는 멘션을 생성하지 않는다.
 
 === 군사포인트 용어 규칙 ===
 - 군사포인트 = 병력 × 훈련도 × 사기. 복합 수치이다.
@@ -190,11 +204,12 @@ ${context}
 반드시 아래 형식으로만 응답. JSON 외 텍스트 금지.
 {
   "council_messages": [
-    { "speaker": "제갈량", "dialogue": "주공, 이번 회의를 열겠습니다.", "emotion": "calm", "phase": 1 },
-    { "speaker": "미축", "dialogue": "수입이 턴당 5에 불과합니다. 시장 1개를 건설하겠습니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 수입 +3/턴)", "emotion": "worried", "phase": 1 },
-    { "speaker": "관우", "dialogue": "훈련도 5% 올렸습니다. (현재 55%) 다음 턴에도 훈련을 계속하겠소. (내정포인트 -${TRAIN_IP_COST}, 훈련도 +5%)", "emotion": "calm", "phase": 1 },
-    { "speaker": "방통", "dialogue": "봉추가 손권과 긴장 완화를 도모했소. 다음 턴에도 이어가겠소. (외교포인트 -2 소비, 관계 +1 기대)", "emotion": "thoughtful", "phase": 1 },
-    { "speaker": "제갈량", "dialogue": "수입 기반을 다지고 전력을 축적하는 것이 급선무이옵니다. 내달에도 정진하겠사옵니다.", "emotion": "thoughtful", "phase": 1 }
+    { "speaker": "제갈량", "dialogue": "이번 핵심 사안은 본성 방어이옵니다. 조조의 공세가 거세니 수성에 집중해야 하옵니다. 병법서를 분석해 방어 전술을 강화하겠사옵니다. (전략포인트 2 소비, 방어력 +10% 예상)", "emotion": "serious", "phase": 1 },
+    { "speaker": "관우", "dialogue": "옳은 판단이오. 정예 병력을 성문에 배치하고 수성전에 주력하겠소. (군사포인트(병력) 3만 소비, 방어 전력 강화)", "emotion": "determined", "phase": 1 },
+    { "speaker": "미축", "dialogue": "방어전이라면 보급 소모가 줄어 다행입니다. 전투 비축분을 확보해 두겠습니다. (내정포인트 2 소비, 비상 보급 확보)", "emotion": "calm", "phase": 1 },
+    { "speaker": "방통", "dialogue": "외교로 조조의 후방을 흔들어 시간을 벌겠소. 손권에게 밀서를 보내겠습니다. (외교포인트 2 소비)", "emotion": "thoughtful", "phase": 1 },
+    { "speaker": "제갈량", "dialogue": "추가로 보고할 것이 있으십니까?", "emotion": "calm", "phase": 1 },
+    { "speaker": "미축", "dialogue": "한 가지 더 말씀드리겠습니다. 성도 시장 내정포인트 수입이 예상보다 낮습니다. 다음 턴 시장 건설을 건의드립니다. (내정포인트 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 수입 +3/턴)", "emotion": "worried", "phase": 1 }
   ],
   "status_reports": [
     { "speaker": "관우", "report": "내정포인트 15 소비하여 병사 훈련, 훈련도 5% 상승", "point_changes": { "mp_training_delta": 0.05 } }
@@ -211,9 +226,7 @@ ${context}
     { "name": "방통", "enthusiasm_delta": 1, "loyalty_delta": 0 },
     { "name": "미축", "enthusiasm_delta": 1, "loyalty_delta": 0 }
   ],
-  "advisor_mentions": [
-    { "from": "미축", "to": "방통", "context": "손권과의 무역 협상 고려 중", "request": "손권의 현재 외교 기조 분석 요청" }
-  ]
+  "advisor_mentions": []
 }`;
 }
 

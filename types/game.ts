@@ -2,7 +2,7 @@
 
 export type Season = "봄" | "여름" | "가을" | "겨울";
 
-export type FactionId = "liu_bei" | "cao_cao" | "sun_quan";
+export type FactionId = string;
 
 export type CastleGrade = "본성" | "요새" | "일반";
 

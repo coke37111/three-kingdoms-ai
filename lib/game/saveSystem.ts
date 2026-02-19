@@ -6,7 +6,7 @@ import {
   cloudDeleteSave, cloudListSaveSlots, cloudHasAnySave, cloudHasAutoSave,
 } from "@/lib/firebase/firestore";
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4; // v4: 12세력 멀티세력 시스템
 
 // ---- 채팅 로그 localStorage 헬퍼 ----
 const CHAT_LOG_KEY = (slot: string) => `tk_chatlog_${slot}`;
@@ -86,7 +86,9 @@ export async function saveGame(
 }
 
 export async function loadGame(slotIndex: number, uid: string): Promise<SaveData | null> {
-  return cloudLoadGame(uid, slotIndex);
+  const data = await cloudLoadGame(uid, slotIndex);
+  if (!data || data.version !== SAVE_VERSION) return null;
+  return data;
 }
 
 export async function autoSave(
@@ -103,7 +105,9 @@ export async function autoSave(
 }
 
 export async function loadAutoSave(uid: string): Promise<SaveData | null> {
-  return cloudLoadAutoSave(uid);
+  const data = await cloudLoadAutoSave(uid);
+  if (!data || data.version !== SAVE_VERSION) return null;
+  return data;
 }
 
 export async function deleteSave(slotIndex: number, uid: string): Promise<void> {

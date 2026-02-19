@@ -80,6 +80,7 @@ export function rollTurnEvents(world: WorldState): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {
+    if (faction.id === "neutral") continue;
     if (Math.random() > EVENT_TRIGGER_CHANCE) continue;
 
     // 해당 세력에 적용 가능한 이벤트 필터링

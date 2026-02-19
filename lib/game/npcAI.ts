@@ -428,6 +428,6 @@ export function calcNPCAction(faction: Faction, world: WorldState): NPCTurnResul
  * 모든 NPC 세력의 행동을 Utility AI로 일괄 결정한다.
  */
 export function calcAllNPCActions(world: WorldState): NPCTurnResult[] {
-  const npcFactions = world.factions.filter(f => !f.isPlayer);
+  const npcFactions = world.factions.filter(f => !f.isPlayer && f.id !== "neutral");
   return npcFactions.map(faction => calcNPCAction(faction, world));
 }

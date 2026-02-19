@@ -1,20 +1,21 @@
-import type { Faction, DiplomaticRelation, FactionId } from "@/types/game";
+import type { Faction, DiplomaticRelation } from "@/types/game";
 
 export const INITIAL_FACTIONS: Faction[] = [
+  // ─── 플레이어: 유비 (★★★★★, 신야 1성) ───
   {
     id: "liu_bei",
     rulerName: "유비",
     isPlayer: true,
     points: {
       ap: 3, ap_max: 10, ap_regen: 5,
-      sp: 0,
-      mp: 0, mp_troops: 50000, mp_training: 0.5, mp_morale: 1.0,
-      ip: 30, ip_cap: 100, ip_regen: 10,
-      dp: 0,
+      sp: 30,
+      mp: 0, mp_troops: 30000, mp_training: 0.7, mp_morale: 1.1,
+      ip: 30, ip_cap: 60, ip_regen: 8,
+      dp: 5,
     },
-    castles: ["신야", "박망", "하비"],
-    facilities: { market: { count: 2, level: 1 }, farm: { count: 2, level: 1 }, bank: 0 },
-    rulerLevel: { level: 2, xp: 0, xpToNext: 100, deploymentCap: 60000 },
+    castles: ["신야"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
     skills: [],
     woundedPool: [],
     recentEvents: [],
@@ -22,6 +23,8 @@ export const INITIAL_FACTIONS: Faction[] = [
     color: "#4a8c5c",
     icon: "🟢",
   },
+
+  // ─── NPC: 조조 (★, 허창·업 등 17성) ───
   {
     id: "cao_cao",
     rulerName: "조조",
@@ -29,18 +32,16 @@ export const INITIAL_FACTIONS: Faction[] = [
     points: {
       ap: 3, ap_max: 5, ap_regen: 3,
       sp: 30,
-      mp: 0, mp_troops: 600000, mp_training: 0.8, mp_morale: 1.1,
-      ip: 100, ip_cap: 100, ip_regen: 25,
+      mp: 0, mp_troops: 400000, mp_training: 0.6, mp_morale: 1.0,
+      ip: 100, ip_cap: 200, ip_regen: 40,
       dp: 5,
     },
     castles: [
-      "허창", "업", "낙양", "진류", "장안",
-      "완", "남피", "기주", "유주", "서주",
-      "소패", "복양", "동군", "하내", "홍농",
-      "천수", "안정", "무위", "북해", "평원",
-      "양양", "여남", "합비", "수춘",
+      "허창", "업", "낙양", "장안", "진류", "복양",
+      "완", "여남", "소패", "하비", "수춘", "합비",
+      "남피", "계", "북평", "평원", "북해",
     ],
-    facilities: { market: { count: 24, level: 1 }, farm: { count: 24, level: 1 }, bank: 0 },
+    facilities: { market: { count: 17, level: 1 }, farm: { count: 17, level: 1 }, bank: 1 },
     rulerLevel: { level: 20, xp: 0, xpToNext: 100, deploymentCap: 600000 },
     skills: ["ap_boost_1", "ip_boost_1", "mp_auto_1"],
     woundedPool: [],
@@ -49,6 +50,8 @@ export const INITIAL_FACTIONS: Faction[] = [
     color: "#4466aa",
     icon: "🔵",
   },
+
+  // ─── NPC: 손권 (★★★, 건업 등 5성) ───
   {
     id: "sun_quan",
     rulerName: "손권",
@@ -56,15 +59,12 @@ export const INITIAL_FACTIONS: Faction[] = [
     points: {
       ap: 2, ap_max: 4, ap_regen: 2,
       sp: 10,
-      mp: 0, mp_troops: 200000, mp_training: 0.7, mp_morale: 1.0,
-      ip: 80, ip_cap: 100, ip_regen: 15,
-      dp: 3,
+      mp: 0, mp_troops: 150000, mp_training: 0.65, mp_morale: 1.0,
+      ip: 80, ip_cap: 120, ip_regen: 18,
+      dp: 5,
     },
-    castles: [
-      "건업", "시상", "여강", "강릉",
-      "장사", "무릉", "계양", "영릉", "강하",
-    ],
-    facilities: { market: { count: 9, level: 1 }, farm: { count: 9, level: 1 }, bank: 0 },
+    castles: ["건업", "여강", "시상", "오", "회계"],
+    facilities: { market: { count: 5, level: 1 }, farm: { count: 5, level: 1 }, bank: 0 },
     rulerLevel: { level: 8, xp: 0, xpToNext: 100, deploymentCap: 240000 },
     skills: ["ip_boost_1"],
     woundedPool: [],
@@ -73,16 +73,269 @@ export const INITIAL_FACTIONS: Faction[] = [
     color: "#d4443e",
     icon: "🔴",
   },
+
+  // ─── NPC: 유표 (★★★★, 양양 등 3성) ───
+  {
+    id: "liu_biao",
+    rulerName: "유표",
+    isPlayer: false,
+    points: {
+      ap: 2, ap_max: 4, ap_regen: 2,
+      sp: 5,
+      mp: 0, mp_troops: 80000, mp_training: 0.55, mp_morale: 0.9,
+      ip: 50, ip_cap: 80, ip_regen: 12,
+      dp: 3,
+    },
+    castles: ["양양", "강하", "강릉"],
+    facilities: { market: { count: 3, level: 1 }, farm: { count: 3, level: 1 }, bank: 0 },
+    rulerLevel: { level: 5, xp: 0, xpToNext: 100, deploymentCap: 150000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 20, diplomacy: 60, development: 70, riskTolerance: 20 },
+    color: "#8B6914",
+    icon: "🟤",
+  },
+
+  // ─── NPC: 마등 (★★★★, 무위 등 3성) ───
+  {
+    id: "ma_teng",
+    rulerName: "마등",
+    isPlayer: false,
+    points: {
+      ap: 2, ap_max: 4, ap_regen: 2,
+      sp: 5,
+      mp: 0, mp_troops: 60000, mp_training: 0.65, mp_morale: 1.1,
+      ip: 40, ip_cap: 70, ip_regen: 10,
+      dp: 2,
+    },
+    castles: ["무위", "안정", "천수"],
+    facilities: { market: { count: 3, level: 1 }, farm: { count: 3, level: 1 }, bank: 0 },
+    rulerLevel: { level: 5, xp: 0, xpToNext: 100, deploymentCap: 150000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 50, diplomacy: 30, development: 50, riskTolerance: 60 },
+    color: "#7B68EE",
+    icon: "🟣",
+  },
+
+  // ─── NPC: 장로 (★★★★, 한중 1성) ───
+  {
+    id: "zhang_lu",
+    rulerName: "장로",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 40000, mp_training: 0.6, mp_morale: 1.1,
+      ip: 25, ip_cap: 45, ip_regen: 6,
+      dp: 1,
+    },
+    castles: ["한중"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 4, xp: 0, xpToNext: 100, deploymentCap: 120000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 30, diplomacy: 40, development: 60, riskTolerance: 30 },
+    color: "#20B2AA",
+    icon: "🩵",
+  },
+
+  // ─── NPC: 유장 (★★★, 성도 등 4성) ───
+  {
+    id: "liu_zhang",
+    rulerName: "유장",
+    isPlayer: false,
+    points: {
+      ap: 2, ap_max: 4, ap_regen: 2,
+      sp: 5,
+      mp: 0, mp_troops: 80000, mp_training: 0.5, mp_morale: 0.9,
+      ip: 50, ip_cap: 80, ip_regen: 12,
+      dp: 2,
+    },
+    castles: ["성도", "검각", "자동", "강주"],
+    facilities: { market: { count: 4, level: 1 }, farm: { count: 4, level: 1 }, bank: 0 },
+    rulerLevel: { level: 5, xp: 0, xpToNext: 100, deploymentCap: 150000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 20, diplomacy: 50, development: 70, riskTolerance: 20 },
+    color: "#DAA520",
+    icon: "🌕",
+  },
+
+  // ─── NPC: 금선 (★★★★★, 무릉 1성) ───
+  {
+    id: "jin_xuan",
+    rulerName: "금선",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 25000, mp_training: 0.7, mp_morale: 1.1,
+      ip: 20, ip_cap: 40, ip_regen: 5,
+      dp: 1,
+    },
+    castles: ["무릉"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 40, diplomacy: 30, development: 50, riskTolerance: 50 },
+    color: "#C04000",
+    icon: "🟠",
+  },
+
+  // ─── NPC: 유도 (★★★★★, 영릉 1성) ───
+  {
+    id: "liu_du",
+    rulerName: "유도",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 20000, mp_training: 0.7, mp_morale: 1.1,
+      ip: 18, ip_cap: 35, ip_regen: 4,
+      dp: 1,
+    },
+    castles: ["영릉"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 35, diplomacy: 30, development: 50, riskTolerance: 40 },
+    color: "#556B2F",
+    icon: "🫒",
+  },
+
+  // ─── NPC: 조범 (★★★★★, 계양 1성) ───
+  {
+    id: "zhao_fan",
+    rulerName: "조범",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 20000, mp_training: 0.7, mp_morale: 1.1,
+      ip: 18, ip_cap: 35, ip_regen: 4,
+      dp: 1,
+    },
+    castles: ["계양"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 35, diplomacy: 35, development: 50, riskTolerance: 40 },
+    color: "#8B0000",
+    icon: "🔻",
+  },
+
+  // ─── NPC: 한현 (★★★★★, 장사 1성) ───
+  {
+    id: "han_xuan",
+    rulerName: "한현",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 25000, mp_training: 0.7, mp_morale: 1.1,
+      ip: 20, ip_cap: 40, ip_regen: 5,
+      dp: 1,
+    },
+    castles: ["장사"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 40, diplomacy: 30, development: 50, riskTolerance: 45 },
+    color: "#4682B4",
+    icon: "🫐",
+  },
+
+  // ─── NPC: 공손강 (★★★★, 양평 1성) ───
+  {
+    id: "gongsun_kang",
+    rulerName: "공손강",
+    isPlayer: false,
+    points: {
+      ap: 1, ap_max: 3, ap_regen: 1,
+      sp: 5,
+      mp: 0, mp_troops: 30000, mp_training: 0.6, mp_morale: 1.0,
+      ip: 20, ip_cap: 40, ip_regen: 5,
+      dp: 1,
+    },
+    castles: ["양평"],
+    facilities: { market: { count: 1, level: 1 }, farm: { count: 1, level: 1 }, bank: 0 },
+    rulerLevel: { level: 3, xp: 0, xpToNext: 100, deploymentCap: 90000 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 30, diplomacy: 20, development: 50, riskTolerance: 30 },
+    color: "#A0522D",
+    icon: "🐎",
+  },
+
+  // ─── 중립 (빈땅 소유, AI 없음) ───
+  {
+    id: "neutral",
+    rulerName: "공백지",
+    isPlayer: false,
+    points: {
+      ap: 0, ap_max: 0, ap_regen: 0,
+      sp: 0,
+      mp: 0, mp_troops: 0, mp_training: 0, mp_morale: 1.0,
+      ip: 0, ip_cap: 0, ip_regen: 0,
+      dp: 0,
+    },
+    castles: ["상용", "하구관", "진양", "가맹관", "건녕"],
+    facilities: { market: { count: 0, level: 0 }, farm: { count: 0, level: 0 }, bank: 0 },
+    rulerLevel: { level: 1, xp: 0, xpToNext: 100, deploymentCap: 0 },
+    skills: [],
+    woundedPool: [],
+    recentEvents: [],
+    personality: { aggression: 0, diplomacy: 0, development: 0, riskTolerance: 0 },
+    color: "#5a5a5a",
+    icon: "⬜",
+  },
 ];
 
 export const INITIAL_RELATIONS: DiplomaticRelation[] = [
-  { factionA: "liu_bei", factionB: "cao_cao", score: -5 },
-  { factionA: "liu_bei", factionB: "sun_quan", score: 3 },
-  { factionA: "sun_quan", factionB: "cao_cao", score: -3 },
+  // 유비 관계
+  { factionA: "liu_bei", factionB: "cao_cao",      score: -7 },
+  { factionA: "liu_bei", factionB: "liu_biao",     score: 5 },
+  { factionA: "liu_bei", factionB: "sun_quan",     score: 2 },
+  { factionA: "liu_bei", factionB: "zhang_lu",     score: 0 },
+  { factionA: "liu_bei", factionB: "liu_zhang",    score: 1 },
+  { factionA: "liu_bei", factionB: "ma_teng",      score: 1 },
+  // 조조 관계
+  { factionA: "cao_cao", factionB: "sun_quan",     score: -4 },
+  { factionA: "cao_cao", factionB: "liu_biao",     score: -5 },
+  { factionA: "cao_cao", factionB: "ma_teng",      score: -3 },
+  { factionA: "cao_cao", factionB: "gongsun_kang", score: -2 },
+  { factionA: "cao_cao", factionB: "zhang_lu",     score: -2 },
+  { factionA: "cao_cao", factionB: "liu_zhang",    score: -1 },
+  // 손권 관계
+  { factionA: "sun_quan", factionB: "liu_biao",    score: -2 },
 ];
 
-export const FACTION_NAMES: Record<FactionId, string> = {
-  liu_bei: "유비",
-  cao_cao: "조조",
-  sun_quan: "손권",
+export const FACTION_NAMES: Record<string, string> = {
+  liu_bei:      "유비",
+  cao_cao:      "조조",
+  sun_quan:     "손권",
+  liu_biao:     "유표",
+  ma_teng:      "마등",
+  zhang_lu:     "장로",
+  liu_zhang:    "유장",
+  jin_xuan:     "금선",
+  liu_du:       "유도",
+  zhao_fan:     "조범",
+  han_xuan:     "한현",
+  gongsun_kang: "공손강",
+  neutral:      "공백지",
 };

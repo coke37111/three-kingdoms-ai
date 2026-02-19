@@ -29,7 +29,11 @@ function createInitialWorldState(): WorldState {
     factions: INITIAL_FACTIONS,
     castles: INITIAL_CASTLES,
     relations: INITIAL_RELATIONS,
-    turnOrder: ["liu_bei", "cao_cao", "sun_quan"],
+    turnOrder: [
+      "liu_bei", "cao_cao", "sun_quan", "liu_biao", "ma_teng",
+      "zhang_lu", "liu_zhang", "jin_xuan", "liu_du", "zhao_fan",
+      "han_xuan", "gongsun_kang",
+    ],
     specialStrategyRate: SPECIAL_STRATEGY_INITIAL_RATE,
     specialStrategyLastChangedTurn: 0,
   };
