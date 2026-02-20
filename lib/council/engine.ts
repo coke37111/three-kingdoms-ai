@@ -16,12 +16,15 @@ import type {
   Phase1Result,
   Phase3Result,
 } from "./types";
+import type { CouncilMessage } from "@/types/council";
 import { scoreToLabel } from "@/lib/game/diplomacySystem";
 import { getFacilityUpgradeCost, getFacilityBuildCost } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { CAPITAL_CASTLES } from "@/constants/castles";
 import { ALL_PHASE1_CASES } from "./phase1Cases";
 import { ALL_PHASE3_CASES } from "./phase3Cases";
+import { ALL_AGENDA_CASES } from "./agendaCases";
+import type { AgendaCase, AgendaLine } from "./types";
 
 // ===================== 상황 분석 =====================
 
@@ -321,52 +324,134 @@ function resolveDialogue(
 
 // ===================== Phase 1 케이스 엔진 =====================
 
-const REPORT_PRIORITY_THRESHOLD = 15;
+const ADDITIONAL_REPORT_PRIORITY_THRESHOLD = 15;
 
-export function runPhase1FromCases(
+/** AgendaLine 목록에서 턴 기반으로 하나 선택 */
+function pickAgendaLine(lines: AgendaLine[], turn: number): AgendaLine {
+  if (lines.length === 0) return { dialogue: "...", emotion: "calm" };
+  return lines[turn % lines.length];
+}
+
+/** AgendaLine을 CouncilMessage 형식으로 변환 */
+function agendaLineToMessage(
+  line: AgendaLine,
+  speaker: string,
+  situation: GameSituation,
+): CouncilMessage {
+  const dialogue = typeof line.dialogue === "function"
+    ? line.dialogue(situation)
+    : line.dialogue;
+  return {
+    speaker,
+    dialogue,
+    emotion: line.emotion,
+    phase: 1 as const,
+  };
+}
+
+/** 최우선 AgendaCase 선택 */
+function findBestAgendaCase(situation: GameSituation): AgendaCase | null {
+  const matched = ALL_AGENDA_CASES
+    .filter(c => c.condition(situation))
+    .sort((a, b) => b.priority - a.priority);
+  return matched.length > 0 ? matched[0] : null;
+}
+
+/** 추가 보고 — 제갈량 제외, priority > threshold, 최대 2명 */
+function pickAdditionalReports(
   situation: GameSituation,
   turn: number,
-): Phase1Result | null {
-  const selected: { advisor: string; caseItem: CaseDefinition }[] = [];
+  agendaId: string,
+) {
+  // 안건 카테고리 키워드 (해당 카테고리 케이스는 추가 보고 제외)
+  const agendaMilitaryIds = new Set(["after_battle_lost", "after_battle_won", "capital_under_threat", "troops_critical", "troops_shortage", "low_training", "attack_opportunity", "near_enemy_capital"]);
+  const agendaEconomyIds = new Set(["no_facilities", "ip_overflow", "income_critical", "income_low"]);
+  const agendaDiplomacyIds = new Set(["diplomatic_isolation", "enemies_allied"]);
 
-  for (const advisor of ADVISOR_ORDER) {
-    const matched = ALL_PHASE1_CASES
-      .filter(c => c.advisor === advisor && c.condition(situation))
-      .sort((a, b) => b.priority - a.priority);
+  const isMilitaryAgenda = agendaMilitaryIds.has(agendaId);
+  const isEconomyAgenda = agendaEconomyIds.has(agendaId);
+  const isDiplomacyAgenda = agendaDiplomacyIds.has(agendaId);
 
-    if (matched.length > 0) {
-      selected.push({ advisor, caseItem: matched[0] });
-    }
+  const candidateCases = ALL_PHASE1_CASES
+    .filter(c => {
+      if (c.advisor === "제갈량") return false;
+      if (c.priority <= ADDITIONAL_REPORT_PRIORITY_THRESHOLD) return false;
+      if (!c.condition(situation)) return false;
+      // 안건과 같은 카테고리 제외
+      if (isMilitaryAgenda && c.advisor === "관우") return false;
+      if (isEconomyAgenda && c.advisor === "미축") return false;
+      if (isDiplomacyAgenda && c.advisor === "방통") return false;
+      return true;
+    })
+    .sort((a, b) => b.priority - a.priority);
+
+  // 참모별 최고 priority 1개씩
+  const byAdvisor: Record<string, typeof candidateCases[0]> = {};
+  for (const c of candidateCases) {
+    if (!byAdvisor[c.advisor]) byAdvisor[c.advisor] = c;
   }
 
-  // 제갈량은 필수, 나머지는 threshold 이상만 (최대 2명)
-  const zhuge = selected.find(s => s.advisor === "제갈량");
-  const others = selected
-    .filter(s => s.advisor !== "제갈량" && s.caseItem.priority > REPORT_PRIORITY_THRESHOLD)
-    .slice(0, 2);
-
-  const speakers = zhuge ? [zhuge, ...others] : others;
-  if (speakers.length === 0) return null;
-
-  const messages = speakers.map(s => {
+  return Object.values(byAdvisor).slice(0, 2).map(c => {
     const variation = pickVariation(
-      s.caseItem.variations,
+      c.variations,
       turn,
-      situation.advisorMood[s.advisor]?.isPassive ?? false,
+      situation.advisorMood[c.advisor]?.isPassive ?? false,
     );
     return {
-      speaker: s.advisor,
+      speaker: c.advisor,
       dialogue: resolveDialogue(variation, situation),
       emotion: variation.emotion,
       phase: 1 as const,
     };
   });
+}
 
-  const statusReports = speakers
-    .map(s => s.caseItem.statusReport?.(situation) ?? null)
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+export function runPhase1FromCases(
+  situation: GameSituation,
+  turn: number,
+): Phase1Result | null {
+  // 1. 안건 케이스 선택
+  const agendaCase = findBestAgendaCase(situation);
+  if (!agendaCase) return null;
 
-  return { messages, statusReports, stateChanges: null, advisorUpdates: [], source: "case" };
+  // 2. 안건 메시지 조립 (제갈량 → 관우 → 미축 → 방통)
+  const messages: CouncilMessage[] = [
+    agendaLineToMessage(pickAgendaLine(agendaCase.opening, turn), "제갈량", situation),
+    agendaLineToMessage(pickAgendaLine(agendaCase.responses["관우"], turn), "관우", situation),
+    agendaLineToMessage(pickAgendaLine(agendaCase.responses["미축"], turn), "미축", situation),
+    agendaLineToMessage(pickAgendaLine(agendaCase.responses["방통"], turn), "방통", situation),
+  ];
+
+  // 3. 멘션 응답 (mentionResponses가 있는 경우)
+  if (agendaCase.mentionResponses) {
+    for (const mention of agendaCase.mentionResponses) {
+      const line = pickAgendaLine(mention.variations, turn);
+      const dialogue = typeof line.dialogue === "function"
+        ? line.dialogue(situation)
+        : line.dialogue;
+      messages.push({
+        speaker: mention.to,
+        dialogue,
+        emotion: line.emotion,
+        phase: 1 as const,
+        replyTo: mention.from,
+      });
+    }
+  }
+
+  // 4. 추가 보고 (기존 CaseDefinition, 최대 2명)
+  const additional = pickAdditionalReports(situation, turn, agendaCase.id);
+  messages.push(...additional);
+
+  // 5. 제갈량 마무리 (모든 보고 이후)
+  messages.push({
+    speaker: "제갈량",
+    dialogue: "이상입니다. 주공, 추가로 하문하실 것이 있으시면 말씀해 주시옵소서.",
+    emotion: "calm" as const,
+    phase: 1 as const,
+  });
+
+  return { messages, statusReports: [], stateChanges: null, advisorUpdates: [], source: "case" };
 }
 
 // ===================== Phase 3 케이스 엔진 =====================

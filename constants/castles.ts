@@ -76,68 +76,68 @@ export const CAPITAL_CASTLES: Record<string, string> = {
 // ─── 성채 목록 (45성) ────────────────────────────────────────────────────
 export const INITIAL_CASTLES: Castle[] = [
   // ═══ 유비 (1성) ═══
-  { name: "신야",    grade: "본성", owner: "liu_bei",      garrison: 30000, defenseMultiplier: 3.0, maxGarrison: 80000,  adjacentCastles: ["완", "양양", "여남", "상용", "하구관"], lineId: "liu_cao" },
+  { name: "신야",    grade: "본성", owner: "liu_bei",      garrison: 30000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 80000,  adjacentCastles: ["완", "양양", "여남", "상용", "하구관"], lineId: "liu_cao" },
 
   // ═══ 조조 (17성) ═══
-  { name: "허창",    grade: "본성", owner: "cao_cao",      garrison: 60000, defenseMultiplier: 3.0, maxGarrison: 120000, adjacentCastles: ["낙양", "진류", "완", "여남", "수춘"],          lineId: "liu_cao" },
-  { name: "업",      grade: "요새", owner: "cao_cao",      garrison: 35000, defenseMultiplier: 2.5, maxGarrison: 80000,  adjacentCastles: ["남피", "평원", "복양", "낙양", "진양"],        lineId: "north" },
-  { name: "낙양",    grade: "요새", owner: "cao_cao",      garrison: 25000, defenseMultiplier: 2.0, maxGarrison: 60000,  adjacentCastles: ["장안", "진류", "업", "허창"],                  lineId: "liu_cao" },
-  { name: "장안",    grade: "요새", owner: "cao_cao",      garrison: 20000, defenseMultiplier: 2.0, maxGarrison: 60000,  adjacentCastles: ["낙양", "안정", "천수", "한중"],                lineId: "west" },
-  { name: "진류",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["복양", "낙양", "허창", "소패"],                lineId: "liu_cao" },
-  { name: "복양",    grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["업", "진류"],                                  lineId: "north" },
-  { name: "완",      grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["허창", "여남", "신야"],                        lineId: "liu_cao" },
-  { name: "여남",    grade: "일반", owner: "cao_cao",      garrison: 16000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["허창", "완", "신야", "하구관"],                lineId: "liu_cao" },
-  { name: "소패",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["진류", "하비", "북해"],                        lineId: "liu_cao" },
-  { name: "하비",    grade: "일반", owner: "cao_cao",      garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 50000,  adjacentCastles: ["소패", "수춘"],                                lineId: "liu_cao" },
-  { name: "수춘",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["허창", "합비", "하비"],                        lineId: "sun_cao" },
-  { name: "합비",    grade: "요새", owner: "cao_cao",      garrison: 28000, defenseMultiplier: 2.5, maxGarrison: 60000,  adjacentCastles: ["수춘", "여강"],                                lineId: "sun_cao" },
-  { name: "남피",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["계", "북평", "업", "진양"],                    lineId: "north" },
-  { name: "계",      grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["북평", "남피"],                                lineId: "north" },
-  { name: "북평",    grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["계", "남피", "양평"],                          lineId: "north" },
-  { name: "평원",    grade: "일반", owner: "cao_cao",      garrison: 12000, defenseMultiplier: 1.5, maxGarrison: 35000,  adjacentCastles: ["업", "북해"],                                  lineId: "north" },
-  { name: "북해",    grade: "일반", owner: "cao_cao",      garrison: 12000, defenseMultiplier: 1.5, maxGarrison: 35000,  adjacentCastles: ["평원", "소패"],                                lineId: "liu_cao" },
+  { name: "허창",    grade: "본성", owner: "cao_cao",      garrison: 60000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 120000, adjacentCastles: ["낙양", "진류", "완", "여남", "수춘"],          lineId: "liu_cao" },
+  { name: "업",      grade: "요새", owner: "cao_cao",      garrison: 35000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 80000,  adjacentCastles: ["남피", "평원", "복양", "낙양", "진양"],        lineId: "north" },
+  { name: "낙양",    grade: "요새", owner: "cao_cao",      garrison: 25000, defenseMultiplier: 2.0, wallLevel: 1, maxGarrison: 60000,  adjacentCastles: ["장안", "진류", "업", "허창"],                  lineId: "liu_cao" },
+  { name: "장안",    grade: "요새", owner: "cao_cao",      garrison: 20000, defenseMultiplier: 2.0, wallLevel: 1, maxGarrison: 60000,  adjacentCastles: ["낙양", "안정", "천수", "한중"],                lineId: "west" },
+  { name: "진류",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["복양", "낙양", "허창", "소패"],                lineId: "liu_cao" },
+  { name: "복양",    grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["업", "진류"],                                  lineId: "north" },
+  { name: "완",      grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["허창", "여남", "신야"],                        lineId: "liu_cao" },
+  { name: "여남",    grade: "일반", owner: "cao_cao",      garrison: 16000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["허창", "완", "신야", "하구관"],                lineId: "liu_cao" },
+  { name: "소패",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["진류", "하비", "북해"],                        lineId: "liu_cao" },
+  { name: "하비",    grade: "일반", owner: "cao_cao",      garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["소패", "수춘"],                                lineId: "liu_cao" },
+  { name: "수춘",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["허창", "합비", "하비"],                        lineId: "sun_cao" },
+  { name: "합비",    grade: "요새", owner: "cao_cao",      garrison: 28000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 60000,  adjacentCastles: ["수춘", "여강"],                                lineId: "sun_cao" },
+  { name: "남피",    grade: "일반", owner: "cao_cao",      garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["계", "북평", "업", "진양"],                    lineId: "north" },
+  { name: "계",      grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["북평", "남피"],                                lineId: "north" },
+  { name: "북평",    grade: "일반", owner: "cao_cao",      garrison: 15000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["계", "남피", "양평"],                          lineId: "north" },
+  { name: "평원",    grade: "일반", owner: "cao_cao",      garrison: 12000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 35000,  adjacentCastles: ["업", "북해"],                                  lineId: "north" },
+  { name: "북해",    grade: "일반", owner: "cao_cao",      garrison: 12000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 35000,  adjacentCastles: ["평원", "소패"],                                lineId: "liu_cao" },
 
   // ═══ 공손강 (1성) ═══
-  { name: "양평",    grade: "본성", owner: "gongsun_kang", garrison: 25000, defenseMultiplier: 2.5, maxGarrison: 50000,  adjacentCastles: ["북평"],                                        lineId: "north" },
+  { name: "양평",    grade: "본성", owner: "gongsun_kang", garrison: 25000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["북평"],                                        lineId: "north" },
 
   // ═══ 마등 (3성) ═══
-  { name: "무위",    grade: "본성", owner: "ma_teng",      garrison: 30000, defenseMultiplier: 3.0, maxGarrison: 60000,  adjacentCastles: ["안정"],                                        lineId: "west" },
-  { name: "안정",    grade: "일반", owner: "ma_teng",      garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["무위", "천수", "장안"],                        lineId: "west" },
-  { name: "천수",    grade: "일반", owner: "ma_teng",      garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["안정", "장안"],                                lineId: "west" },
+  { name: "무위",    grade: "본성", owner: "ma_teng",      garrison: 30000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 60000,  adjacentCastles: ["안정"],                                        lineId: "west" },
+  { name: "안정",    grade: "일반", owner: "ma_teng",      garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["무위", "천수", "장안"],                        lineId: "west" },
+  { name: "천수",    grade: "일반", owner: "ma_teng",      garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["안정", "장안"],                                lineId: "west" },
 
   // ═══ 장로 (1성) ═══
-  { name: "한중",    grade: "본성", owner: "zhang_lu",     garrison: 35000, defenseMultiplier: 3.0, maxGarrison: 70000,  adjacentCastles: ["장안", "검각", "상용", "가맹관"],              lineId: "west" },
+  { name: "한중",    grade: "본성", owner: "zhang_lu",     garrison: 35000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 70000,  adjacentCastles: ["장안", "검각", "상용", "가맹관"],              lineId: "west" },
 
   // ═══ 유장 (4성) ═══
-  { name: "성도",    grade: "본성", owner: "liu_zhang",    garrison: 40000, defenseMultiplier: 3.0, maxGarrison: 80000,  adjacentCastles: ["자동", "강주"],                                lineId: "west" },
-  { name: "검각",    grade: "요새", owner: "liu_zhang",    garrison: 25000, defenseMultiplier: 2.5, maxGarrison: 50000,  adjacentCastles: ["한중", "자동", "가맹관"],                      lineId: "west" },
-  { name: "자동",    grade: "일반", owner: "liu_zhang",    garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["검각", "성도"],                                lineId: "west" },
-  { name: "강주",    grade: "일반", owner: "liu_zhang",    garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["성도", "건녕", "무릉"],                        lineId: "west" },
+  { name: "성도",    grade: "본성", owner: "liu_zhang",    garrison: 40000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 80000,  adjacentCastles: ["자동", "강주"],                                lineId: "west" },
+  { name: "검각",    grade: "요새", owner: "liu_zhang",    garrison: 25000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["한중", "자동", "가맹관"],                      lineId: "west" },
+  { name: "자동",    grade: "일반", owner: "liu_zhang",    garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["검각", "성도"],                                lineId: "west" },
+  { name: "강주",    grade: "일반", owner: "liu_zhang",    garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["성도", "건녕", "무릉"],                        lineId: "west" },
 
   // ═══ 유표 (3성) ═══
-  { name: "양양",    grade: "본성", owner: "liu_biao",     garrison: 50000, defenseMultiplier: 3.0, maxGarrison: 90000,  adjacentCastles: ["신야", "강하", "강릉"],                        lineId: "liu_sun" },
-  { name: "강하",    grade: "일반", owner: "liu_biao",     garrison: 25000, defenseMultiplier: 1.5, maxGarrison: 50000,  adjacentCastles: ["양양", "시상", "하구관"],                      lineId: "liu_sun" },
-  { name: "강릉",    grade: "일반", owner: "liu_biao",     garrison: 25000, defenseMultiplier: 1.5, maxGarrison: 50000,  adjacentCastles: ["양양", "무릉", "장사"],                        lineId: "liu_sun" },
+  { name: "양양",    grade: "본성", owner: "liu_biao",     garrison: 50000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 90000,  adjacentCastles: ["신야", "강하", "강릉"],                        lineId: "liu_sun" },
+  { name: "강하",    grade: "일반", owner: "liu_biao",     garrison: 25000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["양양", "시상", "하구관"],                      lineId: "liu_sun" },
+  { name: "강릉",    grade: "일반", owner: "liu_biao",     garrison: 25000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["양양", "무릉", "장사"],                        lineId: "liu_sun" },
 
   // ═══ 손권 (5성) ═══
-  { name: "건업",    grade: "본성", owner: "sun_quan",     garrison: 60000, defenseMultiplier: 3.0, maxGarrison: 120000, adjacentCastles: ["여강", "오", "회계"],                          lineId: "sun_cao" },
-  { name: "여강",    grade: "일반", owner: "sun_quan",     garrison: 25000, defenseMultiplier: 1.5, maxGarrison: 50000,  adjacentCastles: ["합비", "건업", "시상"],                        lineId: "sun_cao" },
-  { name: "시상",    grade: "일반", owner: "sun_quan",     garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["강하", "여강"],                                lineId: "liu_sun" },
-  { name: "오",      grade: "일반", owner: "sun_quan",     garrison: 20000, defenseMultiplier: 1.5, maxGarrison: 45000,  adjacentCastles: ["건업", "회계"],                                lineId: "sun_cao" },
-  { name: "회계",    grade: "일반", owner: "sun_quan",     garrison: 18000, defenseMultiplier: 1.5, maxGarrison: 40000,  adjacentCastles: ["오", "건업"],                                  lineId: "sun_cao" },
+  { name: "건업",    grade: "본성", owner: "sun_quan",     garrison: 60000, defenseMultiplier: 3.0, wallLevel: 1, maxGarrison: 120000, adjacentCastles: ["여강", "오", "회계"],                          lineId: "sun_cao" },
+  { name: "여강",    grade: "일반", owner: "sun_quan",     garrison: 25000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 50000,  adjacentCastles: ["합비", "건업", "시상"],                        lineId: "sun_cao" },
+  { name: "시상",    grade: "일반", owner: "sun_quan",     garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["강하", "여강"],                                lineId: "liu_sun" },
+  { name: "오",      grade: "일반", owner: "sun_quan",     garrison: 20000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["건업", "회계"],                                lineId: "sun_cao" },
+  { name: "회계",    grade: "일반", owner: "sun_quan",     garrison: 18000, defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["오", "건업"],                                  lineId: "sun_cao" },
 
   // ═══ 남중 소세력 (1성 각) ═══
-  { name: "무릉",    grade: "본성", owner: "jin_xuan",     garrison: 22000, defenseMultiplier: 2.5, maxGarrison: 45000,  adjacentCastles: ["강릉", "장사", "강주", "건녕"],                lineId: "south" },
-  { name: "장사",    grade: "본성", owner: "han_xuan",     garrison: 22000, defenseMultiplier: 2.5, maxGarrison: 45000,  adjacentCastles: ["무릉", "영릉", "계양", "강릉"],                lineId: "south" },
-  { name: "영릉",    grade: "본성", owner: "liu_du",       garrison: 18000, defenseMultiplier: 2.5, maxGarrison: 40000,  adjacentCastles: ["장사", "계양"],                                lineId: "south" },
-  { name: "계양",    grade: "본성", owner: "zhao_fan",     garrison: 18000, defenseMultiplier: 2.5, maxGarrison: 40000,  adjacentCastles: ["장사", "영릉"],                                lineId: "south" },
+  { name: "무릉",    grade: "본성", owner: "jin_xuan",     garrison: 22000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["강릉", "장사", "강주", "건녕"],                lineId: "south" },
+  { name: "장사",    grade: "본성", owner: "han_xuan",     garrison: 22000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 45000,  adjacentCastles: ["무릉", "영릉", "계양", "강릉"],                lineId: "south" },
+  { name: "영릉",    grade: "본성", owner: "liu_du",       garrison: 18000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["장사", "계양"],                                lineId: "south" },
+  { name: "계양",    grade: "본성", owner: "zhao_fan",     garrison: 18000, defenseMultiplier: 2.5, wallLevel: 1, maxGarrison: 40000,  adjacentCastles: ["장사", "영릉"],                                lineId: "south" },
 
   // ═══ 중립 빈땅 (5성) ═══
-  { name: "상용",    grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, maxGarrison: 20000,  adjacentCastles: ["신야", "한중"],                                lineId: "west" },
-  { name: "하구관",  grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, maxGarrison: 20000,  adjacentCastles: ["신야", "강하", "여남"],                        lineId: "liu_sun" },
-  { name: "진양",    grade: "일반", owner: "neutral",      garrison: 2500,  defenseMultiplier: 1.5, maxGarrison: 25000,  adjacentCastles: ["남피", "업"],                                  lineId: "north" },
-  { name: "가맹관",  grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, maxGarrison: 20000,  adjacentCastles: ["한중", "검각"],                                lineId: "west" },
-  { name: "건녕",    grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, maxGarrison: 20000,  adjacentCastles: ["강주", "무릉"],                                lineId: "south" },
+  { name: "상용",    grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 20000,  adjacentCastles: ["신야", "한중"],                                lineId: "west" },
+  { name: "하구관",  grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 20000,  adjacentCastles: ["신야", "강하", "여남"],                        lineId: "liu_sun" },
+  { name: "진양",    grade: "일반", owner: "neutral",      garrison: 2500,  defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 25000,  adjacentCastles: ["남피", "업"],                                  lineId: "north" },
+  { name: "가맹관",  grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 20000,  adjacentCastles: ["한중", "검각"],                                lineId: "west" },
+  { name: "건녕",    grade: "일반", owner: "neutral",      garrison: 2000,  defenseMultiplier: 1.5, wallLevel: 1, maxGarrison: 20000,  adjacentCastles: ["강주", "무릉"],                                lineId: "south" },
 ];
 
 // ─── 성채 이름 → Castle 빠른 조회용 ─────────────────────────────────────

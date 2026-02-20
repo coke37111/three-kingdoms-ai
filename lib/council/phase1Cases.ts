@@ -7,6 +7,7 @@
  */
 
 import type { CaseDefinition, GameSituation } from "./types";
+import { getWallUpgradeCost, RECRUIT_TROOPS_PER_IP } from "@/constants/gameConstants";
 
 // =====================================================================
 //  제갈량 (전략/개회) — 42개 케이스
@@ -328,7 +329,7 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.strategic.spCanUnlock && s.strategic.sp >= 5,
     variations: [
       {
-        dialogue: (s) => `전략포인트가 ${s.strategic.sp}입니다. 새로운 기술을 연구할 수 있사옵니다.`,
+        dialogue: (s) => `특수능력이 ${s.strategic.sp}입니다. 새로운 기술을 연구할 수 있사옵니다.`,
         emotion: "thoughtful",
       },
       { dialogue: "스킬 트리에서 해금할 수 있는 기술이 있습니다. 검토해 보시옵소서.", emotion: "calm" },
@@ -392,7 +393,7 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.strategic.sp >= 10 && !s.strategic.spCanUnlock,
     variations: [
       {
-        dialogue: (s) => `전략포인트가 ${s.strategic.sp}이나 쌓여 있습니다. 새 스킬 연구를 검토하시옵소서.`,
+        dialogue: (s) => `특수능력이 ${s.strategic.sp}이나 쌓여 있습니다. 새 스킬 연구를 검토하시옵소서.`,
         emotion: "thoughtful",
       },
     ],
@@ -442,7 +443,7 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     priority: 62,
     condition: (s) => s.strategic.nearEnemyCapital && s.military.troopShortage,
     variations: [
-      { dialogue: "적 본성이 눈앞이나 군사포인트(병력)이 부족합니다. 무리한 공격은 위험합니다. 먼저 모병하십시오.", emotion: "worried" },
+      { dialogue: "적 본성이 눈앞이나 군사력(병력)이 부족합니다. 무리한 공격은 위험합니다. 먼저 모병하십시오.", emotion: "worried" },
       { dialogue: "기회가 왔으나 준비가 덜 됐습니다. 욕심 내지 말고 전력을 갖춘 뒤 공략합시다.", emotion: "thoughtful" },
     ],
   },
@@ -473,7 +474,7 @@ export const ZHUGE_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.strategic.sp >= 8 && s.strategic.spCanUnlock,
     variations: [
       {
-        dialogue: (s) => `전략포인트 ${s.strategic.sp}, 연구 가능합니다. 지금이 스킬 투자의 적기입니다.`,
+        dialogue: (s) => `특수능력 ${s.strategic.sp}, 연구 가능합니다. 지금이 스킬 투자의 적기입니다.`,
         emotion: "excited",
       },
     ],
@@ -524,7 +525,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 75,
     condition: (s) => s.military.troopsCritical,
     variations: [
-      { dialogue: "군사포인트(병력)이 1만도 안 되오! 적이 알면 당장 쳐들어올 것이오.", emotion: "angry" },
+      { dialogue: "군사력(병력)이 1만도 안 되오! 적이 알면 당장 쳐들어올 것이오.", emotion: "angry" },
       {
         dialogue: (s) => `병력 ${s.military.troops.toLocaleString()}명... 이래서는 성문조차 지키기 어렵소.`,
         emotion: "worried",
@@ -549,13 +550,13 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 60,
     condition: (s) => s.military.troopShortage && !s.military.troopsCritical,
     variations: [
-      { dialogue: "군사포인트(병력)이 부족하오. 전선을 유지하기엔 벅찹니다.", emotion: "worried" },
+      { dialogue: "군사력(병력)이 부족하오. 전선을 유지하기엔 벅찹니다.", emotion: "worried" },
       { dialogue: "이 병력으로는 장기전을 버틸 수 없소. 꾸준히 모병해야 하오.", emotion: "thoughtful" },
       {
         dialogue: (s) => `병력 ${Math.round(s.military.troops / 1000)}천 명. 아직 안심할 단계가 아니오.`,
         emotion: "calm",
       },
-      { dialogue: "적의 침공에 대비하려면 군사포인트(병력)을 더 늘려야 하오.", emotion: "calm" },
+      { dialogue: "적의 침공에 대비하려면 군사력(병력)을 더 늘려야 하오.", emotion: "calm" },
     ],
     statusReport: (s) => ({
       speaker: "관우",
@@ -568,7 +569,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 15,
     condition: (s) => s.military.troopsAdequate,
     variations: [
-      { dialogue: "군사포인트(병력)은 그럭저럭 유지되고 있소. 하나 더 모을 수 있으면 좋겠소.", emotion: "calm" },
+      { dialogue: "군사력(병력)은 그럭저럭 유지되고 있소. 하나 더 모을 수 있으면 좋겠소.", emotion: "calm" },
       {
         dialogue: (s) => `병력 ${Math.round(s.military.troops / 10000)}만. 기본은 갖추었으나 넉넉하지는 않소.`,
         emotion: "calm",
@@ -581,7 +582,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 20,
     condition: (s) => s.military.troopsAbundant && !s.military.troopsAtCap,
     variations: [
-      { dialogue: "군사포인트(병력)이 충분하오. 이제 질적 강화에 집중할 때요.", emotion: "calm" },
+      { dialogue: "군사력(병력)이 충분하오. 이제 질적 강화에 집중할 때요.", emotion: "calm" },
       {
         dialogue: (s) => `${Math.round(s.military.troops / 10000)}만 대군이오. 어디든 싸울 수 있소!`,
         emotion: "excited",
@@ -595,7 +596,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.military.troopsAtCap,
     variations: [
       { dialogue: "배치 상한에 도달했소. 더 늘리려면 군주 레벨을 올려야 하오.", emotion: "thoughtful" },
-      { dialogue: "이 이상 모병은 어렵소. 지금 군사포인트(병력)으로 최선을 다합시다.", emotion: "calm" },
+      { dialogue: "이 이상 모병은 어렵소. 지금 군사력(병력)으로 최선을 다합시다.", emotion: "calm" },
     ],
   },
 
@@ -812,7 +813,13 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.strategic.recentInvasion && !s.strategic.recentCastleLost,
     variations: [
       { dialogue: "적의 침공을 막아냈소! 성벽을 지킨 장병들이 자랑스럽소.", emotion: "excited" },
-      { dialogue: "수성에 성공했소. 하나 다음 공격에도 대비해야 하오.", emotion: "calm" },
+      {
+        dialogue: (s) => {
+          const wallCost = getWallUpgradeCost(1);
+          return `수성에 성공했소. 다음 공격에 대비해 성벽 강화(내정력 ${wallCost} 소비)를 추진해야 하오.`;
+        },
+        emotion: "calm",
+      },
     ],
   },
 
@@ -828,7 +835,13 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
         dialogue: (s) => `전선이 ${s.strategic.adjacentEnemyCastles.length}곳에서 적과 맞닿아 있소. 방어가 벅차오.`,
         emotion: "worried",
       },
-      { dialogue: "사방에서 적이 노리고 있소. 전선 정리가 필요하오.", emotion: "worried" },
+      {
+        dialogue: (s) => {
+          const wallCost = getWallUpgradeCost(1);
+          return `사방에서 적이 노리고 있소. 성벽 강화(내정력 ${wallCost} 소비)로 방어력을 높여야 하오.`;
+        },
+        emotion: "worried",
+      },
     ],
   },
   {
@@ -850,7 +863,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
       return r.every(rel => rel.isHostile) && s.strategic.adjacentEnemyCastles.length >= 2;
     },
     variations: [
-      { dialogue: "양면 전쟁이오! 이래서는 군사포인트(병력)이 분산되어 위험하오.", emotion: "angry" },
+      { dialogue: "양면 전쟁이오! 이래서는 군사력(병력)이 분산되어 위험하오.", emotion: "angry" },
       { dialogue: "두 방면에서 적이 압박하고 있소. 한쪽은 외교로 풀어야 하오.", emotion: "worried" },
     ],
   },
@@ -863,7 +876,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 35,
     condition: (s) => s.military.troopsAbundant && s.military.highTraining && !s.military.lowMorale,
     variations: [
-      { dialogue: "군사포인트(병력), 훈련, 사기 모두 충분하오! 언제든 출격할 수 있소!", emotion: "excited" },
+      { dialogue: "군사력(병력), 훈련, 사기 모두 충분하오! 언제든 출격할 수 있소!", emotion: "excited" },
       { dialogue: "만반의 준비가 되었소. 주공의 명만 내리시오!", emotion: "excited" },
     ],
   },
@@ -873,7 +886,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 72,
     condition: (s) => s.military.troopShortage && s.military.lowTraining && s.military.lowMorale,
     variations: [
-      { dialogue: "군사포인트(병력)도, 훈련도, 사기도 바닥이오... 이 관우 면목이 없소.", emotion: "worried" },
+      { dialogue: "군사력(병력)도, 훈련도, 사기도 바닥이오... 이 관우 면목이 없소.", emotion: "worried" },
       { dialogue: "군사적으로 최악의 상태요. 전투를 피하고 재건에 집중해야 하오.", emotion: "worried" },
     ],
   },
@@ -884,7 +897,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.military.troopShortage && s.military.highTraining,
     variations: [
       { dialogue: "수는 적으나 정예요. 소수정예로 적을 상대할 수 있소.", emotion: "thoughtful" },
-      { dialogue: "군사포인트(병력)은 부족하나 한 명 한 명이 백 명의 값을 하오.", emotion: "calm" },
+      { dialogue: "군사력(병력)은 부족하나 한 명 한 명이 백 명의 값을 하오.", emotion: "calm" },
     ],
   },
   {
@@ -894,7 +907,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.military.troopsAbundant && s.military.lowTraining,
     variations: [
       { dialogue: "수만 많고 전투력이 없소! 오합지졸을 정예로 만들어야 하오.", emotion: "angry" },
-      { dialogue: "군사포인트(병력)은 많으나 훈련이 안 되었소. 이대로 전쟁하면 패하오.", emotion: "worried" },
+      { dialogue: "군사력(병력)은 많으나 훈련이 안 되었소. 이대로 전쟁하면 패하오.", emotion: "worried" },
     ],
   },
 
@@ -921,7 +934,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.military.training < 0.3 && s.economy.ip < 15 && !s.military.troopsCritical,
     variations: [
       { dialogue: "훈련이 급하나 자금이 부족하오. 미축, 서둘러 재원을 확보해 달라.", emotion: "worried" },
-      { dialogue: "오합지졸을 그대로 둘 수는 없소. 내정포인트가 모이면 즉시 훈련에 투입하겠소.", emotion: "worried" },
+      { dialogue: "오합지졸을 그대로 둘 수는 없소. 내정력이 모이면 즉시 훈련에 투입하겠소.", emotion: "worried" },
     ],
   },
 
@@ -949,7 +962,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     priority: 32,
     condition: (s) => s.military.troopsAbundant && s.military.highTraining && s.military.highMorale,
     variations: [
-      { dialogue: "군사포인트(병력), 훈련, 사기 삼박자가 맞았소! 지금 당장 출격해도 두렵지 않소!", emotion: "excited" },
+      { dialogue: "군사력(병력), 훈련, 사기 삼박자가 맞았소! 지금 당장 출격해도 두렵지 않소!", emotion: "excited" },
       { dialogue: "만반의 준비가 되었소. 어느 적도 당할 수 없소!", emotion: "excited" },
     ],
   },
@@ -960,7 +973,7 @@ export const GUAN_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.strategic.nearEnemyCapital && s.military.troopsAbundant && s.military.highTraining,
     variations: [
       { dialogue: "적 본성이 눈앞이오! 이 관우, 선봉에 서겠소. 결전의 날이 왔소!", emotion: "excited" },
-      { dialogue: "최후의 일격이오. 군사포인트(병력)도 훈련도 만반이오. 돌격합시다!", emotion: "excited" },
+      { dialogue: "최후의 일격이오. 군사력(병력)도 훈련도 만반이오. 돌격합시다!", emotion: "excited" },
     ],
   },
   {
@@ -1101,13 +1114,13 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
       { dialogue: "주공, 곳간이 텅 비었습니다! 당장 지출을 줄여야 합니다.", emotion: "worried" },
       { dialogue: "재정이 바닥입니다. 이대로는 아무것도 할 수 없습니다.", emotion: "angry" },
       {
-        dialogue: (s) => `내정포인트가 ${s.economy.ip}뿐입니다. 긴급 사태입니다.`,
+        dialogue: (s) => `내정력이 ${s.economy.ip}뿐입니다. 긴급 사태입니다.`,
         emotion: "worried",
       },
     ],
     statusReport: (s) => ({
       speaker: "미축",
-      report: `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 재정 위기`,
+      report: `내정력 ${s.economy.ip}/${s.economy.ipCap}, 재정 위기`,
     }),
   },
   {
@@ -1118,7 +1131,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     variations: [
       { dialogue: "재정이 궁핍합니다. 지출을 줄이고 수입원을 확보해야 합니다.", emotion: "worried" },
       {
-        dialogue: (s) => `내정포인트가 ${s.economy.ip}입니다. 여유가 없습니다.`,
+        dialogue: (s) => `내정력이 ${s.economy.ip}입니다. 여유가 없습니다.`,
         emotion: "worried",
       },
       { dialogue: "곳간이 넉넉하지 못합니다. 시설 투자로 수입을 늘려야 합니다.", emotion: "thoughtful" },
@@ -1131,17 +1144,17 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.ipAdequate,
     variations: [
       {
-        dialogue: (s) => `이번 턴 내정포인트 ${s.economy.ipRegen} 확보하였습니다. 재정은 안정적입니다.`,
+        dialogue: (s) => `이번 턴 내정력 ${s.economy.ipRegen} 확보하였습니다. 재정은 안정적입니다.`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `내정포인트 ${s.economy.ip}/${s.economy.ipCap}. 무리하지 않으면 운영 가능합니다.`,
+        dialogue: (s) => `내정력 ${s.economy.ip}/${s.economy.ipCap}. 무리하지 않으면 운영 가능합니다.`,
         emotion: "calm",
       },
     ],
     statusReport: (s) => ({
       speaker: "미축",
-      report: `시설 운영으로 내정포인트 ${s.economy.ipRegen} 확보`,
+      report: `시설 운영으로 내정력 ${s.economy.ipRegen} 확보`,
     }),
   },
   {
@@ -1151,7 +1164,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.ipRich && !s.economy.ipNearCap,
     variations: [
       {
-        dialogue: (s) => `내정포인트가 ${s.economy.ip}입니다. 여유가 있으니 투자할 때입니다.`,
+        dialogue: (s) => `내정력이 ${s.economy.ip}입니다. 여유가 있으니 투자할 때입니다.`,
         emotion: "calm",
       },
       { dialogue: "곳간이 넉넉합니다. 시설이든 군비든 투자하기 좋은 때입니다.", emotion: "excited" },
@@ -1163,7 +1176,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 45,
     condition: (s) => s.economy.ipAtCap,
     variations: [
-      { dialogue: "내정포인트가 상한에 도달했습니다! 저장할 수 없으니 반드시 사용하시옵소서.", emotion: "worried" },
+      { dialogue: "내정력이 상한에 도달했습니다! 저장할 수 없으니 반드시 사용하시옵소서.", emotion: "worried" },
       {
         dialogue: (s) => `${s.economy.ip}/${s.economy.ipCap} — 상한입니다. 은행을 확장하거나 즉시 사용해야 합니다.`,
         emotion: "worried",
@@ -1176,7 +1189,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 40,
     condition: (s) => s.economy.ipNearCap && !s.economy.ipAtCap,
     variations: [
-      { dialogue: "내정포인트가 상한에 가깝습니다. 은행 확장을 건의합니다.", emotion: "thoughtful" },
+      { dialogue: "내정력이 상한에 가깝습니다. 은행 확장을 건의합니다.", emotion: "thoughtful" },
       {
         dialogue: (s) => `${s.economy.ip}/${s.economy.ipCap} — 곧 넘칩니다. 쓰거나 은행을 확장하셔야 합니다.`,
         emotion: "worried",
@@ -1234,7 +1247,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.bankLv === 0 && s.economy.ipNearCap && s.economy.marketCount >= 2,
     variations: [
       { dialogue: "은행이 없어 저장 한계가 낮습니다. 은행 건설을 건의합니다.", emotion: "thoughtful" },
-      { dialogue: "내정포인트를 더 비축하려면 은행이 필요합니다.", emotion: "calm" },
+      { dialogue: "내정력을 더 비축하려면 은행이 필요합니다.", emotion: "calm" },
     ],
   },
   {
@@ -1281,13 +1294,13 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.highIncome,
     variations: [
       {
-        dialogue: (s) => `매턴 내정포인트 ${s.economy.ipRegen}씩 들어옵니다. 재정이 튼튼합니다.`,
+        dialogue: (s) => `매턴 내정력 ${s.economy.ipRegen}씩 들어옵니다. 재정이 튼튼합니다.`,
         emotion: "calm",
       },
     ],
     statusReport: (s) => ({
       speaker: "미축",
-      report: `시설 수입 내정포인트 ${s.economy.ipRegen}/턴, 안정적`,
+      report: `시설 수입 내정력 ${s.economy.ipRegen}/턴, 안정적`,
     }),
   },
   {
@@ -1369,7 +1382,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.ip >= 10 && s.military.troopShortage,
     variations: [
       {
-        dialogue: (s) => `모병 자금 여유가 있습니다. 내정포인트 10으로 1만 명 모병 가능합니다.`,
+        dialogue: (s) => `모병 자금 여유가 있습니다. 내정력 10으로 ${(10 * RECRUIT_TROOPS_PER_IP).toLocaleString()}명 모병 가능합니다.`,
         emotion: "calm",
       },
     ],
@@ -1439,7 +1452,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.economy.ipRegen >= 15 && s.economy.ipRegen < 20,
     variations: [
       {
-        dialogue: (s) => `매턴 내정포인트 ${s.economy.ipRegen} 확보 중입니다. 투자 효과가 나타나고 있습니다.`,
+        dialogue: (s) => `매턴 내정력 ${s.economy.ipRegen} 확보 중입니다. 투자 효과가 나타나고 있습니다.`,
         emotion: "excited",
       },
     ],
@@ -1450,7 +1463,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 38,
     condition: (s) => s.economy.ipLow && !s.economy.ipCritical && s.strategic.recentBattle,
     variations: [
-      { dialogue: "전비로 내정포인트가 줄었습니다. 아껴 쓰겠습니다.", emotion: "thoughtful" },
+      { dialogue: "전비로 내정력이 줄었습니다. 아껴 쓰겠습니다.", emotion: "thoughtful" },
       { dialogue: "군사 지출이 있었습니다. 재정이 빠듯하니 현명하게 운영하겠습니다.", emotion: "worried" },
     ],
   },
@@ -1502,7 +1515,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm || s.economy.canUpgradeBank) && s.economy.ipAdequate,
     variations: [
       {
-        dialogue: (s) => `시설 업그레이드 가능합니다. 시장 업그레이드에 내정포인트 ${s.economy.marketUpgradeCost}이 필요합니다.`,
+        dialogue: (s) => `시설 업그레이드 가능합니다. 시장 업그레이드에 내정력 ${s.economy.marketUpgradeCost}이 필요합니다.`,
         emotion: "calm",
       },
     ],
@@ -1546,29 +1559,29 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: () => true,
     variations: [
       {
-        dialogue: (s) => `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 매턴 +${s.economy.ipRegen}. 안정적입니다.`,
+        dialogue: (s) => `내정력 ${s.economy.ip}/${s.economy.ipCap}, 매턴 +${s.economy.ipRegen}. 안정적입니다.`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `시설 운영하여 내정포인트 ${s.economy.ipRegen} 확보했습니다. 현재 ${s.economy.ip}/${s.economy.ipCap}.`,
+        dialogue: (s) => `시설 운영하여 내정력 ${s.economy.ipRegen} 확보했습니다. 현재 ${s.economy.ip}/${s.economy.ipCap}.`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `매턴 내정포인트 +${s.economy.ipRegen}. 재정 안정적입니다.`,
+        dialogue: (s) => `매턴 내정력 +${s.economy.ipRegen}. 재정 안정적입니다.`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 수입 +${s.economy.ipRegen}/턴. 이상 없습니다.`,
+        dialogue: (s) => `내정력 ${s.economy.ip}/${s.economy.ipCap}, 수입 +${s.economy.ipRegen}/턴. 이상 없습니다.`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `통상 운영 중입니다. 현재 내정포인트 ${s.economy.ip}, 매턴 +${s.economy.ipRegen}.`,
+        dialogue: (s) => `통상 운영 중입니다. 현재 내정력 ${s.economy.ip}, 매턴 +${s.economy.ipRegen}.`,
         emotion: "calm",
       },
     ],
     statusReport: (s) => ({
       speaker: "미축",
-      report: `내정포인트 ${s.economy.ip}/${s.economy.ipCap}, 매턴 +${s.economy.ipRegen}`,
+      report: `내정력 ${s.economy.ip}/${s.economy.ipCap}, 매턴 +${s.economy.ipRegen}`,
     }),
   },
 ];
@@ -1768,7 +1781,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     priority: 42,
     condition: (s) => s.diplomacy.dpNone,
     variations: [
-      { dialogue: "외교포인트가 전혀 없소. 손발이 묶인 격이오.", emotion: "worried" },
+      { dialogue: "외교력이 전혀 없소. 손발이 묶인 격이오.", emotion: "worried" },
       { dialogue: "외교 자원이 바닥이오. 당분간 행동이 제한됩니다.", emotion: "worried" },
     ],
   },
@@ -1778,9 +1791,9 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     priority: 35,
     condition: (s) => s.diplomacy.dpLow && !s.diplomacy.dpNone,
     variations: [
-      { dialogue: "외교포인트가 부족하오. 큰 외교 행동은 어렵소.", emotion: "worried" },
+      { dialogue: "외교력이 부족하오. 큰 외교 행동은 어렵소.", emotion: "worried" },
       {
-        dialogue: (s) => `외교포인트 ${s.diplomacy.dp}... 아껴 써야 합니다.`,
+        dialogue: (s) => `외교력 ${s.diplomacy.dp}... 아껴 써야 합니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -1791,9 +1804,9 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     priority: 26,
     condition: (s) => s.diplomacy.dpRich,
     variations: [
-      { dialogue: "외교포인트가 넉넉하오. 적극적인 외교가 가능합니다.", emotion: "excited" },
+      { dialogue: "외교력이 넉넉하오. 적극적인 외교가 가능합니다.", emotion: "excited" },
       {
-        dialogue: (s) => `외교포인트 ${s.diplomacy.dp}! 이 정도면 큰 외교 행동도 할 수 있소.`,
+        dialogue: (s) => `외교력 ${s.diplomacy.dp}! 이 정도면 큰 외교 행동도 할 수 있소.`,
         emotion: "excited",
       },
     ],
@@ -1831,7 +1844,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.diplomacy.dpRich && s.diplomacy.relations.some(r => r.isHostile),
     variations: [
       { dialogue: "외교 자원이 충분하오. 적대 관계를 개선할 수 있소.", emotion: "thoughtful" },
-      { dialogue: "외교포인트를 사용하여 적과의 관계를 풀어봅시다.", emotion: "thoughtful" },
+      { dialogue: "외교력을 사용하여 적과의 관계를 풀어봅시다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -1972,7 +1985,7 @@ export const PANG_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => s.diplomacy.dp >= 6,
     variations: [
       {
-        dialogue: (s) => `외교포인트가 ${s.diplomacy.dp}나 됩니다! 대규모 외교 행동을 취할 수 있소.`,
+        dialogue: (s) => `외교력이 ${s.diplomacy.dp}나 됩니다! 대규모 외교 행동을 취할 수 있소.`,
         emotion: "excited",
       },
     ],

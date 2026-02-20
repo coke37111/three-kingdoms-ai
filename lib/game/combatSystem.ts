@@ -7,6 +7,7 @@ import {
   MAX_SIEGE_FACILITY_DAMAGE,
   RETREAT_TROOP_LOSS_RATE,
   RETREAT_MORALE_PENALTY,
+  WALL_DEFENSE_PER_LEVEL,
 } from "@/constants/gameConstants";
 import { SKILL_TREE } from "@/constants/skills";
 
@@ -26,8 +27,11 @@ function getDefenseMultiplier(
 ): number {
   if (battleType === "야전") return 1.0;
   if (battleType === "공성" && !isDefender) return 1.0;
-  // 수성: 성채 방어 배율 적용
-  if (isDefender && castle) return castle.defenseMultiplier;
+  // 수성: 성채 방어 배율 + 성벽 레벨 보너스 적용
+  if (isDefender && castle) {
+    const wallBonus = ((castle.wallLevel ?? 1) - 1) * WALL_DEFENSE_PER_LEVEL;
+    return castle.defenseMultiplier + wallBonus;
+  }
   return 1.0;
 }
 

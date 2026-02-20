@@ -169,6 +169,39 @@ export interface CaseDefinition {
   statusReport?: (s: GameSituation) => StatusReport | null;
 }
 
+// ===================== 안건 케이스 정의 =====================
+
+/** 안건 대사 1줄 (variation 목록의 원소) */
+export interface AgendaLine {
+  dialogue: string | ((s: GameSituation) => string);
+  emotion: Emotion;
+}
+
+/** 안건 중심 Phase 1 케이스 */
+export interface AgendaCase {
+  id: string;
+  /** 높을수록 우선 선택 */
+  priority: number;
+  condition: (s: GameSituation) => boolean;
+  /** 제갈량 — 안건 제시 (variation 목록) */
+  opening: AgendaLine[];
+  /** 나머지 참모 — 안건에 연계된 반응 (variation 목록) */
+  responses: {
+    "관우": AgendaLine[];
+    "미축": AgendaLine[];
+    "방통": AgendaLine[];
+  };
+  /**
+   * 케이스 내 참모 간 멘션 응답 — from 참모가 to 참모에게 질문한 경우
+   * 엔진이 to 참모의 응답을 replyTo: from 으로 자동 생성.
+   */
+  mentionResponses?: Array<{
+    from: string;
+    to: string;
+    variations: AgendaLine[];
+  }>;
+}
+
 /** Phase 3 케이스 정의 */
 export interface Phase3CaseDefinition {
   id: string;

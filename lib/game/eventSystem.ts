@@ -36,7 +36,7 @@ const EVENT_TEMPLATES: EventTemplate[] = [
   {
     type: "인재_발견",
     emoji: "🧠",
-    description: "뛰어난 인재를 발견하여 전략 포인트가 증가했습니다.",
+    description: "뛰어난 인재를 발견하여 특수능력이 증가했습니다.",
     effects: { sp_delta: 3 },
     weight: 10,
   },
@@ -58,7 +58,7 @@ const EVENT_TEMPLATES: EventTemplate[] = [
   {
     type: "외교_사절",
     emoji: "📜",
-    description: "외교 사절이 도착하여 외교 포인트가 증가했습니다.",
+    description: "외교 사절이 도착하여 외교력이 증가했습니다.",
     effects: { dp_delta: 2 },
     weight: 10,
   },

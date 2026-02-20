@@ -10,6 +10,8 @@ import {
   TRAIN_IP_COST,
   getFacilityUpgradeCost,
   getFacilityBuildCost,
+  getWallUpgradeCost,
+  WALL_MAX_LEVEL,
 } from "@/constants/gameConstants";
 
 // =====================================================================
@@ -30,7 +32,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `긴급 모병 (내정포인트 ${ipToSpend} 전력 투입)`,
+        plan: `긴급 모병 (내정력 ${ipToSpend} 전력 투입)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
@@ -39,7 +41,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.min(100, Math.floor(s.economy.ip * 0.8));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `사태가 위급하오! 내정포인트 ${ipToSpend}를 투입해 ${troops.toLocaleString()}명을 즉시 징병하겠소!`;
+          return `사태가 위급하오! 내정력 ${ipToSpend}를 투입해 ${troops.toLocaleString()}명을 즉시 징병하겠소!`;
         },
         emotion: "angry",
       },
@@ -47,7 +49,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.min(100, Math.floor(s.economy.ip * 0.8));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `모든 자금을 털어서라도 병력을 모아야 하오. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
+          return `모든 자금을 털어서라도 병력을 모아야 하오. (내정력 ${ipToSpend} 소비, 군사력(병력) +${troops.toLocaleString()})`;
         },
         emotion: "angry",
       },
@@ -64,7 +66,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `모병 실시 (내정포인트 ${ipToSpend} 소비)`,
+        plan: `모병 실시 (내정력 ${ipToSpend} 소비)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
@@ -73,7 +75,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `안정적인 방어를 위해 내정포인트 ${ipToSpend}로 병력 ${troops.toLocaleString()}명을 충원하겠소.`;
+          return `안정적인 방어를 위해 내정력 ${ipToSpend}로 병력 ${troops.toLocaleString()}명을 충원하겠소.`;
         },
         emotion: "calm",
       },
@@ -81,7 +83,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `꾸준한 모병이 필요하오. (내정포인트 ${ipToSpend} 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
+          return `꾸준한 모병이 필요하오. (내정력 ${ipToSpend} 소비, 군사력(병력) +${troops.toLocaleString()})`;
         },
         emotion: "calm",
       },
@@ -89,7 +91,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.max(15, Math.min(50, Math.floor(s.economy.ip * 0.4)));
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `병력을 늘려 후일을 도모합시다. (내정포인트 ${ipToSpend} 투자, +${troops.toLocaleString()}명)`;
+          return `병력을 늘려 후일을 도모합시다. (내정력 ${ipToSpend} 투자, +${troops.toLocaleString()}명)`;
         },
         emotion: "thoughtful",
       },
@@ -106,7 +108,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `대규모 모병 (내정포인트 ${ipToSpend} 집중 투자)`,
+        plan: `대규모 모병 (내정력 ${ipToSpend} 집중 투자)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
@@ -114,14 +116,14 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       {
         dialogue: (s) => {
           const troops = 60 * RECRUIT_TROOPS_PER_IP;
-          return `자금이 넉넉하니 대규모로 징병하겠소! (내정포인트 60 소비, 군사포인트(병력) +${troops.toLocaleString()})`;
+          return `자금이 넉넉하니 대규모로 징병하겠소! (내정력 60 소비, 군사력(병력) +${troops.toLocaleString()})`;
         },
         emotion: "excited",
       },
       {
         dialogue: (s) => {
           const troops = 60 * RECRUIT_TROOPS_PER_IP;
-          return `지금이 군세를 불릴 기회요. (내정포인트 60 투자, 병력 +${troops.toLocaleString()}명)`;
+          return `지금이 군세를 불릴 기회요. (내정력 60 투자, 병력 +${troops.toLocaleString()}명)`;
         },
         emotion: "excited",
       },
@@ -137,12 +139,12 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.training < 0.3 && s.economy.ip >= TRAIN_IP_COST,
     planReport: () => ({
       speaker: "관우",
-      plan: `집중 훈련 (내정포인트 ${TRAIN_IP_COST} 소비)`,
+      plan: `집중 훈련 (내정력 ${TRAIN_IP_COST} 소비)`,
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "집중 훈련에 들어가겠소! (내정포인트 15 소비, 훈련도 +5%)", emotion: "angry" },
-      { dialogue: "훈련을 대폭 강화하겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "worried" },
+      { dialogue: "집중 훈련에 들어가겠소! (내정력 15 소비, 훈련도 +5%)", emotion: "angry" },
+      { dialogue: "훈련을 대폭 강화하겠소. (내정력 15 소비, 훈련도 +5%)", emotion: "worried" },
     ],
   },
   {
@@ -152,12 +154,12 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.lowTraining && s.military.training >= 0.3 && s.economy.ip >= TRAIN_IP_COST,
     planReport: () => ({
       speaker: "관우",
-      plan: `훈련 실시 (내정포인트 ${TRAIN_IP_COST} 소비)`,
+      plan: `훈련 실시 (내정력 ${TRAIN_IP_COST} 소비)`,
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "병사 훈련을 실시하겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "calm" },
-      { dialogue: "훈련도를 끌어올리겠소. (내정포인트 15 소비, 훈련도 +5%)", emotion: "calm" },
+      { dialogue: "병사 훈련을 실시하겠소. (내정력 15 소비, 훈련도 +5%)", emotion: "calm" },
+      { dialogue: "훈련도를 끌어올리겠소. (내정력 15 소비, 훈련도 +5%)", emotion: "calm" },
     ],
   },
 
@@ -214,7 +216,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       { dialogue: "이 관우가 선봉에 서겠소! 전군 돌격으로 적 본성을 함락합시다!", emotion: "excited" },
-      { dialogue: "본성 공략에 정예 군사포인트(병력)을 투입하겠소. 한 번에 끝냅시다!", emotion: "excited" },
+      { dialogue: "본성 공략에 정예 군사력(병력)을 투입하겠소. 한 번에 끝냅시다!", emotion: "excited" },
     ],
   },
 
@@ -281,9 +283,9 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       plan: `긴급 모병 대기 — 자금 부족 (최소 10 필요, 현재 ${s.economy.ip})`,
     }),
     variations: [
-      { dialogue: "모병이 급하나 자금이 없소... 미축, 내정포인트 10이라도 마련해 달라!", emotion: "angry" },
-      { dialogue: "내정포인트가 최소 10은 있어야 모병 가능하오. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
-      { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 군사포인트(병력)으로 버텨야 하오.", emotion: "worried" },
+      { dialogue: "모병이 급하나 자금이 없소... 미축, 내정력 10이라도 마련해 달라!", emotion: "angry" },
+      { dialogue: "내정력이 최소 10은 있어야 모병 가능하오. 지금은 기다릴 수밖에 없소.", emotion: "worried" },
+      { dialogue: "자금만 생기면 당장 모병하겠소. 지금은 기존 군사력(병력)으로 버텨야 하오.", emotion: "worried" },
     ],
   },
   {
@@ -297,7 +299,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       { dialogue: "훈련시키고 싶으나 자금이 없소. 미축에게 재원 확보를 부탁하겠소.", emotion: "worried" },
-      { dialogue: "내정포인트가 모이면 바로 훈련에 들어가겠소.", emotion: "calm" },
+      { dialogue: "내정력이 모이면 바로 훈련에 들어가겠소.", emotion: "calm" },
     ],
   },
 
@@ -343,7 +345,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       const totalIp = recruitIp + TRAIN_IP_COST;
       return {
         speaker: "관우",
-        plan: `모병과 훈련 병행 (내정포인트 ${totalIp} 소비)`,
+        plan: `모병과 훈련 병행 (내정력 ${totalIp} 소비)`,
         expected_points: { ip_delta: -totalIp, mp_troops_delta: troops, mp_training_delta: 0.05 },
       };
     },
@@ -351,7 +353,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       {
         dialogue: (s) => {
           const troops = 20 * RECRUIT_TROOPS_PER_IP;
-          return `모병과 훈련을 병행하겠소. (내정포인트 ${20 + TRAIN_IP_COST} 소비, 군사포인트(병력) +${troops}, 훈련도 +5%)`;
+          return `모병과 훈련을 병행하겠소. (내정력 ${20 + TRAIN_IP_COST} 소비, 군사력(병력) +${troops}, 훈련도 +5%)`;
         },
         emotion: "calm",
       },
@@ -495,7 +497,7 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.nearEnemyCapital && s.military.lowTraining && s.economy.ip >= TRAIN_IP_COST,
     planReport: () => ({
       speaker: "관우",
-      plan: `훈련 후 적 본성 공략 (내정포인트 ${TRAIN_IP_COST} 소비)`,
+      plan: `훈련 후 적 본성 공략 (내정력 ${TRAIN_IP_COST} 소비)`,
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
@@ -509,11 +511,11 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.troopsAtCap && s.economy.ip >= TRAIN_IP_COST && !s.military.maxTraining,
     planReport: () => ({
       speaker: "관우",
-      plan: `병력 상한 도달 — 훈련 집중 (내정포인트 ${TRAIN_IP_COST} 소비)`,
+      plan: `병력 상한 도달 — 훈련 집중 (내정력 ${TRAIN_IP_COST} 소비)`,
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "군사포인트(병력)을 더 늘릴 수 없소. 훈련도를 올려 질적으로 강화하겠소. (훈련도 +5%)", emotion: "calm" },
+      { dialogue: "군사력(병력)을 더 늘릴 수 없소. 훈련도를 올려 질적으로 강화하겠소. (훈련도 +5%)", emotion: "calm" },
     ],
   },
   {
@@ -585,12 +587,12 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "관우",
-        plan: `초반 병력 기반 구축 (내정포인트 ${ipToSpend} 소비)`,
+        plan: `초반 병력 기반 구축 (내정력 ${ipToSpend} 소비)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
     variations: [
-      { dialogue: "초반부터 군사포인트(병력)을 갖춰야 적이 얕보지 않소. 기초 모병을 실시하겠소.", emotion: "calm" },
+      { dialogue: "초반부터 군사력(병력)을 갖춰야 적이 얕보지 않소. 기초 모병을 실시하겠소.", emotion: "calm" },
     ],
   },
 
@@ -606,13 +608,13 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       !s.strategic.recentBattle,
     planReport: () => ({
       speaker: "관우",
-      plan: "산적 토벌 — 치안 회복 (군사포인트(병력) 300 소모, 내정포인트 +20)",
+      plan: "산적 토벌 — 치안 회복 (군사력(병력) 300 소모, 내정력 +20)",
       expected_points: { mp_troops_delta: -300, ip_delta: 20 },
     }),
     variations: [
-      { dialogue: "영내 산적을 토벌하여 백성의 민심을 얻겠소! 군사포인트(병력) 300을 투입하면 세수가 20 늘 것이오.", emotion: "excited" },
-      { dialogue: "산적 무리가 치안을 어지럽히고 있소. 이 관우가 직접 정리하겠소. (군사포인트(병력) 300 소모, 내정포인트 +20)", emotion: "calm" },
-      { dialogue: "도적 떼를 쓸어내면 상인들이 돌아올 것이오. 소규모 군사포인트(병력)으로 충분하오.", emotion: "thoughtful" },
+      { dialogue: "영내 산적을 토벌하여 백성의 민심을 얻겠소! 군사력(병력) 300을 투입하면 세수가 20 늘 것이오.", emotion: "excited" },
+      { dialogue: "산적 무리가 치안을 어지럽히고 있소. 이 관우가 직접 정리하겠소. (군사력(병력) 300 소모, 내정력 +20)", emotion: "calm" },
+      { dialogue: "도적 떼를 쓸어내면 상인들이 돌아올 것이오. 소규모 군사력(병력)으로 충분하오.", emotion: "thoughtful" },
     ],
   },
   {
@@ -625,11 +627,11 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
       !s.strategic.recentBattle,
     planReport: () => ({
       speaker: "관우",
-      plan: "산적 토벌 — 잉여 병력 활용 (군사포인트(병력) 300 소모, 내정포인트 +20)",
+      plan: "산적 토벌 — 잉여 병력 활용 (군사력(병력) 300 소모, 내정력 +20)",
       expected_points: { mp_troops_delta: -300, ip_delta: 20 },
     }),
     variations: [
-      { dialogue: "군사포인트(병력)이 남아도니 산적 토벌에 쓰겠소. 군사포인트(병력) 300으로 내정포인트 20을 벌 수 있소.", emotion: "calm" },
+      { dialogue: "군사력(병력)이 남아도니 산적 토벌에 쓰겠소. 군사력(병력) 300으로 내정력 20을 벌 수 있소.", emotion: "calm" },
     ],
   },
 
@@ -642,12 +644,12 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.dpLow && (s.military.troopsAdequate || s.military.troopsAbundant),
     planReport: () => ({
       speaker: "관우",
-      plan: "군사 시위 외교 (군사포인트(병력) 500 소모, 외교포인트 +1)",
+      plan: "군사 시위 외교 (군사력(병력) 500 소모, 외교력 +1)",
       expected_points: { mp_troops_delta: -500, dp_delta: 1 },
     }),
     variations: [
-      { dialogue: "힘을 보여주는 것도 외교요. 군사포인트(병력) 500을 시위에 투입하면 외교포인트를 얻을 수 있소.", emotion: "calm" },
-      { dialogue: "군사포인트(병력)을 과시하면 적국도 함부로 대하지 못할 것이오. 군사 시위로 외교포인트를 확보하겠소.", emotion: "excited" },
+      { dialogue: "힘을 보여주는 것도 외교요. 군사력(병력) 500을 시위에 투입하면 외교력을 얻을 수 있소.", emotion: "calm" },
+      { dialogue: "군사력(병력)을 과시하면 적국도 함부로 대하지 못할 것이오. 군사 시위로 외교력을 확보하겠소.", emotion: "excited" },
     ],
   },
   {
@@ -657,12 +659,12 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.troopShortage && s.diplomacy.dpAdequate,
     planReport: () => ({
       speaker: "관우",
-      plan: "용병 고용 (외교포인트 2 소모, 군사포인트(병력) +5000)",
+      plan: "용병 고용 (외교력 2 소모, 군사력(병력) +5000)",
       expected_points: { dp_delta: -2, mp_troops_delta: 5000 },
     }),
     variations: [
-      { dialogue: "군사포인트(병력)이 부족하오! 외교포인트 2로 용병 5000을 즉시 확보하겠소.", emotion: "angry" },
-      { dialogue: "모병이 느리니 외교포인트를 써서 용병을 고용하겠소. (외교포인트 2 소모, 군사포인트(병력) +5000)", emotion: "thoughtful" },
+      { dialogue: "군사력(병력)이 부족하오! 외교력 2로 용병 5000을 즉시 확보하겠소.", emotion: "angry" },
+      { dialogue: "모병이 느리니 외교력을 써서 용병을 고용하겠소. (외교력 2 소모, 군사력(병력) +5000)", emotion: "thoughtful" },
     ],
   },
   {
@@ -672,12 +674,50 @@ export const GUAN_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.lowMorale && s.economy.ipAdequate,
     planReport: () => ({
       speaker: "관우",
-      plan: "병사 포상 — 사기 진작 (내정포인트 15 소모, 군사 사기 +0.1)",
+      plan: "병사 포상 — 사기 진작 (내정력 15 소모, 군사 사기 +0.1)",
       expected_points: { ip_delta: -15, mp_morale_delta: 0.1 },
     }),
     variations: [
-      { dialogue: "병사들의 사기가 꺾였소. 내정포인트 15로 포상을 내려 사기를 올리겠소.", emotion: "worried" },
+      { dialogue: "병사들의 사기가 꺾였소. 내정력 15로 포상을 내려 사기를 올리겠소.", emotion: "worried" },
       { dialogue: "전투력은 사기에서 나오오. 포상으로 병사들의 마음을 다잡겠소.", emotion: "thoughtful" },
+    ],
+  },
+
+  // ─── 성벽 강화 ───
+
+  {
+    id: "p3_guan_wall_upgrade",
+    advisor: "관우",
+    priority: 52,
+    condition: (s) => {
+      const capital = s.strategic.castleCount > 0;
+      const threatened = s.strategic.enemyNearCapital || s.military.troopShortage;
+      const wallLv = 1; // GameSituation에 성벽 레벨 미포함이므로 Lv1 기준 비용으로 판단
+      return capital && threatened && s.economy.ip >= getWallUpgradeCost(wallLv);
+    },
+    planReport: () => {
+      const cost = getWallUpgradeCost(1); // 기본 Lv1→2 비용 안내
+      return {
+        speaker: "관우",
+        plan: `본성 성벽 강화 (내정력 ${cost} 소비, 수성 방어 +0.1)`,
+        expected_points: { ip_delta: -cost },
+      };
+    },
+    variations: [
+      {
+        dialogue: (s) => {
+          const cost = getWallUpgradeCost(1);
+          return `성벽을 쌓아야 장기전에 버틸 수 있소. 내정력 ${cost}로 본성 성벽을 강화하겠소. (수성 방어 +0.1)`;
+        },
+        emotion: "worried",
+      },
+      {
+        dialogue: () => {
+          const cost = getWallUpgradeCost(1);
+          return `방어가 최선의 공격이오. 내정력 ${cost}를 투입해 성벽 레벨을 올리겠소. (최대 Lv${WALL_MAX_LEVEL})`;
+        },
+        emotion: "calm",
+      },
     ],
   },
 ];
@@ -698,14 +738,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
-        plan: `시장 1개 건설 (내정포인트 ${cost} 소비)`,
+        plan: `시장 1개 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `시장을 건설하여 세수를 확보해야 합니다. (내정포인트 ${s.economy.marketBuildCost} 소비, 턴당 내정포인트 +3)`,
+        dialogue: (s) => `시장을 건설하여 세수를 확보해야 합니다. (내정력 ${s.economy.marketBuildCost} 소비, 턴당 내정력 +3)`,
         emotion: "calm",
       },
       {
@@ -713,7 +753,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
         emotion: "thoughtful",
       },
       {
-        dialogue: (s) => `군의 자금을 대려면 시장부터 지어야 합니다. (내정포인트 ${s.economy.marketBuildCost} 투자)`,
+        dialogue: (s) => `군의 자금을 대려면 시장부터 지어야 합니다. (내정력 ${s.economy.marketBuildCost} 투자)`,
         emotion: "calm",
       },
     ],
@@ -728,18 +768,18 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.marketUpgradeCost;
       return {
         speaker: "미축",
-        plan: `시장 레벨업 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정포인트 ${cost} 소비)`,
+        plan: `시장 레벨업 Lv${s.economy.marketLv}→${s.economy.marketLv + 1} (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "market", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 업그레이드하겠습니다. (내정포인트 ${s.economy.marketUpgradeCost} 소비, 시장당 수입 +3)`,
+        dialogue: (s) => `시장을 Lv${s.economy.marketLv + 1}로 업그레이드하겠습니다. (내정력 ${s.economy.marketUpgradeCost} 소비, 시장당 수입 +3)`,
         emotion: "calm",
       },
       {
-        dialogue: (s) => `시장 품질을 높여 수입을 증대하겠습니다. (내정포인트 ${s.economy.marketUpgradeCost} 투자, 전체 수입 +${s.economy.marketCount * 3})`,
+        dialogue: (s) => `시장 품질을 높여 수입을 증대하겠습니다. (내정력 ${s.economy.marketUpgradeCost} 투자, 전체 수입 +${s.economy.marketCount * 3})`,
         emotion: "calm",
       },
       {
@@ -760,14 +800,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.farmBuildCost;
       return {
         speaker: "미축",
-        plan: `논 1개 건설 (내정포인트 ${cost} 소비)`,
+        plan: `논 1개 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "farm", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `논을 건설하여 농업 수입을 확보하겠습니다. (내정포인트 ${s.economy.farmBuildCost} 소비, 턴당 수입 +2)`,
+        dialogue: (s) => `논을 건설하여 농업 수입을 확보하겠습니다. (내정력 ${s.economy.farmBuildCost} 소비, 턴당 수입 +2)`,
         emotion: "thoughtful",
       },
     ],
@@ -782,14 +822,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.farmUpgradeCost;
       return {
         speaker: "미축",
-        plan: `논 레벨업 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정포인트 ${cost} 소비)`,
+        plan: `논 레벨업 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "farm", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `논 품질을 높이겠습니다. (내정포인트 ${s.economy.farmUpgradeCost} 소비, 전체 수입 +${s.economy.farmCount * 2})`,
+        dialogue: (s) => `논 품질을 높이겠습니다. (내정력 ${s.economy.farmUpgradeCost} 소비, 전체 수입 +${s.economy.farmCount * 2})`,
         emotion: "calm",
       },
     ],
@@ -807,14 +847,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = getFacilityUpgradeCost(0);
       return {
         speaker: "미축",
-        plan: `은행 건설 (내정포인트 ${cost} 소비)`,
+        plan: `은행 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: () => `내정포인트가 한계에 달했습니다! 낭비를 막으려면 은행을 지어 상한을 늘려야 합니다.`,
+        dialogue: () => `내정력이 한계에 달했습니다! 낭비를 막으려면 은행을 지어 상한을 늘려야 합니다.`,
         emotion: "worried",
       },
       {
@@ -834,14 +874,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = getFacilityUpgradeCost(s.economy.bankLv);
       return {
         speaker: "미축",
-        plan: `은행 확장 Lv${s.economy.bankLv}→${s.economy.bankLv + 1} (내정포인트 ${cost} 소비)`,
+        plan: `은행 확장 Lv${s.economy.bankLv}→${s.economy.bankLv + 1} (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `내정포인트 상한이 부족합니다. 은행을 확장하여 자금을 더 비축합시다. (내정포인트 ${getFacilityUpgradeCost(s.economy.bankLv)} 소비, 상한 +50)`,
+        dialogue: (s) => `내정력 상한이 부족합니다. 은행을 확장하여 자금을 더 비축합시다. (내정력 ${getFacilityUpgradeCost(s.economy.bankLv)} 소비, 상한 +50)`,
         emotion: "worried",
       },
       {
@@ -863,7 +903,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       plan: "긴축 재정 — 불필요한 지출 동결",
     }),
     variations: [
-      { dialogue: "지출을 최소화하고 내정포인트 회복에 집중하겠습니다.", emotion: "worried" },
+      { dialogue: "지출을 최소화하고 내정력 회복에 집중하겠습니다.", emotion: "worried" },
       { dialogue: "허리띠를 졸라매야 합니다. 긴축에 들어갑시다.", emotion: "worried" },
     ],
   },
@@ -880,7 +920,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const targetCost = Math.min(s.economy.marketBuildCost, s.economy.farmBuildCost);
       return {
         speaker: "미축",
-        plan: `내정포인트 비축 (현재 ${s.economy.ip}/${targetCost} 목표)`,
+        plan: `내정력 비축 (현재 ${s.economy.ip}/${targetCost} 목표)`,
       };
     },
     variations: [
@@ -969,7 +1009,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       return {
         speaker: "미축",
         plan: s.economy.canBuildMarket
-          ? `신규 성채 경제 기반 구축 (내정포인트 ${cost} 소비)`
+          ? `신규 성채 경제 기반 구축 (내정력 ${cost} 소비)`
           : `신규 성채 투자 준비 (자금 비축 중, ${s.economy.ip}/${cost})`,
         expected_points: s.economy.canBuildMarket ? { ip_delta: -cost } : undefined,
       };
@@ -994,7 +1034,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.nearEnemyCapital && !s.economy.ipLow,
     planReport: (s) => ({
       speaker: "미축",
-      plan: `전쟁 보급 체제 유지 (현재 내정포인트 ${s.economy.ip})`,
+      plan: `전쟁 보급 체제 유지 (현재 내정력 ${s.economy.ip})`,
     }),
     variations: [
       { dialogue: "전쟁 보급에 차질 없도록 하겠습니다. 자금은 충분합니다!", emotion: "excited" },
@@ -1012,9 +1052,9 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       plan: `모병 자금 긴급 확보 (현재 ${s.economy.ip}/10)`,
     }),
     variations: [
-      { dialogue: "관우 장군이 모병 자금을 요청하셨습니다. 최소 내정포인트 10을 최우선으로 확보하겠습니다!", emotion: "worried" },
+      { dialogue: "관우 장군이 모병 자금을 요청하셨습니다. 최소 내정력 10을 최우선으로 확보하겠습니다!", emotion: "worried" },
       {
-        dialogue: (s) => `내정포인트 ${10 - s.economy.ip}만 더 모으면 모병 가능합니다. 서두르겠습니다.`,
+        dialogue: (s) => `내정력 ${10 - s.economy.ip}만 더 모으면 모병 가능합니다. 서두르겠습니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -1061,14 +1101,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
-        plan: `시장 우선 건설 (내정포인트 ${cost} 소비)`,
+        plan: `시장 우선 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `먼저 시장을 지어 수입을 만들겠습니다. (내정포인트 ${s.economy.marketBuildCost} 소비)`,
+        dialogue: (s) => `먼저 시장을 지어 수입을 만들겠습니다. (내정력 ${s.economy.marketBuildCost} 소비)`,
         emotion: "calm",
       },
     ],
@@ -1085,13 +1125,13 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const total = cost1 + cost2;
       return {
         speaker: "미축",
-        plan: `내정포인트 만충 — 시장+논 레벨업 동시 투자 (${total} 소비)`,
+        plan: `내정력 만충 — 시장+논 레벨업 동시 투자 (${total} 소비)`,
         expected_points: { ip_delta: -total },
         facility_upgrades: [{ type: "market", level_delta: 1 }, { type: "farm", level_delta: 1 }],
       };
     },
     variations: [
-      { dialogue: "내정포인트가 가득 찼습니다! 시장과 논을 동시에 확장하겠습니다.", emotion: "excited" },
+      { dialogue: "내정력이 가득 찼습니다! 시장과 논을 동시에 확장하겠습니다.", emotion: "excited" },
     ],
   },
   {
@@ -1103,7 +1143,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.marketBuildCost;
       return {
         speaker: "미축",
-        plan: `초반 내정 기반 — 시장 건설 (내정포인트 ${cost} 소비)`,
+        plan: `초반 내정 기반 — 시장 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
       };
@@ -1122,7 +1162,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.bankUpgradeCost;
       return {
         speaker: "미축",
-        plan: `시장·논 균형 완성 — 이제 은행 건설 (내정포인트 ${cost} 소비)`,
+        plan: `시장·논 균형 완성 — 이제 은행 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
@@ -1138,7 +1178,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 && s.economy.marketCount >= 5,
     planReport: (s) => ({
       speaker: "미축",
-      plan: `최고 시설 유지 — 매턴 내정포인트 +${s.economy.ipRegen} 고정`,
+      plan: `최고 시설 유지 — 매턴 내정력 +${s.economy.ipRegen} 고정`,
     }),
     variations: [
       { dialogue: "시설이 최고 수준입니다. 안정적인 수입을 계속 유지하겠습니다.", emotion: "calm" },
@@ -1154,7 +1194,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "미축",
-        plan: `관우 장군 모병 지원 (내정포인트 ${ipToSpend} 제공)`,
+        plan: `관우 장군 모병 지원 (내정력 ${ipToSpend} 제공)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
@@ -1163,7 +1203,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.min(s.economy.ip, 20);
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `관우 장군 모병을 지원하겠습니다. (내정포인트 ${ipToSpend} 소비, 병력 +${troops})`;
+          return `관우 장군 모병을 지원하겠습니다. (내정력 ${ipToSpend} 소비, 병력 +${troops})`;
         },
         emotion: "calm",
       },
@@ -1176,11 +1216,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.lowTraining && !s.military.troopsCritical && s.economy.ip >= TRAIN_IP_COST,
     planReport: () => ({
       speaker: "미축",
-      plan: `관우 장군 훈련 지원 (내정포인트 ${TRAIN_IP_COST} 제공)`,
+      plan: `관우 장군 훈련 지원 (내정력 ${TRAIN_IP_COST} 제공)`,
       expected_points: { ip_delta: -TRAIN_IP_COST, mp_training_delta: 0.05 },
     }),
     variations: [
-      { dialogue: "관우 장군의 훈련을 지원하겠습니다. (내정포인트 15 소비, 훈련도 +5%)", emotion: "thoughtful" },
+      { dialogue: "관우 장군의 훈련을 지원하겠습니다. (내정력 15 소비, 훈련도 +5%)", emotion: "thoughtful" },
     ],
   },
   {
@@ -1190,7 +1230,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.nearEnemyCapital && s.economy.ipAdequate,
     planReport: (s) => ({
       speaker: "미축",
-      plan: `결전 비축 — 내정포인트 ${s.economy.ip} 전투 지원 대기`,
+      plan: `결전 비축 — 내정력 ${s.economy.ip} 전투 지원 대기`,
     }),
     variations: [
       { dialogue: "결전을 앞두고 자금을 비축하겠습니다. 관우 장군이 필요할 때 쓰시옵소서.", emotion: "calm" },
@@ -1205,7 +1245,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.canBuildMarket ? s.economy.marketBuildCost : s.economy.marketUpgradeCost;
       return {
         speaker: "미축",
-        plan: `성채 손실 후 경제 재건 (내정포인트 ${cost} 소비)`,
+        plan: `성채 손실 후 경제 재건 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
       };
     },
@@ -1225,8 +1265,8 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       return {
         speaker: "미축",
         plan: buildNew
-          ? `수입 증대 — 시장 추가 건설 (내정포인트 ${cost} 소비)`
-          : `수입 증대 — 시장 레벨업 (내정포인트 ${cost} 소비)`,
+          ? `수입 증대 — 시장 추가 건설 (내정력 ${cost} 소비)`
+          : `수입 증대 — 시장 레벨업 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: buildNew ? [{ type: "market", count_delta: 1 }] : [{ type: "market", level_delta: 1 }],
       };
@@ -1259,7 +1299,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
       return {
         speaker: "미축",
-        plan: `잉여 내정포인트 군사 전용 (${ipToSpend} 소비)`,
+        plan: `잉여 내정력 군사 전용 (${ipToSpend} 소비)`,
         expected_points: { ip_delta: -ipToSpend, mp_troops_delta: troops },
       };
     },
@@ -1268,7 +1308,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
         dialogue: (s) => {
           const ipToSpend = Math.min(s.economy.ip, 30);
           const troops = ipToSpend * RECRUIT_TROOPS_PER_IP;
-          return `시설이 완비됐으니 잉여 자금을 모병에 쓰겠습니다. (내정포인트 ${ipToSpend} 소비, 병력 +${troops})`;
+          return `시설이 완비됐으니 잉여 자금을 모병에 쓰겠습니다. (내정력 ${ipToSpend} 소비, 병력 +${troops})`;
         },
         emotion: "excited",
       },
@@ -1300,11 +1340,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       !s.strategic.recentBattle,
     planReport: () => ({
       speaker: "미축",
-      plan: "대민 지원 — 민심 안정 (군사포인트(병력) 100 소모, 내정포인트 +10)",
+      plan: "대민 지원 — 민심 안정 (군사력(병력) 100 소모, 내정력 +10)",
       expected_points: { mp_troops_delta: -100, ip_delta: 10 },
     }),
     variations: [
-      { dialogue: "병사들을 백성 지원에 투입하겠습니다. 군사포인트(병력) 100을 써서 내정포인트 10을 확보할 수 있습니다.", emotion: "calm" },
+      { dialogue: "병사들을 백성 지원에 투입하겠습니다. 군사력(병력) 100을 써서 내정력 10을 확보할 수 있습니다.", emotion: "calm" },
       { dialogue: "군사력을 민정에 활용하면 민심도 얻고 세수도 늘어납니다. 대민 지원을 실시하겠습니다.", emotion: "thoughtful" },
     ],
   },
@@ -1319,11 +1359,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       s.gamePhase === "mid",
     planReport: () => ({
       speaker: "미축",
-      plan: "평시 대민 지원 — 잉여 병력 활용 (군사포인트(병력) 100 소모, 내정포인트 +10)",
+      plan: "평시 대민 지원 — 잉여 병력 활용 (군사력(병력) 100 소모, 내정력 +10)",
       expected_points: { mp_troops_delta: -100, ip_delta: 10 },
     }),
     variations: [
-      { dialogue: "평화로운 지금이 민심을 다질 최적의 시기입니다. 잉여 군사포인트(병력)으로 대민 지원을 진행하겠습니다.", emotion: "calm" },
+      { dialogue: "평화로운 지금이 민심을 다질 최적의 시기입니다. 잉여 군사력(병력)으로 대민 지원을 진행하겠습니다.", emotion: "calm" },
     ],
   },
   {
@@ -1333,12 +1373,12 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipRich && s.diplomacy.dpLow,
     planReport: () => ({
       speaker: "미축",
-      plan: "상인 파견 — 내정→외교 전환 (내정포인트 20 소모, 외교포인트 +2)",
+      plan: "상인 파견 — 내정→외교 전환 (내정력 20 소모, 외교력 +2)",
       expected_points: { ip_delta: -20, dp_delta: 2 },
     }),
     variations: [
-      { dialogue: "자금이 넉넉하니 상인을 인근 세력에 파견하겠습니다. 외교 채널이 열릴 것입니다. (내정포인트 20, 외교포인트 +2)", emotion: "thoughtful" },
-      { dialogue: "내정포인트 20을 외교에 투자해 외교포인트 2를 확보하겠습니다.", emotion: "calm" },
+      { dialogue: "자금이 넉넉하니 상인을 인근 세력에 파견하겠습니다. 외교 채널이 열릴 것입니다. (내정력 20, 외교력 +2)", emotion: "thoughtful" },
+      { dialogue: "내정력 20을 외교에 투자해 외교력 2를 확보하겠습니다.", emotion: "calm" },
     ],
   },
   {
@@ -1348,11 +1388,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipLow && s.diplomacy.dpRich,
     planReport: () => ({
       speaker: "미축",
-      plan: "외교 채널 활용 무역 (외교포인트 1 소모, 내정포인트 +25)",
+      plan: "외교 채널 활용 무역 (외교력 1 소모, 내정력 +25)",
       expected_points: { dp_delta: -1, ip_delta: 25 },
     }),
     variations: [
-      { dialogue: "외교 채널을 통해 무역을 유치하겠습니다. 외교포인트 1로 내정포인트 25를 확보할 수 있습니다.", emotion: "excited" },
+      { dialogue: "외교 채널을 통해 무역을 유치하겠습니다. 외교력 1로 내정력 25를 확보할 수 있습니다.", emotion: "excited" },
       { dialogue: "좋은 관계를 이용해 교역로를 열겠습니다. 즉각적인 수입이 들어올 것입니다.", emotion: "calm" },
     ],
   },
@@ -1363,11 +1403,11 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipRich && s.strategic.sp < 5,
     planReport: () => ({
       speaker: "미축",
-      plan: "서원 운영 — 학문 투자 (내정포인트 25 소모, 전략포인트 +2)",
+      plan: "서원 운영 — 학문 투자 (내정력 25 소모, 특수능력 +2)",
       expected_points: { ip_delta: -25, sp_delta: 2 },
     }),
     variations: [
-      { dialogue: "자금을 학문에 투자하겠습니다. 내정포인트 25로 전략포인트 2를 얻을 수 있습니다.", emotion: "thoughtful" },
+      { dialogue: "자금을 학문에 투자하겠습니다. 내정력 25로 특수능력 2를 얻을 수 있습니다.", emotion: "thoughtful" },
       { dialogue: "서원을 운영하면 인재가 모이고 전략적 식견이 넓어집니다.", emotion: "calm" },
     ],
   },
@@ -1390,12 +1430,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     planReport: () => ({
       speaker: "방통",
-      plan: "조조와 관계 개선 (외교포인트 2 소비)",
+      plan: "조조와 관계 개선 (외교력 2 소비)",
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "조조에게 사신을 보내겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
-      { dialogue: "조조와의 관계를 개선하겠소. (외교포인트 2 소비)", emotion: "calm" },
+      { dialogue: "조조에게 사신을 보내겠소. (외교력 2 소비)", emotion: "thoughtful" },
+      { dialogue: "조조와의 관계를 개선하겠소. (외교력 2 소비)", emotion: "calm" },
     ],
   },
   {
@@ -1408,12 +1448,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     },
     planReport: () => ({
       speaker: "방통",
-      plan: "손권과 관계 개선 (외교포인트 2 소비)",
+      plan: "손권과 관계 개선 (외교력 2 소비)",
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "손권에게 화친을 제안하겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
-      { dialogue: "손권과 관계를 개선하겠소. (외교포인트 2 소비)", emotion: "calm" },
+      { dialogue: "손권에게 화친을 제안하겠소. (외교력 2 소비)", emotion: "thoughtful" },
+      { dialogue: "손권과 관계를 개선하겠소. (외교력 2 소비)", emotion: "calm" },
     ],
   },
 
@@ -1426,12 +1466,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.enemiesFriendly && s.diplomacy.dp >= 3,
     planReport: () => ({
       speaker: "방통",
-      plan: "적 간 이간책 실행 (외교포인트 3 소비)",
+      plan: "적 간 이간책 실행 (외교력 3 소비)",
       expected_points: { dp_delta: -3 },
     }),
     variations: [
-      { dialogue: "이간책을 실행하겠소! (외교포인트 3 소비)", emotion: "excited" },
-      { dialogue: "이간계를 펼치겠소. (외교포인트 3 소비)", emotion: "excited" },
+      { dialogue: "이간책을 실행하겠소! (외교력 3 소비)", emotion: "excited" },
+      { dialogue: "이간계를 펼치겠소. (외교력 3 소비)", emotion: "excited" },
     ],
   },
 
@@ -1444,12 +1484,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.anyFriendly && !s.diplomacy.anyAllied && s.diplomacy.dp >= 3,
     planReport: () => ({
       speaker: "방통",
-      plan: "우호 세력과 동맹 추진 (외교포인트 3 소비)",
+      plan: "우호 세력과 동맹 추진 (외교력 3 소비)",
       expected_points: { dp_delta: -3 },
     }),
     variations: [
-      { dialogue: "정식 동맹을 추진하겠소! (외교포인트 3 소비)", emotion: "excited" },
-      { dialogue: "동맹 체결을 추진하겠소. (외교포인트 3 소비)", emotion: "thoughtful" },
+      { dialogue: "정식 동맹을 추진하겠소! (외교력 3 소비)", emotion: "excited" },
+      { dialogue: "동맹 체결을 추진하겠소. (외교력 3 소비)", emotion: "thoughtful" },
     ],
   },
 
@@ -1463,12 +1503,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       s.strategic.biggestThreat.mp > s.military.mp * 2 && s.diplomacy.dp >= 2,
     planReport: () => ({
       speaker: "방통",
-      plan: "강대 세력과 휴전 교섭 (외교포인트 2 소비)",
+      plan: "강대 세력과 휴전 교섭 (외교력 2 소비)",
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "외교로 시간을 벌겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
-      { dialogue: "외교적 완충을 마련하겠소. (외교포인트 2 소비)", emotion: "worried" },
+      { dialogue: "외교로 시간을 벌겠소. (외교력 2 소비)", emotion: "thoughtful" },
+      { dialogue: "외교적 완충을 마련하겠소. (외교력 2 소비)", emotion: "worried" },
     ],
   },
   {
@@ -1499,7 +1539,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.dpLow && !s.diplomacy.allHostile,
     planReport: () => ({
       speaker: "방통",
-      plan: "외교포인트 비축 — 행동 자제",
+      plan: "외교력 비축 — 행동 자제",
     }),
     variations: [
       { dialogue: "외교 자원이 부족하니 비축하면서 기회를 기다리겠소.", emotion: "calm" },
@@ -1512,10 +1552,10 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.dpNone && s.strategic.sp >= 4 && s.diplomacy.allHostile,
     planReport: () => ({
       speaker: "방통",
-      plan: "전략포인트를 외교포인트로 전환",
+      plan: "특수능력을 외교력으로 전환",
     }),
     variations: [
-      { dialogue: "전략포인트를 외교에 전용하여 위기를 타개합시다.", emotion: "thoughtful" },
+      { dialogue: "특수능력을 외교에 전용하여 위기를 타개합시다.", emotion: "thoughtful" },
     ],
   },
 
@@ -1528,10 +1568,10 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.dpNone && s.diplomacy.allHostile && s.strategic.sp < 4,
     planReport: () => ({
       speaker: "방통",
-      plan: "외교포인트 긴급 확보 — 외교포인트 회복 대기",
+      plan: "외교력 긴급 확보 — 외교력 회복 대기",
     }),
     variations: [
-      { dialogue: "외교포인트가 없어 당장은 손발이 묶였소. 하나 회복되는 즉시 외교에 나서겠소!", emotion: "worried" },
+      { dialogue: "외교력이 없어 당장은 손발이 묶였소. 하나 회복되는 즉시 외교에 나서겠소!", emotion: "worried" },
       { dialogue: "외교 자원이 바닥이오... 하나 포기하지 않겠소. 다음 턴을 기다립시다.", emotion: "worried" },
       { dialogue: "양면 적대에 외교력도 없으니 최악이오. 그래도 방도를 찾겠소.", emotion: "angry" },
     ],
@@ -1570,7 +1610,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -4 },
     }),
     variations: [
-      { dialogue: "외교포인트가 넉넉하니 양쪽 모두 접근하겠소.", emotion: "excited" },
+      { dialogue: "외교력이 넉넉하니 양쪽 모두 접근하겠소.", emotion: "excited" },
     ],
   },
   {
@@ -1620,7 +1660,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "손권 동맹을 더욱 굳히겠소. 함께 조조를 압박할 때입니다. (외교포인트 2 소비)", emotion: "excited" },
+      { dialogue: "손권 동맹을 더욱 굳히겠소. 함께 조조를 압박할 때입니다. (외교력 2 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1637,7 +1677,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "조조와의 동맹을 강화하겠소. 손권을 압박하는 데 활용합시다. (외교포인트 2 소비)", emotion: "excited" },
+      { dialogue: "조조와의 동맹을 강화하겠소. 손권을 압박하는 데 활용합시다. (외교력 2 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1651,7 +1691,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -3 },
     }),
     variations: [
-      { dialogue: "양쪽 모두 우호적이오. 한쪽과 동맹을 맺어 더 유리한 입장을 취합시다. (외교포인트 3 소비)", emotion: "excited" },
+      { dialogue: "양쪽 모두 우호적이오. 한쪽과 동맹을 맺어 더 유리한 입장을 취합시다. (외교력 3 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1666,7 +1706,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -4 },
     }),
     variations: [
-      { dialogue: "압도적인 강적이 있소. 최소 한 쪽이라도 화해하여 전선을 줄여야 하오. (외교포인트 4 소비)", emotion: "worried" },
+      { dialogue: "압도적인 강적이 있소. 최소 한 쪽이라도 화해하여 전선을 줄여야 하오. (외교력 4 소비)", emotion: "worried" },
     ],
   },
   {
@@ -1682,7 +1722,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       {
-        dialogue: (s) => `적들이 분열되어 있소. 이 틈에 ${s.strategic.weakestEnemy!.name}을 외교적으로 고립시킵시다. (외교포인트 2 소비)`,
+        dialogue: (s) => `적들이 분열되어 있소. 이 틈에 ${s.strategic.weakestEnemy!.name}을 외교적으로 고립시킵시다. (외교력 2 소비)`,
         emotion: "excited",
       },
     ],
@@ -1694,11 +1734,11 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.dp >= 6,
     planReport: () => ({
       speaker: "방통",
-      plan: "외교포인트 풍부 — 대규모 외교 공세",
+      plan: "외교력 풍부 — 대규모 외교 공세",
       expected_points: { dp_delta: -5 },
     }),
     variations: [
-      { dialogue: "외교포인트가 넘칩니다! 대규모 외교 공세를 펼치겠소. (외교포인트 5 소비)", emotion: "excited" },
+      { dialogue: "외교력이 넘칩니다! 대규모 외교 공세를 펼치겠소. (외교력 5 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1714,7 +1754,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     }),
     variations: [
       {
-        dialogue: (s) => `결전 전 ${s.strategic.weakestEnemy!.name}을 외교적으로 봉쇄하겠소. 지원을 끊어버립시다. (외교포인트 2 소비)`,
+        dialogue: (s) => `결전 전 ${s.strategic.weakestEnemy!.name}을 외교적으로 봉쇄하겠소. 지원을 끊어버립시다. (외교력 2 소비)`,
         emotion: "excited",
       },
     ],
@@ -1730,7 +1770,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "우리가 압도적으로 강하오. 외교적으로 압박하면 싸우지 않고 이길 수도 있소. (외교포인트 2 소비)", emotion: "excited" },
+      { dialogue: "우리가 압도적으로 강하오. 외교적으로 압박하면 싸우지 않고 이길 수도 있소. (외교력 2 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1744,7 +1784,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "성채를 잃었으나 외교로 만회할 수 있소. 즉시 관계 개선에 나서겠소. (외교포인트 2 소비)", emotion: "thoughtful" },
+      { dialogue: "성채를 잃었으나 외교로 만회할 수 있소. 즉시 관계 개선에 나서겠소. (외교력 2 소비)", emotion: "thoughtful" },
     ],
   },
   {
@@ -1758,7 +1798,7 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "승전의 여세를 몰아 외교에서도 주도권을 잡겠소. (외교포인트 2 소비)", emotion: "excited" },
+      { dialogue: "승전의 여세를 몰아 외교에서도 주도권을 잡겠소. (외교력 2 소비)", emotion: "excited" },
     ],
   },
   {
@@ -1772,8 +1812,8 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       expected_points: { dp_delta: -2 },
     }),
     variations: [
-      { dialogue: "초반에 외교 기반을 다져두면 나중에 큰 도움이 됩니다. (외교포인트 2 소비)", emotion: "thoughtful" },
-      { dialogue: "지금 우방을 사귀어 두는 것이 현명하오. 외교에 나서겠소. (외교포인트 2 소비)", emotion: "calm" },
+      { dialogue: "초반에 외교 기반을 다져두면 나중에 큰 도움이 됩니다. (외교력 2 소비)", emotion: "thoughtful" },
+      { dialogue: "지금 우방을 사귀어 두는 것이 현명하오. 외교에 나서겠소. (외교력 2 소비)", emotion: "calm" },
     ],
   },
   {
@@ -1802,12 +1842,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
       s.strategic.overallStrength !== "critical",
     planReport: () => ({
       speaker: "방통",
-      plan: "약탈 — 비상 자금 조달 (군사포인트(병력) 20 소모, 내정포인트 +40, 외교포인트 -3)",
+      plan: "약탈 — 비상 자금 조달 (군사력(병력) 20 소모, 내정력 +40, 외교력 -3)",
       expected_points: { mp_troops_delta: -20, ip_delta: 40, dp_delta: -3 },
     }),
     variations: [
       { dialogue: "달리 방도가 없소. 인근 지역을 약탈하여 자금을 조달합시다. 외교 관계는 망가지겠지만... 지금은 살아남는 게 먼저요.", emotion: "worried" },
-      { dialogue: "비상 수단이오. 군사포인트(병력) 20을 풀어 즉각 자금을 확보하겠소. 외교 손실은 각오해야 하오.", emotion: "thoughtful" },
+      { dialogue: "비상 수단이오. 군사력(병력) 20을 풀어 즉각 자금을 확보하겠소. 외교 손실은 각오해야 하오.", emotion: "thoughtful" },
     ],
   },
 
@@ -1820,11 +1860,11 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipRich && (s.diplomacy.dpNone || s.diplomacy.dpLow),
     planReport: () => ({
       speaker: "방통",
-      plan: "공물 헌납 — 내정→외교 전환 (내정포인트 20 소모, 외교포인트 +2)",
+      plan: "공물 헌납 — 내정→외교 전환 (내정력 20 소모, 외교력 +2)",
       expected_points: { ip_delta: -20, dp_delta: 2 },
     }),
     variations: [
-      { dialogue: "자금으로 우호를 살 수 있소. 내정포인트 20을 공물로 써서 외교포인트 2를 확보합시다.", emotion: "thoughtful" },
+      { dialogue: "자금으로 우호를 살 수 있소. 내정력 20을 공물로 써서 외교력 2를 확보합시다.", emotion: "thoughtful" },
       { dialogue: "지금은 돈으로 외교를 뚫을 때요. 공물 헌납으로 외교 자원을 마련하겠소.", emotion: "calm" },
     ],
   },
@@ -1835,11 +1875,11 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipLow && s.diplomacy.dpAdequate,
     planReport: () => ({
       speaker: "방통",
-      plan: "무역 협정 체결 (외교포인트 1 소모, 내정포인트 +25)",
+      plan: "무역 협정 체결 (외교력 1 소모, 내정력 +25)",
       expected_points: { dp_delta: -1, ip_delta: 25 },
     }),
     variations: [
-      { dialogue: "외교포인트 1을 써서 무역 협정을 맺겠소. 즉각 내정포인트 25가 들어올 것이오.", emotion: "excited" },
+      { dialogue: "외교력 1을 써서 무역 협정을 맺겠소. 즉각 내정력 25가 들어올 것이오.", emotion: "excited" },
       { dialogue: "외교 자원이 있으니 활용합시다. 협정 하나로 자금 25를 끌어올 수 있소.", emotion: "calm" },
     ],
   },
@@ -1850,11 +1890,11 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.troopShortage && s.diplomacy.dpRich,
     planReport: () => ({
       speaker: "방통",
-      plan: "우방 병력 지원 요청 (외교포인트 3 소모, 군사포인트(병력) +8000)",
+      plan: "우방 병력 지원 요청 (외교력 3 소모, 군사력(병력) +8000)",
       expected_points: { dp_delta: -3, mp_troops_delta: 8000 },
     }),
     variations: [
-      { dialogue: "군사포인트(병력)이 부족하오. 외교포인트 3을 써서 우방에 지원군을 요청하겠소. 8000명이 올 것이오.", emotion: "thoughtful" },
+      { dialogue: "군사력(병력)이 부족하오. 외교력 3을 써서 우방에 지원군을 요청하겠소. 8000명이 올 것이오.", emotion: "thoughtful" },
       { dialogue: "외교 자산을 군사력으로 전환할 시기요. 동맹 지원군으로 전력을 보충합시다.", emotion: "calm" },
     ],
   },
@@ -1865,12 +1905,12 @@ export const PANG_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.sp >= 5 && s.diplomacy.dpLow,
     planReport: () => ({
       speaker: "방통",
-      plan: "외교 책략 — 전략→외교 전환 (전략포인트 3 소모, 외교포인트 +2)",
+      plan: "외교 책략 — 전략→외교 전환 (특수능력 3 소모, 외교력 +2)",
       expected_points: { sp_delta: -3, dp_delta: 2 },
     }),
     variations: [
-      { dialogue: "전략 자원을 외교에 투입합시다. 전략포인트 3으로 외교포인트 2를 마련하겠소.", emotion: "thoughtful" },
-      { dialogue: "지금 외교가 막혔소. 전략포인트를 전환해 외교포인트를 확보합시다.", emotion: "calm" },
+      { dialogue: "전략 자원을 외교에 투입합시다. 특수능력 3으로 외교력 2를 마련하겠소.", emotion: "thoughtful" },
+      { dialogue: "지금 외교가 막혔소. 특수능력을 전환해 외교력을 확보합시다.", emotion: "calm" },
     ],
   },
 ];
@@ -2109,7 +2149,7 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.spCanUnlock,
     planReport: () => ({
       speaker: "제갈량",
-      plan: "스킬 트리 연구 — 전략포인트 투자",
+      plan: "스킬 트리 연구 — 특수능력 투자",
     }),
     variations: [
       { dialogue: "새 기술을 연구하여 전략적 우위를 확보합시다.", emotion: "thoughtful" },
@@ -2300,10 +2340,10 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.diplomacy.allHostile && s.diplomacy.dpNone && s.strategic.overallStrength === "critical",
     planReport: () => ({
       speaker: "제갈량",
-      plan: "사면초가 생존 — 외교포인트 회복 후 외교 돌파",
+      plan: "사면초가 생존 — 외교력 회복 후 외교 돌파",
     }),
     variations: [
-      { dialogue: "최악의 상황입니다. 외교포인트를 회복한 뒤 즉시 외교에 나서겠습니다. 지금은 오직 생존입니다.", emotion: "worried" },
+      { dialogue: "최악의 상황입니다. 외교력을 회복한 뒤 즉시 외교에 나서겠습니다. 지금은 오직 생존입니다.", emotion: "worried" },
     ],
   },
   {
@@ -2334,11 +2374,11 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.economy.ipAdequate && s.strategic.sp < 3,
     planReport: () => ({
       speaker: "제갈량",
-      plan: "학문 진흥 — 내정→전략 투자 (내정포인트 20 소모, 전략포인트 +2)",
+      plan: "학문 진흥 — 내정→전략 투자 (내정력 20 소모, 특수능력 +2)",
       expected_points: { ip_delta: -20, sp_delta: 2 },
     }),
     variations: [
-      { dialogue: "내정포인트를 학문에 투자하면 전략적 식견이 열립니다. 내정포인트 20으로 전략포인트 2를 확보하겠습니다.", emotion: "thoughtful" },
+      { dialogue: "내정력을 학문에 투자하면 전략적 식견이 열립니다. 내정력 20으로 특수능력 2를 확보하겠습니다.", emotion: "thoughtful" },
       { dialogue: "곳간이 채워졌으니 이제 지식을 쌓을 때입니다. 학문 진흥에 투자하겠습니다.", emotion: "calm" },
     ],
   },
@@ -2349,12 +2389,12 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.strategic.sp >= 4 && s.economy.ipLow,
     planReport: () => ({
       speaker: "제갈량",
-      plan: "전략적 경영 계책 (전략포인트 2 소모, 내정포인트 +15)",
+      plan: "전략적 경영 계책 (특수능력 2 소모, 내정력 +15)",
       expected_points: { sp_delta: -2, ip_delta: 15 },
     }),
     variations: [
-      { dialogue: "전략 자원으로 경영 효율을 높이겠습니다. 전략포인트 2를 써서 내정포인트 15를 확보하겠습니다.", emotion: "thoughtful" },
-      { dialogue: "계책 하나로 자금난을 타개할 수 있습니다. 전략포인트 2를 투입하겠습니다.", emotion: "calm" },
+      { dialogue: "전략 자원으로 경영 효율을 높이겠습니다. 특수능력 2를 써서 내정력 15를 확보하겠습니다.", emotion: "thoughtful" },
+      { dialogue: "계책 하나로 자금난을 타개할 수 있습니다. 특수능력 2를 투입하겠습니다.", emotion: "calm" },
     ],
   },
   {
@@ -2364,12 +2404,12 @@ export const ZHUGE_PHASE3_CASES: Phase3CaseDefinition[] = [
     condition: (s) => s.military.lowMorale && s.economy.ipAdequate,
     planReport: () => ({
       speaker: "제갈량",
-      plan: "군심 결집 — 포상과 격려 (내정포인트 15 소모, 군사 사기 +0.1)",
+      plan: "군심 결집 — 포상과 격려 (내정력 15 소모, 군사 사기 +0.1)",
       expected_points: { ip_delta: -15, mp_morale_delta: 0.1 },
     }),
     variations: [
-      { dialogue: "병사들의 사기가 떨어지면 전투력도 반감됩니다. 내정포인트 15로 포상을 내려 사기를 끌어올리겠습니다.", emotion: "worried" },
-      { dialogue: "사기를 높이는 것이 군사포인트(병력)을 늘리는 것 이상의 효과를 냅니다. 포상에 투자하겠습니다.", emotion: "thoughtful" },
+      { dialogue: "병사들의 사기가 떨어지면 전투력도 반감됩니다. 내정력 15로 포상을 내려 사기를 끌어올리겠습니다.", emotion: "worried" },
+      { dialogue: "사기를 높이는 것이 군사력(병력)을 늘리는 것 이상의 효과를 냅니다. 포상에 투자하겠습니다.", emotion: "thoughtful" },
     ],
   },
 ];

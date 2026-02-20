@@ -44,7 +44,7 @@ export function executeDiplomaticAction(
   switch (action) {
     case "관계_개선": {
       if (dpAvailable < 2) {
-        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+        return { success: false, message: "외교력이 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
       const change = 1 + (Math.random() < 0.3 ? 1 : 0);
       return {
@@ -57,7 +57,7 @@ export function executeDiplomaticAction(
 
     case "관계_악화": {
       if (dpAvailable < 2) {
-        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+        return { success: false, message: "외교력이 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
       return {
         success: true,
@@ -69,7 +69,7 @@ export function executeDiplomaticAction(
 
     case "지원_요청": {
       if (dpAvailable < 3) {
-        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+        return { success: false, message: "외교력이 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
       const success = relation.score >= 3 && Math.random() < 0.6;
       return {
@@ -84,7 +84,7 @@ export function executeDiplomaticAction(
 
     case "무역": {
       if (dpAvailable < 1) {
-        return { success: false, message: "외교포인트가 부족합니다.", scoreChange: 0, dpCost: 0 };
+        return { success: false, message: "외교력이 부족합니다.", scoreChange: 0, dpCost: 0 };
       }
       if (relation.score < -3) {
         return { success: false, message: `${target.rulerName}이(가) 무역을 거부했습니다.`, scoreChange: 0, dpCost: 0 };
@@ -92,7 +92,7 @@ export function executeDiplomaticAction(
       const ipGain = 10 + Math.floor(Math.random() * 10);
       return {
         success: true,
-        message: `${target.rulerName}과(와) 무역으로 내정포인트 ${ipGain}를 획득했습니다.`,
+        message: `${target.rulerName}과(와) 무역으로 내정력 ${ipGain}를 획득했습니다.`,
         scoreChange: 1,
         dpCost: 1,
         ipGain,

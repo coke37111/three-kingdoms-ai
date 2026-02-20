@@ -48,7 +48,7 @@ export default function RecruitmentPopup({ maxIP, onConfirm, onCancel }: Recruit
         {maxTroops === 0 ? (
           <>
             <p style={{ color: "var(--text-dim)", textAlign: "center", margin: "20px 0", fontSize: "14px" }}>
-              내정포인트가 없어 모병할 수 없습니다.
+              내정력이 없어 모병할 수 없습니다.
             </p>
             <button
               onClick={onCancel}
@@ -67,7 +67,7 @@ export default function RecruitmentPopup({ maxIP, onConfirm, onCancel }: Recruit
                 {troops.toLocaleString()}명
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-dim)", marginTop: "4px" }}>
-                내정포인트 <span style={{ color: "#d4443e", fontWeight: 700 }}>-{ipCost}</span> 소비
+                내정력 <span style={{ color: "#d4443e", fontWeight: 700 }}>-{ipCost}</span> 소비
               </div>
             </div>
 
@@ -83,7 +83,7 @@ export default function RecruitmentPopup({ maxIP, onConfirm, onCancel }: Recruit
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-dim)", marginBottom: "16px" }}>
               <span>0명</span>
-              <span>최대 {maxTroops.toLocaleString()}명 (내정포인트 {maxIP})</span>
+              <span>최대 {maxTroops.toLocaleString()}명 (내정력 {maxIP})</span>
             </div>
 
             {/* 퀵 버튼 */}

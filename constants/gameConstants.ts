@@ -84,7 +84,7 @@ export function getFacilityUpgradeCost(currentLevel: number): number {
 /** SP→DP 변환 비용: SP 2 → DP 1 */
 export const SP_TO_DP_COST = 2;
 
-/** 내정포인트 1당 모병 가능 병력 수 */
+/** 내정력 1당 모병 가능 병력 수 */
 export const RECRUIT_TROOPS_PER_IP = 100;
 
 /** 훈련 IP 비용 (훈련도 0.1당) */
@@ -105,7 +105,7 @@ export const MAX_SIEGE_FACILITY_DAMAGE = 2;
 /** 이벤트 발생 확률 */
 export const EVENT_TRIGGER_CHANCE = 0.3;
 
-/** 병사 유지비: 병력 5,000명당 내정포인트 1 소모 */
+/** 병사 유지비: 병력 5,000명당 내정력 1 소모 */
 export const TROOP_MAINTENANCE_DIVISOR = 5000;
 
 /** 유지비 부족 시 병력 감소율 (1%) */
@@ -146,6 +146,28 @@ export const TRIBUTE_IP_COST_MULTIPLIER = 0.0005;
 
 /** 조공 최소 IP 비용 */
 export const TRIBUTE_MIN_IP_COST = 20;
+
+// ===================== 성벽 레벨 =====================
+
+/** 성벽 레벨당 수성 방어 배율 보너스 */
+export const WALL_DEFENSE_PER_LEVEL = 0.1;
+
+/** 성벽 최대 레벨 */
+export const WALL_MAX_LEVEL = 5;
+
+/** 성벽 업그레이드 기본 비용 (Lv1→2) */
+export const WALL_BASE_UPGRADE_COST = 80;
+
+/** 레벨당 비용 증가분 (Lv2→3: +40, Lv3→4: +40, ...) */
+export const WALL_COST_INCREMENT = 40;
+
+/**
+ * 성벽 업그레이드 비용
+ * Lv1→2: 80, Lv2→3: 120, Lv3→4: 160, Lv4→5: 200
+ */
+export function getWallUpgradeCost(currentLevel: number): number {
+  return WALL_BASE_UPGRADE_COST + (currentLevel - 1) * WALL_COST_INCREMENT;
+}
 
 // ===================== Garrison 배분 =====================
 

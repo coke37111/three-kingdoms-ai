@@ -2,6 +2,7 @@ import type { WorldState, Faction, FactionId } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { scoreToLabel } from "@/lib/game/diplomacySystem";
 import { isFrontlineCastle } from "@/lib/game/garrisonSystem";
+import { WALL_DEFENSE_PER_LEVEL, WALL_MAX_LEVEL, getWallUpgradeCost } from "@/constants/gameConstants";
 
 function getRelationSummary(world: WorldState, factionId: FactionId): string {
   return world.relations
@@ -14,7 +15,7 @@ function getRelationSummary(world: WorldState, factionId: FactionId): string {
 }
 
 function getFactionSummary(f: Faction): string {
-  return `${f.rulerName}: 군사포인트 ${f.points.mp.toLocaleString()}, 성채 ${f.castles.length}개, 내정포인트 ${f.points.ip}, 외교포인트 ${f.points.dp}, 전략포인트 ${f.points.sp}`;
+  return `${f.rulerName}: 군사력 ${f.points.mp.toLocaleString()}, 성채 ${f.castles.length}개, 내정력 ${f.points.ip}, 외교력 ${f.points.dp}, 특수능력 ${f.points.sp}`;
 }
 
 export function buildFactionAIPrompt(world: WorldState, npcFactions: Faction[]): string {
@@ -34,7 +35,7 @@ export function buildFactionAIPrompt(world: WorldState, npcFactions: Faction[]):
 
     return `### ${f.rulerName} (${f.id})
 성격: 공격성 ${f.personality.aggression}, 외교 ${f.personality.diplomacy}, 개발 ${f.personality.development}, 모험 ${f.personality.riskTolerance}
-포인트: 군사포인트 ${f.points.mp.toLocaleString()} (병력 ${f.points.mp_troops.toLocaleString()}, 훈련 ${(f.points.mp_training * 100).toFixed(0)}%), 내정포인트 ${f.points.ip}/${f.points.ip_cap}, 외교포인트 ${f.points.dp}, 전략포인트 ${f.points.sp}
+역량: 군사력 ${f.points.mp.toLocaleString()} (병력 ${f.points.mp_troops.toLocaleString()}, 훈련 ${(f.points.mp_training * 100).toFixed(0)}%), 내정력 ${f.points.ip}/${f.points.ip_cap}, 외교력 ${f.points.dp}, 특수능력 ${f.points.sp}
 성채: ${f.castles.join(", ")} (${f.castles.length}개)${frontlineInfo}
 시설: 시장 ${f.facilities.market.count}개(Lv${f.facilities.market.level}), 논 ${f.facilities.farm.count}개(Lv${f.facilities.farm.level}), 은행 Lv${f.facilities.bank}
 배치 상한: ${f.rulerLevel.deploymentCap.toLocaleString()}
@@ -56,17 +57,19 @@ ${worldSummary}
 ${factionInstructions}
 
 === 행동 유형 ===
-- 개발: 내정포인트 소비하여 시설 건설/업그레이드
-- 모병: 내정포인트 소비하여 병력 증강
-- 훈련: 내정포인트 소비하여 훈련도 상승
-- 공격: 군사포인트 투입하여 인접 성채 공격
-- 외교: 외교포인트 소비하여 관계 변동
+- 개발: 내정력 소비하여 시설 건설/업그레이드 또는 성벽 레벨 업그레이드
+  (성벽 강화: 수성 방어 +${WALL_DEFENSE_PER_LEVEL}/레벨, 최대 Lv${WALL_MAX_LEVEL} | Lv1→2: ${getWallUpgradeCost(1)}IP / Lv2→3: ${getWallUpgradeCost(2)}IP / Lv3→4: ${getWallUpgradeCost(3)}IP / Lv4→5: ${getWallUpgradeCost(4)}IP)
+  (성벽 StateChanges: wall_upgrades: [{ castle: "성채명", level_delta: 1 }])
+- 모병: 내정력 소비하여 병력 증강
+- 훈련: 내정력 소비하여 훈련도 상승
+- 공격: 군사력 투입하여 인접 성채 공격
+- 외교: 외교력 소비하여 관계 변동
 - 방어: 성채 주둔 병력 배치
-- 스킬: 전략포인트 소비하여 스킬 해금
+- 스킬: 특수능력 소비하여 스킬 해금
 
 === 응답 규칙 ===
 1. 반드시 아래 JSON 형식으로만 응답.
-2. 각 군주당 1~2개의 행동. 보유 포인트 범위 내에서만.
+2. 각 군주당 1~2개의 행동. 보유 역량 범위 내에서만.
 3. 행동은 현실적이고 성격에 부합해야 한다.
 4. summary는 한국어 1~2문장 이내로 작성. 형식: "[군주명]이 [행동]했습니다." 예: "조조가 병력을 증강하고 관도 방향으로 압박을 가했습니다."
 

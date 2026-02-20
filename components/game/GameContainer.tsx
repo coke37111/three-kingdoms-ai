@@ -619,7 +619,7 @@ export default function GameContainer() {
     applyPlayerChanges({ point_deltas: { ip_delta: -ipCost, mp_troops_delta: troops } }, addMsgToCouncil);
     setCouncilMessages(prev => [...prev, {
       speaker: "관우",
-      dialogue: `${troops.toLocaleString()}명 모병 완료! (내정포인트 -${ipCost})`,
+      dialogue: `${troops.toLocaleString()}명 모병 완료! (내정력 -${ipCost})`,
       emotion: "excited" as const,
     }]);
     setRecruitmentPopup(null);
@@ -685,10 +685,26 @@ export default function GameContainer() {
             ...phase1.messages.map(m => m.speaker),
             ...phase3.messages.map(m => m.speaker),
           ]);
+
+          // replyTo 분리 → 멘션 응답은 animateCouncilMessages에서 쓰레드 처리
+          const regularP1 = phase1.messages.filter(m => !m.replyTo);
+          const mentionResponseMsgs = phase1.messages.filter(m => m.replyTo);
+
+          // 참모별 첫 번째 메시지만 phase3과 병합, 나머지는 별도 보존
+          const firstPerAdvisor = new Map<string, CouncilMessage>();
+          const extraMessages: CouncilMessage[] = [];
+          for (const msg of regularP1) {
+            if (!firstPerAdvisor.has(msg.speaker)) {
+              firstPerAdvisor.set(msg.speaker, msg);
+            } else {
+              extraMessages.push(msg);
+            }
+          }
+
           const merged: CouncilMessage[] = [];
           for (const advisor of ADVISOR_DISPLAY_ORDER) {
             if (!allSpeakers.has(advisor)) continue;
-            const p1 = phase1.messages.find(m => m.speaker === advisor);
+            const p1 = firstPerAdvisor.get(advisor);
             const p3 = phase3.messages.find(m => m.speaker === advisor);
             if (p1 && p3) {
               merged.push({ speaker: advisor, dialogue: `${p1.dialogue} ${p3.dialogue}`, emotion: p3.emotion, phase: 1 as const });
@@ -698,6 +714,11 @@ export default function GameContainer() {
               merged.push({ ...p3, phase: 1 as const });
             }
           }
+
+          // 제갈량 마무리 + 추가 보고
+          merged.push(...extraMessages);
+          // 멘션 응답 (replyTo 설정 → animateCouncilMessages에서 쓰레드 처리)
+          merged.push(...mentionResponseMsgs);
 
           await animateCouncilMessages(merged, true, {});
           setStatusReports(phase1.statusReports);
@@ -1166,7 +1187,7 @@ export default function GameContainer() {
           const ipPenalty = Math.floor(playerAfterTurn.points.ip_regen * 0.5);
           if (ipPenalty > 0) {
             applyPlayerChanges({ point_deltas: { ip_delta: -ipPenalty } }, addMsgToCouncil);
-            addSystemCouncilMsg(`⚔️ 수성 전란으로 내정이 위축되었습니다. (내정포인트 -${ipPenalty})`);
+            addSystemCouncilMsg(`⚔️ 수성 전란으로 내정이 위축되었습니다. (내정력 -${ipPenalty})`);
           }
         }
       }
@@ -1206,7 +1227,7 @@ export default function GameContainer() {
           const lostList = lostCastleNames.join(", ");
           councilContext = `⚠️ 긴급 상황: ${lostList} 함락으로 영토가 축소되었다. 사기 저하와 병력 손실이 심각하다. 이번 회의의 최우선 의제는 (1) 피해 현황 파악, (2) 방어선 재구축 계획, (3) 병력·사기 회복 방안이다. 각 참모는 평상시 보고 대신 위기 대응을 중심으로 발언하라.`;
         } else if (turnPlayerLost && turnHadInvasion) {
-          councilContext = `전투에서 패배했으나 성채는 지켰다. 병력 손실(현재 군사포인트: ${player.points.mp.toLocaleString()})과 사기 하락을 회복해야 한다. 이번 회의의 핵심은 (1) 피해 복구 계획, (2) 방어 강화 방안 논의다.`;
+          councilContext = `전투에서 패배했으나 성채는 지켰다. 병력 손실(현재 군사력: ${player.points.mp.toLocaleString()})과 사기 하락을 회복해야 한다. 이번 회의의 핵심은 (1) 피해 복구 계획, (2) 방어 강화 방안 논의다.`;
         } else if (playerDefendedThisTurn && !turnPlayerLost) {
           councilContext = `적의 침공을 막아냈다. 수성 전란으로 내정이 위축되었으니 빠른 복구가 필요하다. 각 참모가 수성 현황을 보고하고, 방어력 강화 및 내정 회복 계획을 제안하라.`;
         } else if (turnCastlesGained || playerConqueredThisTurnRef.current) {
@@ -1364,7 +1385,7 @@ export default function GameContainer() {
 
     const player = worldStateRef.current.factions.find(f => f.isPlayer);
     if (!player || player.points.ap < 1) {
-      addSystemCouncilMsg("⚠️ 행동포인트가 부족합니다. '다음' 버튼을 눌러 진행하세요.");
+      addSystemCouncilMsg("⚠️ 행동력이 부족합니다. '다음' 버튼을 눌러 진행하세요.");
       processingTurnRef.current = false;
       return;
     }
@@ -1431,7 +1452,7 @@ export default function GameContainer() {
       console.error("sendMessage error:", err);
       // API 실패 시 AP 복구
       applyPlayerChanges({ point_deltas: { ap_delta: 1 } }, addMsgToCouncil);
-      addSystemCouncilMsg("⚠️ 요청 처리 중 오류가 발생했습니다. 행동포인트가 복구됩니다.");
+      addSystemCouncilMsg("⚠️ 요청 처리 중 오류가 발생했습니다. 행동력이 복구됩니다.");
     } finally {
       setIsLoading(false);
       processingTurnRef.current = false;
@@ -1600,12 +1621,12 @@ export default function GameContainer() {
           pointerEvents: "auto",
         }}>
           <div style={{ color: currentAP >= 1 ? POINT_COLORS.AP.color : "var(--text-dim)" }}>
-            행동 포인트 {currentAP.toFixed(1)}/{playerFaction.points.ap_max} <span style={{ color: getDeltaColor(apRegenTotal), fontSize: "10px" }}>(+{apRegenTotal % 1 === 0 ? apRegenTotal : apRegenTotal.toFixed(1)})</span>
+            행동력 {currentAP.toFixed(1)}/{playerFaction.points.ap_max} <span style={{ color: getDeltaColor(apRegenTotal), fontSize: "10px" }}>(+{apRegenTotal % 1 === 0 ? apRegenTotal : apRegenTotal.toFixed(1)})</span>
           </div>
-          <div style={{ color: POINT_COLORS.SP.color }}>전략 포인트 {playerFaction.points.sp} <span style={{ color: getDeltaColor(1), fontSize: "10px" }}>(+1)</span></div>
-          <div style={{ color: POINT_COLORS.MP.color }}>군사 포인트 {playerFaction.points.mp.toLocaleString()}</div>
-          <div style={{ color: POINT_COLORS.IP.color }}>내정 포인트 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: getDeltaColor(ipRegen), fontSize: "10px" }}>(+{ipRegen})</span></div>
-          <div style={{ color: POINT_COLORS.DP.color }}>외교 포인트 {playerFaction.points.dp} <span style={{ color: getDeltaColor(dpRegenTotal), fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
+          <div style={{ color: POINT_COLORS.SP.color }}>특수능력 {playerFaction.points.sp} <span style={{ color: getDeltaColor(1), fontSize: "10px" }}>(+1)</span></div>
+          <div style={{ color: POINT_COLORS.MP.color }}>군사력 {playerFaction.points.mp.toLocaleString()}</div>
+          <div style={{ color: POINT_COLORS.IP.color }}>내정력 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: getDeltaColor(ipRegen), fontSize: "10px" }}>(+{ipRegen})</span></div>
+          <div style={{ color: POINT_COLORS.DP.color }}>외교력 {playerFaction.points.dp} <span style={{ color: getDeltaColor(dpRegenTotal), fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
         </div>
 
         <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", paddingTop: "6px", paddingBottom: "6px" }}>
@@ -1679,7 +1700,7 @@ export default function GameContainer() {
           placeholder={
             !canInput
               ? `${phaseLabel} 진행 중...`
-              : `행동포인트 ${currentAP.toFixed(1)} — 참모에게 질문, 지시, 또는 계획 피드백 (1 소비)`
+              : `행동력 ${currentAP.toFixed(1)} — 참모에게 질문, 지시, 또는 계획 피드백 (1 소비)`
           }
           disabled={isLoading || !canInput}
           style={{

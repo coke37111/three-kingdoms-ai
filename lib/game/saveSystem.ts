@@ -85,10 +85,23 @@ export async function saveGame(
   return cloudSaveGame(uid, slotIndex, data);
 }
 
+function migrateSaveData(data: SaveData): SaveData {
+  // wallLevel 없는 구 세이브 마이그레이션: 기본값 1 부여
+  return {
+    ...data,
+    worldState: {
+      ...data.worldState,
+      castles: data.worldState.castles.map(c =>
+        c.wallLevel !== undefined ? c : { ...c, wallLevel: 1 }
+      ),
+    },
+  };
+}
+
 export async function loadGame(slotIndex: number, uid: string): Promise<SaveData | null> {
   const data = await cloudLoadGame(uid, slotIndex);
   if (!data || data.version !== SAVE_VERSION) return null;
-  return data;
+  return migrateSaveData(data);
 }
 
 export async function autoSave(
@@ -107,7 +120,7 @@ export async function autoSave(
 export async function loadAutoSave(uid: string): Promise<SaveData | null> {
   const data = await cloudLoadAutoSave(uid);
   if (!data || data.version !== SAVE_VERSION) return null;
-  return data;
+  return migrateSaveData(data);
 }
 
 export async function deleteSave(slotIndex: number, uid: string): Promise<void> {

@@ -12,22 +12,22 @@ export type BattleType = "야전" | "공성" | "수성";
 
 /** 세력 포인트 (5종) */
 export interface FactionPoints {
-  ap: number;          // 행동 포인트 (현재)
+  ap: number;          // 행동력 (현재)
   ap_max: number;      // AP 최대치
   ap_regen: number;    // 매턴 AP 충전량
 
-  sp: number;          // 전략 포인트
+  sp: number;          // 특수능력
 
-  mp: number;          // 군사 포인트 (산출값: troops × training × morale)
+  mp: number;          // 군사력 (산출값: troops × training × morale)
   mp_troops: number;   // 병력 수
   mp_training: number; // 훈련도 (0.0~1.0)
   mp_morale: number;   // 사기 (0.8~1.2)
 
-  ip: number;          // 내정 포인트 (현재)
+  ip: number;          // 내정력 (현재)
   ip_cap: number;      // IP 최대치 (은행 레벨로 증가)
   ip_regen: number;    // 매턴 IP 충전량 (시설 레벨 기반)
 
-  dp: number;          // 외교 포인트
+  dp: number;          // 외교력
 }
 
 /** 포인트 변동값 (AI 응답/상태 변경용) */
@@ -49,6 +49,7 @@ export interface Castle {
   owner: FactionId;
   garrison: number;           // 주둔 병력
   defenseMultiplier: number;  // 방어 배율 (일반 1.5, 요새 2.0~2.5, 본성 3.0)
+  wallLevel: number;          // 성벽 레벨 (기본 1, 최대 5) — 수성 방어 +0.1/레벨
   maxGarrison: number;        // 최대 주둔 가능 병력
   adjacentCastles: string[];  // 인접 성채 (라인 연결)
   lineId: string;             // 소속 라인 ("liu_cao" | "liu_sun" | "sun_cao")
@@ -219,6 +220,7 @@ export interface StateChanges {
   castle_updates?: CastleUpdate[];
   conquered_castles?: string[];
   facility_upgrades?: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number }[];
+  wall_upgrades?: { castle: string; level_delta: number }[];
   skill_unlocks?: string[];
   xp_gain?: number;
   result_message?: string;

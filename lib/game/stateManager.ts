@@ -1,5 +1,5 @@
 import type { Faction, FactionPoints, StateChanges, PointDeltas, Castle, Facilities, FacilityBuilding } from "@/types/game";
-import { DEPLOYMENT_PER_LEVEL, BASE_XP_TO_LEVEL, XP_PER_LEVEL_SCALING } from "@/constants/gameConstants";
+import { DEPLOYMENT_PER_LEVEL, BASE_XP_TO_LEVEL, XP_PER_LEVEL_SCALING, WALL_MAX_LEVEL } from "@/constants/gameConstants";
 
 export interface ApplyResult {
   nextFaction: Faction;
@@ -10,18 +10,18 @@ export interface ApplyResult {
 function applyPointDeltas(points: FactionPoints, deltas: PointDeltas): FactionPoints {
   const p = { ...points };
 
-  if (deltas.ap_delta) p.ap = Math.max(0, p.ap + deltas.ap_delta);
-  if (deltas.sp_delta) p.sp = Math.max(0, p.sp + deltas.sp_delta);
-  if (deltas.ip_delta) p.ip = Math.max(0, Math.min(p.ip_cap, p.ip + deltas.ip_delta));
-  if (deltas.dp_delta) p.dp = Math.max(0, p.dp + deltas.dp_delta);
+  if (deltas.ap_delta != null) p.ap = Math.max(0, p.ap + deltas.ap_delta);
+  if (deltas.sp_delta != null) p.sp = Math.max(0, p.sp + deltas.sp_delta);
+  if (deltas.ip_delta != null) p.ip = Math.max(0, Math.min(p.ip_cap, p.ip + deltas.ip_delta));
+  if (deltas.dp_delta != null) p.dp = Math.max(0, p.dp + deltas.dp_delta);
 
-  if (deltas.mp_troops_delta) {
+  if (deltas.mp_troops_delta != null) {
     p.mp_troops = Math.max(0, p.mp_troops + deltas.mp_troops_delta);
   }
-  if (deltas.mp_training_delta) {
+  if (deltas.mp_training_delta != null) {
     p.mp_training = Math.max(0, Math.min(1.0, p.mp_training + deltas.mp_training_delta));
   }
-  if (deltas.mp_morale_delta) {
+  if (deltas.mp_morale_delta != null) {
     p.mp_morale = Math.max(0.8, Math.min(1.2, p.mp_morale + deltas.mp_morale_delta));
   }
 
@@ -104,7 +104,7 @@ export function applyStateChanges(
       nextCastles = nextCastles.map(c => {
         if (c.name !== cu.castle) return c;
         const updated = { ...c };
-        if (cu.garrison_delta) {
+        if (cu.garrison_delta != null) {
           updated.garrison = Math.max(0, updated.garrison + cu.garrison_delta);
         }
         if (cu.new_owner) {
@@ -126,6 +126,17 @@ export function applyStateChanges(
         nextFaction.castles = [...nextFaction.castles, castleName];
       }
     }
+  }
+
+  // 성벽 업그레이드 (점령 이후 처리 — 같은 턴 정복 성채도 업그레이드 가능)
+  if (changes.wall_upgrades) {
+    nextCastles = nextCastles.map(c => {
+      if (c.owner !== faction.id) return c;
+      const upd = changes.wall_upgrades!.find(w => w.castle === c.name);
+      if (!upd) return c;
+      const newLevel = Math.max(1, Math.min(WALL_MAX_LEVEL, (c.wallLevel ?? 1) + upd.level_delta));
+      return { ...c, wallLevel: newLevel };
+    });
   }
 
   // 소유 성채 목록 동기화
