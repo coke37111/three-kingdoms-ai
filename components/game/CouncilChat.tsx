@@ -278,6 +278,70 @@ export default function CouncilChat({
           );
         }
 
+        // ── broadcast 메시지 (제갈량 전략 선언) ──
+        if (msg.messageMode === "broadcast") {
+          const { icon, color, role } = getSpeakerInfo(msg.speaker, advisors);
+          const phaseLabels: Record<number, string> = { 1: "보고", 2: "토론", 3: "계획", 4: "토론" };
+          const phaseBadge = msg.phase ? (
+            <span style={{
+              fontSize: "8px",
+              padding: "0px 4px",
+              borderRadius: "4px",
+              background: "rgba(201,168,76,0.1)",
+              color: "var(--text-dim)",
+              marginLeft: "4px",
+            }}>
+              {phaseLabels[msg.phase] || `P${msg.phase}`}
+            </span>
+          ) : null;
+          return (
+            <div key={i} style={{
+              margin: "6px 14px",
+              padding: "10px 14px",
+              background: "rgba(201,168,76,0.06)",
+              borderLeft: "3px solid var(--gold-dim)",
+              borderRadius: "0 8px 8px 0",
+              animation: `fadeInUp 0.3s ease ${i * 0.05}s both`,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <div style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${color}22, ${color}44)`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "16px",
+                  flexShrink: 0,
+                  border: `1.5px solid ${color}66`,
+                }}>
+                  {icon}
+                </div>
+                <span style={{ color, fontSize: "10px", fontWeight: 600 }}>
+                  [{role}] {msg.speaker}
+                </span>
+                <span style={{
+                  fontSize: "8px",
+                  color: "var(--gold)",
+                  background: "rgba(201,168,76,0.15)",
+                  padding: "1px 6px",
+                  borderRadius: "4px",
+                }}>
+                  전략
+                </span>
+                {msg.emotion && (
+                  <span style={{ opacity: 0.6 }}>{EMOTION_EMOJI[msg.emotion] || ""}</span>
+                )}
+                {phaseBadge}
+              </div>
+              <div style={{ fontSize: "13px", lineHeight: 1.7, color: "var(--text-primary)" }}>
+                {formatDialogue(msg.dialogue)}
+              </div>
+            </div>
+          );
+        }
+
         const { icon, color, role } = getSpeakerInfo(msg.speaker, advisors);
         const stats = getAdvisorStats(msg.speaker, advisors);
         const isSelected = replyTarget && replyTarget.index === i;

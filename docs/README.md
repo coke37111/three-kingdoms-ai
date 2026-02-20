@@ -2,7 +2,7 @@
 
 구현 완료된 현재 상태를 반영하는 문서. 계획 문서는 [`plans/`](../plans/)에 위치.
 
-> **최종 갱신**: 2026-02-19
+> **최종 갱신**: 2026-02-21
 
 | 문서 | 내용 |
 |------|------|
@@ -16,3 +16,5 @@
 | [08-data-model](./08-data-model.md) | game.ts + chat.ts + council.ts 타입, 참모/세력/성채/스킬 상수 데이터 |
 | [09-differentiation](./09-differentiation.md) | 차별점 및 혁신 요소, AI 네이티브 게임 특성 |
 | [11-case-system](./11-case-system.md) | 케이스 기반 즉각 응답 시스템, 포인트 전환 액션, 케이스 추가 방법 |
+| [12-npc-ai-system](./12-npc-ai-system.md) | NPC AI 레이어 시스템 |
+| [13-council-dialogue-system](./13-council-dialogue-system.md) | 참모 회의 대화 시스템: 상황 정규화, 대사 템플릿, 회의 흐름, 설계 원칙 |

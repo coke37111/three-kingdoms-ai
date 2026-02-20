@@ -25,6 +25,8 @@ export interface CouncilMessage {
   emotion: Emotion;
   phase?: 1 | 2 | 3 | 4;  // 메시지 유형 표시용 (1=상태보고, 2=토론, 3=계획, 4=레거시 피드백)
   replyTo?: string;  // 멘션 응답 시 원본 발언자
+  /** 대화 유형: broadcast(전략선언), interactive(도메인대응), report(추가보고) */
+  messageMode?: "broadcast" | "interactive" | "report";
 }
 
 // ===================== 참모 간 멘션 =====================

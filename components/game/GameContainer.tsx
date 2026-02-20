@@ -42,9 +42,15 @@ import { useVoice } from "@/hooks/useVoice";
 import { usePreferences } from "@/hooks/usePreferences";
 import { analyzeGameSituation, shouldFallbackToLLM, runPhase1FromCases, runPhase3FromCases } from "@/lib/council/engine";
 import { createInitialTurnContext } from "@/lib/council/types";
+import { runMeetingFlow } from "@/lib/council/meetingFlow";
 import AttackModal from "./AttackModal";
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** 새 정규화 기반 회의 시스템 활성화 */
+const USE_NEW_MEETING_FLOW = true;
+/** 제갈량만 발언하는 테스트 모드 */
+const MEETING_FLOW_TEST_MODE = false;
 
 export default function GameContainer() {
   const {
@@ -287,9 +293,13 @@ export default function GameContainer() {
       const baseMultiplier = options?.speedMultiplier ?? 1;
       const speed = (options?.speedDecay ? Math.pow(options.speedDecay, decayIndex) : 1) * baseMultiplier;
 
-      // replyTo가 설정된 경우 → 해당 참모 메시지의 쓰레드로 추가
+      // replyTo가 설정된 경우 → 해당 참모의 가장 최근 메시지 쓰레드로 추가
       if (msg.replyTo) {
-        const targetIndex = councilMsgsRef.current.findIndex(m => m.speaker === msg.replyTo);
+        const arr = councilMsgsRef.current;
+        let targetIndex = -1;
+        for (let j = arr.length - 1; j >= 0; j--) {
+          if (arr[j].speaker === msg.replyTo) { targetIndex = j; break; }
+        }
         if (targetIndex >= 0) {
           setThreadTyping({ msgIndex: targetIndex, speaker: msg.speaker });
           scrollToBottom();
@@ -670,55 +680,77 @@ export default function GameContainer() {
       );
       const consecutive = turnCtxRef.current.consecutiveCaseTurns;
 
+      // ── 새 회의 흐름 경로 ──
+      if (USE_NEW_MEETING_FLOW && !shouldFallbackToLLM(situation, consecutive)) {
+        const flowResult = runMeetingFlow(
+          situation,
+          worldStateRef.current,
+          advisorsRef.current,
+          worldStateRef.current.currentTurn,
+          { testMode: MEETING_FLOW_TEST_MODE },
+        );
+
+        if (flowResult.advisorUpdates.length > 0) {
+          updateAdvisorStats(flowResult.advisorUpdates);
+        }
+
+        pendingCasePlanReportsRef.current = flowResult.planReports;
+        turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: consecutive + 1 };
+
+        await animateCouncilMessages(flowResult.messages, true, {});
+        setStatusReports(flowResult.statusReports);
+        setPlanReports(flowResult.planReports);
+        setMeetingPhase(2);
+
+        const player = worldStateRef.current.factions.find(f => f.isPlayer);
+        if (player && player.points.ap >= 1) {
+          setIsLoading(false);
+        } else {
+          await delay(500);
+        }
+        return;
+      }
+
+      // ── 기존 케이스 엔진 경로 ──
       if (!shouldFallbackToLLM(situation, consecutive)) {
         const phase1 = runPhase1FromCases(situation, worldStateRef.current.currentTurn);
-        const phase3 = runPhase3FromCases(situation, worldStateRef.current.currentTurn);
+        const phase3 = runPhase3FromCases(situation, worldStateRef.current.currentTurn, phase1?.judgment);
 
         if (phase1 && phase3) {
           updateAdvisorStats(phase1.advisorUpdates);
           pendingCasePlanReportsRef.current = phase3.planReports;
           turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: consecutive + 1 };
 
-          // 같은 참모의 phase1+phase3 메시지를 한 발언으로 병합
-          const ADVISOR_DISPLAY_ORDER = ["제갈량", "관우", "미축", "방통"] as const;
-          const allSpeakers = new Set([
-            ...phase1.messages.map(m => m.speaker),
-            ...phase3.messages.map(m => m.speaker),
-          ]);
-
-          // replyTo 분리 → 멘션 응답은 animateCouncilMessages에서 쓰레드 처리
-          const regularP1 = phase1.messages.filter(m => !m.replyTo);
-          const mentionResponseMsgs = phase1.messages.filter(m => m.replyTo);
-
-          // 참모별 첫 번째 메시지만 phase3과 병합, 나머지는 별도 보존
-          const firstPerAdvisor = new Map<string, CouncilMessage>();
-          const extraMessages: CouncilMessage[] = [];
-          for (const msg of regularP1) {
-            if (!firstPerAdvisor.has(msg.speaker)) {
-              firstPerAdvisor.set(msg.speaker, msg);
-            } else {
-              extraMessages.push(msg);
-            }
-          }
-
+          // 엔진이 반환한 Phase 1 메시지 순서를 유지 (선도-댓글 구조 보존)
+          // Phase 3 메시지는 각 참모의 첫 발언에 병합
+          const usedP3 = new Set<string>();
           const merged: CouncilMessage[] = [];
-          for (const advisor of ADVISOR_DISPLAY_ORDER) {
-            if (!allSpeakers.has(advisor)) continue;
-            const p1 = firstPerAdvisor.get(advisor);
-            const p3 = phase3.messages.find(m => m.speaker === advisor);
-            if (p1 && p3) {
-              merged.push({ speaker: advisor, dialogue: `${p1.dialogue} ${p3.dialogue}`, emotion: p3.emotion, phase: 1 as const });
-            } else if (p1) {
-              merged.push({ ...p1, phase: 1 as const });
-            } else if (p3) {
-              merged.push({ ...p3, phase: 1 as const });
+
+          for (const msg of phase1.messages) {
+            if (!usedP3.has(msg.speaker)) {
+              const p3 = phase3.messages.find(m => m.speaker === msg.speaker);
+              if (p3) {
+                merged.push({
+                  ...msg,
+                  dialogue: `${msg.dialogue} ${p3.dialogue}`,
+                  emotion: p3.emotion,
+                  phase: 1 as const,
+                });
+                usedP3.add(msg.speaker);
+                continue;
+              }
             }
+            merged.push({ ...msg, phase: 1 as const });
           }
 
-          // 제갈량 마무리 + 추가 보고
-          merged.push(...extraMessages);
-          // 멘션 응답 (replyTo 설정 → animateCouncilMessages에서 쓰레드 처리)
-          merged.push(...mentionResponseMsgs);
+          // Phase 3에만 있는 참모 → 마무리 메시지 직전에 삽입
+          for (const p3Msg of phase3.messages) {
+            if (!usedP3.has(p3Msg.speaker)) {
+              const closingIdx = merged.length - 1;
+              merged.splice(closingIdx, 0, { ...p3Msg, phase: 1 as const });
+              usedP3.add(p3Msg.speaker);
+            }
+          }
 
           await animateCouncilMessages(merged, true, {});
           setStatusReports(phase1.statusReports);

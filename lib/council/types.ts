@@ -144,6 +144,85 @@ export interface GameSituation {
   }>;
 }
 
+// ===================== 전략 판단 (2-레이어) =====================
+
+/** 전략 방향 9종 */
+export type StrategicDirective =
+  | "total_war"           // 총력전 (적 본성 공략)
+  | "offensive"           // 공세 (영토 확장)
+  | "defensive_crisis"    // 방어 위기 (본성 위협)
+  | "rebuild"             // 재건 (패전·병력위급 후 복구)
+  | "growth"              // 균형 성장
+  | "economic_priority"   // 경제 우선 (수입 기반 구축)
+  | "diplomatic_crisis"   // 외교 위기 (고립 탈출)
+  | "diplomatic_maneuver" // 외교 공작 (이간/동맹)
+  | "steady_advance";     // 점진적 전진 (기본값)
+
+/** 판단 근거 */
+export interface StrategicFactor {
+  domain: "military" | "economy" | "diplomacy" | "strategic";
+  description: string;
+  severity: "critical" | "warning" | "info";
+}
+
+/** 레이어 1: 전략적 판단 (제갈량 전용) */
+export interface StrategicJudgment {
+  directive: StrategicDirective;
+  urgency: 0 | 1 | 2 | 3;
+  secondary?: StrategicDirective;
+  factors: StrategicFactor[];
+  resourceHint: {
+    military: "expand" | "maintain" | "minimize";
+    economy: "invest" | "maintain" | "conserve";
+    diplomacy: "active" | "passive" | "defensive";
+  };
+}
+
+/** directive별 안건 — 1 directive = 1 case */
+export interface DirectiveAgendaCase {
+  directive: StrategicDirective;
+
+  /** 제갈량 전략 선언 (broadcast) */
+  strategicDeclaration: Array<{
+    subCondition: (s: GameSituation) => boolean;
+    variations: AgendaLine[];
+  }>;
+
+  /** 도메인 대응 (interactive) */
+  domainResponses: {
+    "관우": Array<{
+      subCondition: (s: GameSituation) => boolean;
+      variations: AgendaLine[];
+    }>;
+    "미축": Array<{
+      subCondition: (s: GameSituation) => boolean;
+      variations: AgendaLine[];
+    }>;
+    "방통": Array<{
+      subCondition: (s: GameSituation) => boolean;
+      variations: AgendaLine[];
+    }>;
+  };
+
+  /** 비선도 참모가 선도 참모에게 다는 댓글 (선도-댓글 구조) */
+  threadReplies?: {
+    [leadAdvisor: string]: {
+      [replier: string]: Array<{
+        subCondition?: (s: GameSituation) => boolean;
+        variations: AgendaLine[];
+      }>;
+    };
+  };
+
+  /** 멘션 응답 (기존 유지, threadReplies 없을 때 폴백) */
+  mentionResponses?: Array<{
+    subCondition?: (s: GameSituation) => boolean;
+    from: string;
+    to: string;
+    variations: AgendaLine[];
+  }>;
+}
+
 // ===================== 케이스 정의 =====================
 
 /** 대사 변형 — 같은 케이스에서 턴마다 다른 대사 선택 */
@@ -222,6 +301,8 @@ export interface Phase1Result {
   stateChanges: null;
   advisorUpdates: AdvisorStatsDelta[];
   source: "case" | "api";
+  /** 이번 턴의 전략 판단 (Phase 3에서 참조) */
+  judgment?: StrategicJudgment;
 }
 
 /** Phase 3 케이스 엔진 결과 */
@@ -230,6 +311,106 @@ export interface Phase3Result {
   planReports: PlanReport[];
   advisorUpdates: AdvisorStatsDelta[];
   source: "case" | "api";
+}
+
+// ===================== 정규화 시스템 =====================
+
+/** 정규화 세부 데이터 (대사 변수 주입용) */
+export interface NormalizationDetails {
+  /** 가장 위협적인 인접 적 세력 */
+  primaryThreat: {
+    factionId: string;
+    rulerName: string;
+    mp: number;
+    relationScore: number;
+    relationLabel: string;
+    adjacentCastles: string[];
+  } | null;
+  playerMP: number;
+  playerTroops: number;
+  playerTraining: number;
+  /** MP 비율 (playerMP / threatMP) */
+  mpRatio: number;
+  ip: number;
+  ipRegen: number;
+  ipCap: number;
+  maxPossibleIpRegen: number;
+  marketCount: number;
+  farmCount: number;
+  castleCount: number;
+  threatRelationScore: number;
+  dp: number;
+}
+
+/** 모든 도메인 값이 0~1로 정규화된 상황 객체 */
+export interface NormalizedSituation {
+  /** 군사: 인접 위협적 적 대비 아군 MP 비율 (0=무방비, 1=압도) */
+  military: number;
+  /** 내정: 현재 ipRegen / 이론상 최대 ipRegen (0=시설없음, 1=최대) */
+  economy: number;
+  /** 외교: 가장 위협적인 인접 적과의 관계 (0=전쟁, 1=동맹) */
+  diplomacy: number;
+  /** 종합: min(military, economy, diplomacy) — 최약 고리 기반 */
+  overall: number;
+  details: NormalizationDetails;
+}
+
+/** 0~1 정규화 값에 따른 전달 톤 */
+export type ToneLevel =
+  | "comfortable"  // ≥0.85
+  | "stable"       // ≥0.65
+  | "adequate"     // ≥0.45
+  | "uneasy"       // ≥0.30
+  | "crisis"       // ≥0.15
+  | "critical";    // <0.15
+
+/** 각 도메인의 톤 정보 */
+export interface ToneMap {
+  military: ToneLevel;
+  economy: ToneLevel;
+  diplomacy: ToneLevel;
+  overall: ToneLevel;
+}
+
+/** 대사 내용 카테고리 */
+export type DialogueCategory =
+  | "strategic_overview"
+  | "military_status"
+  | "economy_status"
+  | "diplomacy_status"
+  | "countermeasure_military"
+  | "countermeasure_economy"
+  | "countermeasure_diplomacy"
+  | "meeting_open"
+  | "meeting_goal"
+  | "meeting_close"
+  | "turn_result_summary"
+  /** 관우 → 미축: 군사 타계책 실행에 IP 지원 요청 */
+  | "request_ip_support"
+  /** 미축 → 관우: IP 지원 요청에 대한 응답 */
+  | "reply_ip_to_military";
+
+/** 대사 템플릿 1개 */
+export interface DialogueTemplate {
+  text: string;
+  emotion?: import("@/types/chat").Emotion;
+}
+
+/** 카테고리별, 톤별 대사 템플릿 맵 */
+export type TemplateMap = Record<
+  DialogueCategory,
+  Partial<Record<ToneLevel, DialogueTemplate[]>>
+>;
+
+/** 새 회의 흐름 엔진의 결과 */
+export interface MeetingFlowResult {
+  messages: import("@/types/council").CouncilMessage[];
+  planReports: import("@/types/council").PlanReport[];
+  statusReports: import("@/types/council").StatusReport[];
+  advisorUpdates: import("@/types/council").AdvisorStatsDelta[];
+  source: "flow";
+  normalized: NormalizedSituation;
+  toneMap: ToneMap;
 }
 
 // ===================== 턴 컨텍스트 =====================

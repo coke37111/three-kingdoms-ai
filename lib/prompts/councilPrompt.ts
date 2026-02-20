@@ -126,7 +126,7 @@ ${context}
 
 **2단계: 참모 반응 — 관우·미축·방통 (3명 모두, 독립 메시지)**
 - 3명 각자가 안건에 대해 자신의 역할 관점에서 의견을 표명한다 (찬성·보완·우려·대안 등 자유롭게).
-- 각자가 할 구체적 행동을 반드시 포함: 예) "수성에 주력하겠소. (군사력 병력 N 소비)"
+- 각자가 할 구체적 행동을 반드시 포함: 예) "수성에 주력하겠소. 성벽 강화를 건의하오. (내정력 N 소비)"
 - **replyTo 사용 금지** — 3명 모두 독립 메시지 (replyTo 필드 자체를 포함하지 않는다).
 - phase: 1
 
@@ -140,7 +140,9 @@ ${context}
 - phase: 1
 
 === 보고 세부 규칙 ===
-- status_reports에 이번 턴 포인트 변동을, plan_reports에 다음 턴 계획을 기록.
+- **Phase 1은 보고·제안이지 실행이 아니다.** state_changes는 null로 둔다. 실제 자원 소비는 Phase 2에서 유비가 결정한다.
+- plan_reports에 다음 턴 계획(제안)을 기록. 참모가 대사에서 "~하겠소"라고 말한 행동은 반드시 plan_reports에 포함해야 한다.
+- status_reports는 이미 발생한 변동(이전 턴 결과)을 기록할 때만 사용. 새로 실행하는 행동은 넣지 않는다.
 - **전선 기술 원칙**: "적이 밀고 왔다" 등 적의 최근 이동 암시 표현 절대 금지. "현재 전선 구도" 등 현황 기술로만 표현.
 - **현황 보고 원칙**: "[행동]하여 [구체적 수치 성과]." 모호한 표현 금지.
   예: "훈련 실시, 훈련도 5% 상승했습니다. (현재 55%)"
@@ -150,6 +152,7 @@ ${context}
   예: "내정력 20으로 모병합니다. (군사력(병력) +${20 * RECRUIT_TROOPS_PER_IP})"
   예: "훈련 실시합니다. (내정력 -${TRAIN_IP_COST}, 훈련도 +5%)"
 - **모병 비용**: 내정력 1당 ${RECRUIT_TROOPS_PER_IP}명. 현재 보유 내정력 초과 금지.
+- **자원 초과 절대 금지**: 현재 보유 내정력(${player.points.ip})을 초과하는 비용의 시설 건설·모병·훈련을 제안하면 안 된다. 비용이 보유량보다 크면 "다음 턴에 추진" 또는 "자원 확보 후 실행"으로 표현.
 - **시설 비용**: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 최대 ${castleCount}개 | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - **내정력 상한 우선 규칙**: 현재 내정력이 상한의 80% 이상이면(현재 ${player.points.ip}/${player.points.ip_cap}), 은행 건설/확장 우선 제안. 은행 비용: ${getFacilityUpgradeCost(player.facilities.bank)}IP → 상한 +50.
 - **외교 계획 구체성**: 방통의 외교 계획은 "누구와" + "무슨 행동"을 반드시 명시.
@@ -202,6 +205,9 @@ ${context}
 - 훈련은 "훈련도"만 올린다. 군사력 자체가 직접 증가하는 것이 아니다.
   ✗ "군사력 3만 달성을 위해 훈련 실시" ← 훈련은 군사력을 직접 올리지 않음!
   ✓ "전투력 강화를 위해 훈련 실시, 훈련도 5% 상승" ← 정확한 표현
+- 방어·배치는 병력을 "소비"하지 않는다. 전투에서 패배해야 병력이 줄어든다.
+  ✗ "군사력(병력) 3만 소비, 방어 전력 강화" ← 방어 배치에 병력이 소비되지 않음!
+  ✓ "성벽 강화와 모병으로 수성에 대비하겠소. (내정력 N 소비)" ← 실제 비용은 내정력
 - 징병은 "군사력(병력)"으로 표현. "병력"만 단독 사용 금지.
   ✗ "병력 +2만 확보" ← 무슨 포인트인지 불분명
   ✓ "군사력(병력) +2만 확보" ← 포인트 체계 명확
@@ -213,22 +219,19 @@ ${context}
 반드시 아래 형식으로만 응답. JSON 외 텍스트 금지.
 {
   "council_messages": [
-    { "speaker": "제갈량", "dialogue": "이번 핵심 사안은 본성 방어이옵니다. 조조의 공세가 거세니 수성에 집중해야 하옵니다. 병법서를 분석해 방어 전술을 강화하겠사옵니다. (특수능력 2 소비, 방어력 +10% 예상)", "emotion": "serious", "phase": 1 },
-    { "speaker": "관우", "dialogue": "옳은 판단이오. 정예 병력을 성문에 배치하고 수성전에 주력하겠소. (군사력(병력) 3만 소비, 방어 전력 강화)", "emotion": "determined", "phase": 1 },
-    { "speaker": "미축", "dialogue": "방어전이라면 보급 소모가 줄어 다행입니다. 전투 비축분을 확보해 두겠습니다. (내정력 2 소비, 비상 보급 확보)", "emotion": "calm", "phase": 1 },
-    { "speaker": "방통", "dialogue": "외교로 조조의 후방을 흔들어 시간을 벌겠소. 손권에게 밀서를 보내겠습니다. (외교력 2 소비)", "emotion": "thoughtful", "phase": 1 },
-    { "speaker": "제갈량", "dialogue": "추가로 보고할 것이 있으십니까?", "emotion": "calm", "phase": 1 },
-    { "speaker": "미축", "dialogue": "한 가지 더 말씀드리겠습니다. 성도 시장 내정력 수입이 예상보다 낮습니다. 다음 턴 시장 건설을 건의드립니다. (내정력 -${getFacilityBuildCost(player.facilities.market.count)} 소비, 수입 +3/턴)", "emotion": "worried", "phase": 1 }
+    { "speaker": "제갈량", "dialogue": "이번 핵심 사안은 본성 방어이옵니다. 조조의 공세가 거세니 수성에 집중해야 하옵니다.", "emotion": "serious", "phase": 1 },
+    { "speaker": "관우", "dialogue": "성벽을 강화하고 모병하여 수성전에 대비해야 하오. 미축, 내정력 여유가 있소?", "emotion": "determined", "phase": 1 },
+    { "speaker": "미축", "dialogue": "현재 내정력 ${player.points.ip}이옵니다. 모병 우선, 여유분으로 시장 건설을 추진하겠습니다.", "emotion": "calm", "phase": 1 },
+    { "speaker": "방통", "dialogue": "수성 중 손권에게 화친을 제안하여 한쪽 전선을 안정시키겠습니다.", "emotion": "thoughtful", "phase": 1 },
+    { "speaker": "제갈량", "dialogue": "추가로 보고할 것이 있으십니까?", "emotion": "calm", "phase": 1 }
   ],
-  "status_reports": [
-    { "speaker": "관우", "report": "내정력 15 소비하여 병사 훈련, 훈련도 5% 상승", "point_changes": { "mp_training_delta": 0.05 } }
-  ],
+  "status_reports": [],
   "plan_reports": [
-    { "speaker": "미축", "plan": "시장 1개 건설 (내정력 ${getFacilityBuildCost(player.facilities.market.count)} 소비, 수입 +3/턴)", "expected_points": { "ip_delta": -${getFacilityBuildCost(player.facilities.market.count)} } },
-    { "speaker": "관우", "plan": "훈련 실시 (내정력 -${TRAIN_IP_COST}, 훈련도 +5%)", "expected_points": { "mp_training_delta": 0.05, "ip_delta": -${TRAIN_IP_COST} } },
+    { "speaker": "관우", "plan": "모병 (내정력 ${Math.min(20, player.points.ip)} 소비, 군사력(병력) +${Math.min(20, player.points.ip) * RECRUIT_TROOPS_PER_IP})", "expected_points": { "ip_delta": -${Math.min(20, player.points.ip)}, "mp_troops_delta": ${Math.min(20, player.points.ip) * RECRUIT_TROOPS_PER_IP} } },
+    { "speaker": "미축", "plan": "시장 수입 활용하여 군비 비축", "expected_points": {} },
     { "speaker": "방통", "plan": "손권 관계 개선 (외교력 2 소비)", "expected_points": { "dp_delta": -2 } }
   ],
-  "state_changes": { "point_deltas": { "mp_training_delta": 0.05 } },
+  "state_changes": null,
   "advisor_updates": [
     { "name": "제갈량", "enthusiasm_delta": 0, "loyalty_delta": 0 },
     { "name": "관우", "enthusiasm_delta": 1, "loyalty_delta": 0 },
@@ -305,6 +308,23 @@ export function buildPhase2Prompt(
   const pointsSummary = getPointsSummary(world, player.id);
   const otherFactions = getOtherFactionsSummary(world);
 
+  // 원조 가능 세력 계산 (관계 ≥ +2)
+  const aidEligible = world.factions
+    .filter(f => !f.isPlayer)
+    .map(f => {
+      const rel = world.relations.find(r =>
+        (r.factionA === player.id && r.factionB === f.id) ||
+        (r.factionB === player.id && r.factionA === f.id),
+      );
+      const score = rel?.score ?? 0;
+      return { rulerName: f.rulerName, score, aidIP: Math.round(5 + score * 2) };
+    })
+    .filter(f => f.score >= 2)
+    .sort((a, b) => b.score - a.score);
+  const aidEligibleText = aidEligible.length > 0
+    ? aidEligible.map(f => `${f.rulerName}(관계 +${f.score} → 내정력 +${f.aidIP})`).join(", ")
+    : "없음 (관계 개선 필요, 관계 ≥ +2 조건)";
+
   const replyInstruction = replyTo
     ? `⚠️ 유비가 **${replyTo}**에게 직접 말한 것이다.
 - council_messages에는 "${replyTo}"만 응답한다. 다른 참모는 끼어들지 않는다.
@@ -329,6 +349,18 @@ ${otherFactions}
 
 ${replyInstruction}
 
+=== 외교 행동 규칙 ===
+- 현재 천하 세력은 유비·조조·손권 **3개 세력만 존재**한다. 유표·유장·원소 등은 이미 멸망하여 게임에 없다.
+- 외교 대상: **조조 또는 손권만** 가능. dp_delta로 외교력 소비.
+- **원조 요청** (외교력 2 소비): 관계 ≥ +2인 우호 세력에게 내정력 원조 요청 가능.
+  공식: 내정력 획득 = 5 + 관계점수 × 2 (관계 +2 → +9IP, +5 → +15IP, +10 → +25IP)
+  단, 현재 내정력(${player.points.ip}) + 획득량이 내정력 상한(${player.points.ip_cap}) 초과 불가.
+  state_changes 형식: { "point_deltas": { "dp_delta": -2, "ip_delta": N } }
+  현재 원조 가능 세력: ${aidEligibleText}
+  현재 유비 외교력: ${player.points.dp} (2 미만이면 원조 불가)
+- **불가능한 외교 제안**(유표·유장 등 존재하지 않는 세력)은 반드시 거절하고 가능한 대안을 제시한다.
+  예) "유표는 이미 조조에 복속된 지 오래이옵니다. 대신 손권과의 화친으로 전선 하나를 안정시키는 방책이 있사옵니다."
+
 === 비용 체계 ===
 - 모병: 내정력 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정력 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정력 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
@@ -336,12 +368,13 @@ ${replyInstruction}
 - 시설 비용: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - 내정력 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 - 성벽 강화: 수성 방어 +${WALL_DEFENSE_PER_LEVEL}/레벨 (최대 Lv${WALL_MAX_LEVEL}) | Lv1→2: ${getWallUpgradeCost(1)}IP | Lv2→3: ${getWallUpgradeCost(2)}IP | Lv3→4: ${getWallUpgradeCost(3)}IP | Lv4→5: ${getWallUpgradeCost(4)}IP | StateChanges: wall_upgrades: [{ castle: "성채명", level_delta: 1 }]
+- **자원 초과 절대 금지**: 현재 보유 내정력(${player.points.ip})을 초과하는 비용의 행동을 제안하면 안 된다. 방어·배치로 병력이 "소비"되지 않는다 — 비용은 항상 내정력(시설·모병·훈련·성벽)이나 외교력이다.
 
 === 응답 규칙 ===
 1. JSON 형식으로만 응답.
 2. council_messages는 60자 이내 간결체. phase: 2.
 3. 특정 참모에게 말한 경우 해당 참모만 1개 응답. 전체 발언이면 1~3개.
-4. state_changes가 필요하면 point_deltas 형식으로 포함.
+4. **state_changes 필수 포함 규칙**: 참모가 즉각 실행 가능한 행동에 동의할 경우 반드시 state_changes에 point_deltas를 포함한다. "알겠소이다", "즉시 하겠소!" 같은 빈 동의 금지. 실행할 행동이 없으면(조언·질문·불가 통보) state_changes는 null.
 5. **언어**: 모든 dialogue 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
 6. **모병/징병 지시 시**: 유비가 모병을 지시하면, 미축이 "현재 내정력 X로 최대 Y명 모병 가능합니다. 수량을 알려주소서." 형태로 보고하고, 관우는 "즉각 병사를 이끌겠소!" 식의 군인다운 짧은 반응을 추가한다. state_changes는 null로 둔다 (실제 적용은 유비가 수량 결정 후).
 7. **유비가 구체적 수량을 지정하면** (예: "3000명 모병해"), 즉시 state_changes에 반영. ip_delta = -(수량 / ${RECRUIT_TROOPS_PER_IP}), mp_troops_delta = 수량.
