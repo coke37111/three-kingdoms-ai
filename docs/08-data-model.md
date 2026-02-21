@@ -204,8 +204,12 @@ interface ThreadMessage {
   speaker: string;
   text: string;
   emotion?: Emotion;
+  stat_delta?: { enthusiasm_delta?: number; loyalty_delta?: number };
 }
 ```
+
+- `stat_delta`: 승인 응답 등 특정 이벤트에서 참모 스탯 변동을 UI에 표시할 때 사용.
+  예: 플레이어가 계획을 승인하면 해당 참모 `enthusiasm_delta: 1` 전달 → 말풍선 하단에 `🔥 열정 +1` 표시.
 
 ### AdvisorStatsDelta — 참모 상태 변동
 

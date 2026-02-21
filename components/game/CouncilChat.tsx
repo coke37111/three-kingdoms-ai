@@ -143,6 +143,7 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
       {threadMsgs.map((tm, j) => {
         const isUser = tm.type === "user";
         const { icon, color } = getSpeakerInfo(tm.speaker, advisors);
+        const tmStats = !isUser ? getAdvisorStats(tm.speaker, advisors) : null;
         return (
           <div key={j} style={{
             display: "flex",
@@ -168,8 +169,21 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
               {icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "9px", color: isUser ? "var(--gold)" : color, fontWeight: 600, marginBottom: "2px" }}>
-                {tm.speaker}
+              <div style={{
+                fontSize: "9px",
+                color: isUser ? "var(--gold)" : color,
+                fontWeight: 600,
+                marginBottom: "2px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}>
+                <span>{tm.speaker}</span>
+                {tmStats && (
+                  <span style={{ fontSize: "9px", color: "var(--text-dim)", opacity: 0.8, fontWeight: 400 }}>
+                    ♥{tmStats.loyalty} 🔥{tmStats.enthusiasm}
+                  </span>
+                )}
               </div>
               <div style={{
                 background: isUser ? "rgba(201,168,76,0.1)" : "var(--bg-card)",
@@ -183,6 +197,28 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
               }}>
                 {formatDialogue(tm.text)}
               </div>
+              {tm.stat_delta && (
+                <div style={{ marginTop: "3px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {tm.stat_delta.enthusiasm_delta !== undefined && tm.stat_delta.enthusiasm_delta !== 0 && (
+                    <span style={{
+                      fontSize: "10px",
+                      color: tm.stat_delta.enthusiasm_delta > 0 ? "#ff9f40" : "#aaa",
+                      fontWeight: 600,
+                    }}>
+                      🔥 열정 {tm.stat_delta.enthusiasm_delta > 0 ? `+${tm.stat_delta.enthusiasm_delta}` : tm.stat_delta.enthusiasm_delta}
+                    </span>
+                  )}
+                  {tm.stat_delta.loyalty_delta !== undefined && tm.stat_delta.loyalty_delta !== 0 && (
+                    <span style={{
+                      fontSize: "10px",
+                      color: tm.stat_delta.loyalty_delta > 0 ? "#e87d7d" : "#aaa",
+                      fontWeight: 600,
+                    }}>
+                      ♥ 충성도 {tm.stat_delta.loyalty_delta > 0 ? `+${tm.stat_delta.loyalty_delta}` : tm.stat_delta.loyalty_delta}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

@@ -1398,6 +1398,9 @@ export default function GameContainer() {
     }]);
     scrollToBottom();
 
+    // 참모 열정 +1 적용
+    updateAdvisorStats([{ name: plan.speaker, enthusiasm_delta: 1 }]);
+
     // 참모 댓글 추가 (약간 딜레이)
     setTimeout(() => {
       addThreadMessage(playerMsgIdx, {
@@ -1405,6 +1408,7 @@ export default function GameContainer() {
         speaker: plan.speaker,
         text: "알겠사옵니다. 즉시 시행하겠습니다.",
         emotion: "excited" as const,
+        stat_delta: { enthusiasm_delta: 1 },
       });
       scrollToBottom();
     }, 600);

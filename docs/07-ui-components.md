@@ -82,7 +82,7 @@ GameContainer
 | Prop | 타입 | 용도 |
 |------|------|------|
 | messages | CouncilMessage[] | 참모 회의 대사 |
-| advisors | AdvisorState[] | 참모 상태 (아이콘, 색상) |
+| advisors | AdvisorState[] | 참모 상태 (아이콘, 색상, 충성도, 열정) |
 | councilNumber | number | 회의 번호 |
 | typingIndicator | { speaker } \| null | 입력 중... 표시 |
 | threads | Record<number, ThreadMessage[]> | 쓰레드 메시지 |
@@ -90,15 +90,31 @@ GameContainer
 | onMessageClick | (msg, index) => void | 대사 클릭 → 답장 |
 | replyTarget | { msg, index } \| null | 현재 답장 대상 |
 | disabled | boolean | 입력 비활성화 |
+| planReports | PlanReport[] | Phase 2 계획 목록 (승인 버튼 표시용) |
+| approvedPlans | Set\<number\> | 이미 승인된 계획 인덱스 집합 |
+| onApprovePlan | (index) => void | 계획 승인 콜백 |
+| meetingPhase | number | 현재 회의 Phase |
+| onOpenMap | () => void | "지도" 클릭 시 FactionMap 열기 |
 
 **UI 요소:**
 - 참모 아이콘 + 색상 코드로 발언자 구분
-- Phase 배지 (P1, P2, P3, P4, P5)
+- 이름 옆 충성도/열정 (`♥{loyalty} 🔥{enthusiasm}`) — 전략 역할(제갈량) 제외
+- Phase 배지 (보고/토론/계획)
 - Phase 구분선 (`__phase_divider__` speaker)
 - 클릭 시 하이라이트 (답장 대상 선택)
 - 타이핑 인디케이터: 3개 점 바운스 애니메이션
 - 쓰레드: 좌측 보더라인 + 들여쓰기
+  - 쓰레드 메시지에도 충성도/열정 표시
+  - `stat_delta` 있으면 말풍선 하단에 `🔥 열정 +N` / `♥ 충성도 +N` 표시
 - "유비" 발언: 우측 정렬, 금색 말풍선
+- 승인 버튼: Phase 2에서 각 참모의 마지막 메시지 하단에 표시
+  - 포인트 예상 변동 요약 (컬러 코딩) + 승인 버튼
+  - 승인 시 `✓ 승인됨` 뱃지로 변경, 해당 참모 열정 +1
+- "지도" 키워드: 파란색 밑줄 클릭 링크로 변환 → FactionMap 모달 오픈
+
+**내부 유틸 함수:**
+- `formatDialogue(text, onOpenMap)` — 포인트 용어 컬러링 + "지도" 링크 변환
+- `formatPlanSummary(expected_points, extra_note)` — 계획 포인트 요약 JSX 생성
 
 ---
 

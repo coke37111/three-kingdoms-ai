@@ -81,6 +81,7 @@ export interface ThreadMessage {
   speaker: string;
   text: string;
   emotion?: Emotion;
+  stat_delta?: { enthusiasm_delta?: number; loyalty_delta?: number };
 }
 
 // ===================== 충성도/열정 변동 =====================
