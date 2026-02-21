@@ -5,6 +5,7 @@ import { applyStateChanges } from "@/lib/game/stateManager";
 import { INITIAL_FACTIONS, INITIAL_RELATIONS } from "@/constants/factions";
 import { INITIAL_CASTLES } from "@/constants/castles";
 import { TURN_LIMIT, SPECIAL_STRATEGY_INITIAL_RATE } from "@/constants/gameConstants";
+import { calculateMP } from "@/lib/game/pointCalculator";
 import { syncGarrisonToState } from "@/lib/game/garrisonSystem";
 
 function syncAllGarrisons(state: WorldState): WorldState {
@@ -26,7 +27,13 @@ function createInitialWorldState(): WorldState {
   const base: WorldState = {
     currentTurn: 1,
     maxTurns: TURN_LIMIT,
-    factions: INITIAL_FACTIONS,
+    factions: INITIAL_FACTIONS.map(f => ({
+      ...f,
+      points: {
+        ...f.points,
+        mp: calculateMP(f.points.mp_troops, f.points.mp_training, f.points.mp_morale),
+      },
+    })),
     castles: INITIAL_CASTLES,
     relations: INITIAL_RELATIONS,
     turnOrder: [

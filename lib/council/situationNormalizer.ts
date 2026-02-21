@@ -87,7 +87,7 @@ function normalizeEconomy(situation: GameSituation): number {
   const { castleCount, ipRegen } = situation.economy;
   if (castleCount === 0) return 0;
 
-  // 이론상 최대 IP 수입: 기본 5 + 성채당 (시장Lv5×3 + 논Lv5×2)
+  // 이론상 최대 IP 수입: 기본 5 + 성채당 (시장Lv5×3 + 농장Lv5×2)
   const MAX_REGEN_PER_CASTLE = IP_REGEN_PER_MARKET_LEVEL * 5 + IP_REGEN_PER_FARM_LEVEL * 5;
   const baseRegen = 5;
   const maxPossibleRegen = baseRegen + castleCount * MAX_REGEN_PER_CASTLE;

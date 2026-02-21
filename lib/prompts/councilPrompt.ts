@@ -96,12 +96,12 @@ ${castleSummary}
 ${getFrontlineSummary(world)}
 
 === 군주 레벨: ${player.rulerLevel.level} (배치 상한: ${player.rulerLevel.deploymentCap.toLocaleString()}) ===
-시설: 시장 ${player.facilities.market.count}개(Lv${player.facilities.market.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.market.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP, 최대 ${castleCount}개), 논 ${player.facilities.farm.count}개(Lv${player.facilities.farm.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.farm.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP), 은행 Lv${player.facilities.bank} (업그레이드: ${getFacilityUpgradeCost(player.facilities.bank)}IP)
+시설: 시장 ${player.facilities.market.count}개(Lv${player.facilities.market.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.market.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP, 최대 ${castleCount}개), 농장 ${player.facilities.farm.count}개(Lv${player.facilities.farm.level}) (추가 건설: ${getFacilityBuildCost(player.facilities.farm.count)}IP, 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP), 은행 Lv${player.facilities.bank} (업그레이드: ${getFacilityUpgradeCost(player.facilities.bank)}IP)
 
 === 비용 체계 ===
 - 모병: 내정력 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 가능 (현재 내정력 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정력 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시장·논 건설: (30 + 현재 개수 × 10) × 10 IP (0개→300IP, 1개→400IP, 2개→500IP …) | 최대 보유 성채 수까지 건설 가능
+- 시장·농장 건설: (30 + 현재 개수 × 10) × 10 IP (0개→300IP, 1개→400IP, 2개→500IP …) | 최대 보유 성채 수까지 건설 가능
 - 은행 건설/업그레이드: 30 + 현재 레벨 × 10 IP
 - 성벽 강화: 보유 성채의 성벽 레벨 업그레이드 → 수성 방어 +${WALL_DEFENSE_PER_LEVEL}/레벨 (최대 Lv${WALL_MAX_LEVEL})
   Lv1→2: ${getWallUpgradeCost(1)}IP | Lv2→3: ${getWallUpgradeCost(2)}IP | Lv3→4: ${getWallUpgradeCost(3)}IP | Lv4→5: ${getWallUpgradeCost(4)}IP
@@ -143,6 +143,7 @@ ${context}
 - **Phase 1은 보고·제안이지 실행이 아니다.** state_changes는 null로 둔다. 실제 자원 소비는 Phase 2에서 유비가 결정한다.
 - plan_reports에 다음 턴 계획(제안)을 기록. 참모가 대사에서 "~하겠소"라고 말한 행동은 반드시 plan_reports에 포함해야 한다.
 - status_reports는 이미 발생한 변동(이전 턴 결과)을 기록할 때만 사용. 새로 실행하는 행동은 넣지 않는다.
+- **천하 정세 나열 금지**: 적국 세력의 성 수·병력을 대사에서 열거하지 말 것. 정세를 언급할 때는 "지도를 참고해 주시길 바랍니다."라고만 한다.
 - **전선 기술 원칙**: "적이 밀고 왔다" 등 적의 최근 이동 암시 표현 절대 금지. "현재 전선 구도" 등 현황 기술로만 표현.
 - **현황 보고 원칙**: "[행동]하여 [구체적 수치 성과]." 모호한 표현 금지.
   예: "훈련 실시, 훈련도 5% 상승했습니다. (현재 55%)"
@@ -153,7 +154,7 @@ ${context}
   예: "훈련 실시합니다. (내정력 -${TRAIN_IP_COST}, 훈련도 +5%)"
 - **모병 비용**: 내정력 1당 ${RECRUIT_TROOPS_PER_IP}명. 현재 보유 내정력 초과 금지.
 - **자원 초과 절대 금지**: 현재 보유 내정력(${player.points.ip})을 초과하는 비용의 시설 건설·모병·훈련을 제안하면 안 된다. 비용이 보유량보다 크면 "다음 턴에 추진" 또는 "자원 확보 후 실행"으로 표현.
-- **시설 비용**: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 최대 ${castleCount}개 | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
+- **시설 비용**: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 농장 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 농장 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 최대 ${castleCount}개 | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - **내정력 상한 우선 규칙**: 현재 내정력이 상한의 80% 이상이면(현재 ${player.points.ip}/${player.points.ip_cap}), 은행 건설/확장 우선 제안. 은행 비용: ${getFacilityUpgradeCost(player.facilities.bank)}IP → 상한 +50.
 - **외교 계획 구체성**: 방통의 외교 계획은 "누구와" + "무슨 행동"을 반드시 명시.
   ✓ "조조와 긴장 완화 협상. (외교력 2 소비, 관계 +1 기대)"
@@ -169,11 +170,11 @@ ${context}
 - **언어**: 모든 dialogue, report, plan 텍스트는 반드시 **한국어**로만 작성. 영어·힌디어·한자 단독 사용 절대 금지.
 
 === 시설 종류 제한 (절대 규칙) ===
-- 이 게임에 존재하는 시설은 **시장(market), 논(farm), 은행(bank)** 세 가지뿐이다.
+- 이 게임에 존재하는 시설은 **시장(market), 농장(farm), 은행(bank)** 세 가지뿐이다.
 - 아래 단어들을 dialogue·plan 어디에도 절대 사용 금지: 서원, 훈련소, 조선소, 병기창, 관청, 인재, 학자
   ✗ "서원을 운영하면 인재가 모이고 전략적 식견이 넓어집니다" ← 서원은 이 게임에 없다. 절대 금지.
   ✗ "훈련소를 세우면 전투력이 강해집니다" ← 훈련소도 없다. 절대 금지.
-- 시설 관련 계획은 반드시 "시장 건설/레벨업", "논 건설/레벨업", "은행 건설/레벨업" 중 하나여야 한다.
+- 시설 관련 계획은 반드시 "시장 건설/레벨업", "농장 건설/레벨업", "은행 건설/레벨업" 중 하나여야 한다.
 - 단, **성벽 강화**는 시설이 아닌 별도 행동이며, 관우 또는 제갈량이 제안 가능하다.
 
 === 문제-해결 매핑 (반드시 준수) ===
@@ -182,12 +183,12 @@ ${context}
   ✗ "수입이 적습니다. 서원을 운영하면…" ← 수입 문제에 서원은 완전히 무관. 절대 금지.
   ✓ "내정력 수입이 부족합니다. 시장 1개 건설하겠습니다."
 - 내정력 상한 부족 → 은행 레벨업
-- 식량·논 부족 → 논 건설 또는 논 레벨업
+- 농장 부족 → 농장 건설 또는 농장 레벨업
 - 병력 부족 → 모병 (내정력 소비)
 - 훈련도 낮음 → 훈련 실시 (내정력 소비)
 - 외교 문제 → 방통이 외교력 소비 계획
 - 수성 방어력 부족 → 성벽 레벨 업그레이드 (내정력 소비, 관우가 제안 가능)
-미축은 시장·논·은행·모병·훈련 이외의 계획을 절대 제안하지 않는다.
+미축은 시장·농장·은행·모병·훈련 이외의 계획을 절대 제안하지 않는다.
 
 === 일관성 규칙 (매우 중요) ===
 - dialogue에서 효과를 언급하면 반드시 해당 point_changes/expected_points에 수치가 있어야 한다.
@@ -308,9 +309,10 @@ export function buildPhase2Prompt(
   const pointsSummary = getPointsSummary(world, player.id);
   const otherFactions = getOtherFactionsSummary(world);
 
-  // 원조 가능 세력 계산 (관계 ≥ +2)
+  // 원조 가능 세력 계산 (관계 ≥ +2, 조조·손권만 대상)
+  const AID_FACTION_IDS = new Set(["cao_cao", "sun_quan"]);
   const aidEligible = world.factions
-    .filter(f => !f.isPlayer)
+    .filter(f => !f.isPlayer && AID_FACTION_IDS.has(f.id))
     .map(f => {
       const rel = world.relations.find(r =>
         (r.factionA === player.id && r.factionB === f.id) ||
@@ -322,7 +324,7 @@ export function buildPhase2Prompt(
     .filter(f => f.score >= 2)
     .sort((a, b) => b.score - a.score);
   const aidEligibleText = aidEligible.length > 0
-    ? aidEligible.map(f => `${f.rulerName}(관계 +${f.score} → 내정력 +${f.aidIP})`).join(", ")
+    ? aidEligible.map(f => `${f.rulerName}(관계 +${f.score} → 내정포인트 +${f.aidIP})`).join(", ")
     : "없음 (관계 개선 필요, 관계 ≥ +2 조건)";
 
   const replyInstruction = replyTo
@@ -364,8 +366,8 @@ ${replyInstruction}
 === 비용 체계 ===
 - 모병: 내정력 1당 ${RECRUIT_TROOPS_PER_IP}명 모병 (현재 내정력 ${player.points.ip} → 최대 ${player.points.ip * RECRUIT_TROOPS_PER_IP}명)
 - 훈련: 내정력 ${TRAIN_IP_COST} 소비 → 훈련도 +5%
-- 시설 효과: 시장 개수×레벨×3 IP/턴, 논 개수×레벨×2 IP/턴 (현재 시장 ${player.facilities.market.count}×${player.facilities.market.level}×3=${player.facilities.market.count * player.facilities.market.level * 3}/턴) | **은행 Lv1당 내정력 상한 +50** (현재 상한: ${player.points.ip_cap})
-- 시설 비용: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 논 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 논 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
+- 시설 효과: 시장 개수×레벨×3 IP/턴, 농장 개수×레벨×2 IP/턴 (현재 시장 ${player.facilities.market.count}×${player.facilities.market.level}×3=${player.facilities.market.count * player.facilities.market.level * 3}/턴) | **은행 Lv1당 내정력 상한 +50** (현재 상한: ${player.points.ip_cap})
+- 시설 비용: 시장 건설 +1개: ${getFacilityBuildCost(player.facilities.market.count)}IP | 시장 레벨업: ${getFacilityUpgradeCost(player.facilities.market.level)}IP | 농장 건설 +1개: ${getFacilityBuildCost(player.facilities.farm.count)}IP | 농장 레벨업: ${getFacilityUpgradeCost(player.facilities.farm.level)}IP | 은행 Lv${player.facilities.bank}→Lv${player.facilities.bank + 1}: ${getFacilityUpgradeCost(player.facilities.bank)}IP
 - 내정력 상한 공식: 기본 100 + 은행레벨 × 50. 현재 은행 Lv${player.facilities.bank} → 상한 ${player.points.ip_cap}
 - 성벽 강화: 수성 방어 +${WALL_DEFENSE_PER_LEVEL}/레벨 (최대 Lv${WALL_MAX_LEVEL}) | Lv1→2: ${getWallUpgradeCost(1)}IP | Lv2→3: ${getWallUpgradeCost(2)}IP | Lv3→4: ${getWallUpgradeCost(3)}IP | Lv4→5: ${getWallUpgradeCost(4)}IP | StateChanges: wall_upgrades: [{ castle: "성채명", level_delta: 1 }]
 - **자원 초과 절대 금지**: 현재 보유 내정력(${player.points.ip})을 초과하는 비용의 행동을 제안하면 안 된다. 방어·배치로 병력이 "소비"되지 않는다 — 비용은 항상 내정력(시설·모병·훈련·성벽)이나 외교력이다.

@@ -12,14 +12,29 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
   const winnerName = FACTION_NAMES[result.winner] || result.winner;
   const loserName = FACTION_NAMES[result.loser] || result.loser;
   const isPlayerWinner = result.winner === "liu_bei";
+  const isPlayerLoser = result.loser === "liu_bei";
+  // 플레이어 무관 전투 (타국 간): 무채색 표시
+  const isNPCOnlyBattle = !isPlayerWinner && !isPlayerLoser;
+
+  const accentColor = isNPCOnlyBattle
+    ? "#888888"
+    : isPlayerWinner ? "var(--success)" : "var(--danger)";
+  const borderColor = isNPCOnlyBattle
+    ? "rgba(160,160,160,0.4)"
+    : isPlayerWinner ? "var(--success)" : "var(--danger)";
+  const bgOverlay = isNPCOnlyBattle ? "rgba(0,0,0,0.75)" : "rgba(0,0,0,0.9)";
 
   const typeLabel = result.battleType === "야전" ? "⚔️ 야전" : result.battleType === "공성" ? "🏯 공성전" : "🛡️ 수성전";
+
+  const resultLabel = isNPCOnlyBattle
+    ? `${winnerName} 승`
+    : isPlayerWinner ? "승리!" : "패배...";
 
   return (
     <div style={{
       position: "fixed",
       inset: 0,
-      background: "rgba(0,0,0,0.9)",
+      background: bgOverlay,
       zIndex: 200,
       display: "flex",
       alignItems: "center",
@@ -27,8 +42,10 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
       animation: "fadeInUp 0.4s ease",
     }}>
       <div style={{
-        background: "linear-gradient(180deg, #1a1a35, #0d0d1a)",
-        border: `2px solid ${isPlayerWinner ? "var(--success)" : "var(--danger)"}`,
+        background: isNPCOnlyBattle
+          ? "linear-gradient(180deg, #1c1c1c, #111111)"
+          : "linear-gradient(180deg, #1a1a35, #0d0d1a)",
+        border: `2px solid ${borderColor}`,
         borderRadius: "16px",
         padding: "24px",
         width: "85%",
@@ -38,6 +55,7 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
         <div style={{
           fontSize: "24px",
           marginBottom: "8px",
+          filter: isNPCOnlyBattle ? "grayscale(1)" : "none",
         }}>
           {typeLabel}
         </div>
@@ -46,11 +64,11 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
           fontFamily: "'Noto Serif KR', serif",
           fontSize: "20px",
           fontWeight: 900,
-          color: isPlayerWinner ? "var(--success)" : "var(--danger)",
+          color: accentColor,
           marginBottom: "16px",
           letterSpacing: "2px",
         }}>
-          {isPlayerWinner ? "승리!" : "패배..."}
+          {resultLabel}
         </h2>
 
         <div style={{ fontSize: "14px", color: "var(--text-primary)", marginBottom: "16px" }}>
@@ -97,15 +115,20 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
 
         {result.castleConquered && (
           <div style={{
-            background: isPlayerWinner ? "rgba(74,140,92,0.15)" : "rgba(212,68,62,0.15)",
+            background: isNPCOnlyBattle
+              ? "rgba(120,120,120,0.1)"
+              : isPlayerWinner ? "rgba(74,140,92,0.15)" : "rgba(212,68,62,0.15)",
             borderRadius: "8px",
             padding: "8px",
             marginBottom: "12px",
             fontSize: "13px",
             fontWeight: 700,
-            color: isPlayerWinner ? "var(--success)" : "var(--danger)",
+            color: accentColor,
           }}>
-            🏯 {result.castleConquered} {isPlayerWinner ? "함락!" : "을(를) 빼앗겼습니다!"}
+            🏯 {result.castleConquered}{" "}
+            {isNPCOnlyBattle
+              ? `— ${winnerName}이(가) 점령`
+              : isPlayerWinner ? "함락!" : "을(를) 빼앗겼습니다!"}
           </div>
         )}
 
@@ -120,7 +143,7 @@ export default function BattleReport({ result, onClose }: BattleReportProps) {
           }}>
             <div style={{ fontWeight: 700, marginBottom: "4px" }}>🔥 시설 피해</div>
             {result.facilityDamage.farm_damage > 0 && (
-              <div>논 -{result.facilityDamage.farm_damage} 레벨</div>
+              <div>농장 -{result.facilityDamage.farm_damage} 레벨</div>
             )}
             {result.facilityDamage.market_damage > 0 && (
               <div>시장 -{result.facilityDamage.market_damage} 레벨</div>

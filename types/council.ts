@@ -53,6 +53,7 @@ export interface PlanReport {
   plan: string;             // 계획 설명
   expected_points?: PointDeltas;  // 기대 포인트 변동
   facility_upgrades?: { type: "market" | "farm" | "bank"; count_delta?: number; level_delta?: number }[];  // 시설 변동
+  extra_note?: string;      // 추가 표시 메모 (e.g. "(군사력 +200)")
 }
 
 // ===================== Phase 1+3 통합 응답 =====================

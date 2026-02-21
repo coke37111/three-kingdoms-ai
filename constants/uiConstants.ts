@@ -12,7 +12,7 @@ export const POINT_COLORS = {
 
 /** 대사 내 포인트 용어 컬러링 패턴 (숫자 포함) */
 // "내정력", "내정력 40", "내정력 +3", "군사력(병력) 3,000" 등을 한번에 잡기 위함 (전체 캡처 그룹 적용)
-export const POINT_REGEX = /((?:행동력|특수능력|내정력|외교력|군사력(?:\(병력\))?)(?:\s*(?:[+-]?\d+(?:,\d+)*%?))?)/g;
+export const POINT_REGEX = /((?:행동력|특수능력|내정력|외교력|군사력(?:\(병력\))?|훈련도|사기)(?:\s*(?:[+-]?\d+(?:,\d+)*%?))?)/g;
 
 export function getPointColor(text: string): string {
     if (text.includes("행동력")) return POINT_COLORS.AP.color;
@@ -20,6 +20,7 @@ export function getPointColor(text: string): string {
     if (text.includes("군사력")) return POINT_COLORS.MP.color;
     if (text.includes("내정력")) return POINT_COLORS.IP.color;
     if (text.includes("외교력")) return POINT_COLORS.DP.color;
+    if (text.includes("훈련도") || text.includes("사기")) return POINT_COLORS.MP.color;
     return "inherit";
 }
 

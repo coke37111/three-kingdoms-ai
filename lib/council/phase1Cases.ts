@@ -1215,7 +1215,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 30,
     condition: (s) => s.economy.marketCount > 0 && s.economy.farmCount === 0 && s.economy.bankLv === 0,
     variations: [
-      { dialogue: "시장만으로는 한계가 있습니다. 논을 건설하여 수입을 다각화합시다.", emotion: "thoughtful" },
+      { dialogue: "시장만으로는 한계가 있습니다. 농장을 건설하여 수입을 다각화합시다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -1224,9 +1224,9 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 32,
     condition: (s) => s.economy.facilityImbalance && s.economy.marketLv > s.economy.farmLv,
     variations: [
-      { dialogue: "시장에 편중되어 있습니다. 논을 확장하여 균형을 맞춥시다.", emotion: "thoughtful" },
+      { dialogue: "시장에 편중되어 있습니다. 농장을 확장하여 균형을 맞춥시다.", emotion: "thoughtful" },
       {
-        dialogue: (s) => `시장 Lv${s.economy.marketLv}에 논 Lv${s.economy.farmLv}... 균형이 맞지 않습니다.`,
+        dialogue: (s) => `시장 Lv${s.economy.marketLv}에 농장 Lv${s.economy.farmLv}... 균형이 맞지 않습니다.`,
         emotion: "thoughtful",
       },
     ],
@@ -1237,7 +1237,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 32,
     condition: (s) => s.economy.facilityImbalance && s.economy.farmLv > s.economy.marketLv,
     variations: [
-      { dialogue: "논은 충분하나 시장이 부족합니다. 시장을 확장합시다.", emotion: "thoughtful" },
+      { dialogue: "농장은 충분하나 시장이 부족합니다. 시장을 확장합시다.", emotion: "thoughtful" },
     ],
   },
   {
@@ -1270,7 +1270,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     variations: [
       { dialogue: "시설이 잘 갖춰져 있습니다. 수입이 안정적입니다.", emotion: "calm" },
       {
-        dialogue: (s) => `시장 Lv${s.economy.marketLv}, 논 Lv${s.economy.farmLv}. 기반이 탄탄합니다.`,
+        dialogue: (s) => `시장 Lv${s.economy.marketLv}, 농장 Lv${s.economy.farmLv}. 기반이 탄탄합니다.`,
         emotion: "calm",
       },
     ],
@@ -1431,7 +1431,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
       Math.abs(s.economy.marketLv - s.economy.farmLv) <= 1 && !s.economy.facilityImbalance,
     variations: [
       {
-        dialogue: (s) => `시장 Lv${s.economy.marketLv}, 논 Lv${s.economy.farmLv}로 균형 잡혀 있습니다. 안정적인 수입이 기대됩니다.`,
+        dialogue: (s) => `시장 Lv${s.economy.marketLv}, 농장 Lv${s.economy.farmLv}로 균형 잡혀 있습니다. 안정적인 수입이 기대됩니다.`,
         emotion: "calm",
       },
     ],
@@ -1442,7 +1442,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     priority: 27,
     condition: (s) => s.economy.marketLv >= 5 && s.economy.farmLv >= 5 && s.economy.bankLv >= 3,
     variations: [
-      { dialogue: "시장, 논, 은행 모두 최고 수준입니다! 이 수입이면 전쟁도 내정도 두렵지 않습니다.", emotion: "excited" },
+      { dialogue: "시장, 농장, 은행 모두 최고 수준입니다! 이 수입이면 전쟁도 내정도 두렵지 않습니다.", emotion: "excited" },
     ],
   },
   {

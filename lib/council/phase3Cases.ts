@@ -789,7 +789,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
     ],
   },
 
-  // ─── 논 건설 ───
+  // ─── 농장 건설 ───
 
   {
     id: "p3_mi_build_farm_first",
@@ -800,14 +800,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.farmBuildCost;
       return {
         speaker: "미축",
-        plan: `논 1개 건설 (내정력 ${cost} 소비)`,
+        plan: `농장 1개 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "farm", count_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `논을 건설하여 농업 수입을 확보하겠습니다. (내정력 ${s.economy.farmBuildCost} 소비, 턴당 수입 +2)`,
+        dialogue: (s) => `농장을 건설하여 농업 수입을 확보하겠습니다. (내정력 ${s.economy.farmBuildCost} 소비, 턴당 수입 +2)`,
         emotion: "thoughtful",
       },
     ],
@@ -822,14 +822,14 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.farmUpgradeCost;
       return {
         speaker: "미축",
-        plan: `논 레벨업 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정력 ${cost} 소비)`,
+        plan: `농장 레벨업 Lv${s.economy.farmLv}→${s.economy.farmLv + 1} (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "farm", level_delta: 1 }],
       };
     },
     variations: [
       {
-        dialogue: (s) => `논 품질을 높이겠습니다. (내정력 ${s.economy.farmUpgradeCost} 소비, 전체 수입 +${s.economy.farmCount * 2})`,
+        dialogue: (s) => `농장 품질을 높이겠습니다. (내정력 ${s.economy.farmUpgradeCost} 소비, 전체 수입 +${s.economy.farmCount * 2})`,
         emotion: "calm",
       },
     ],
@@ -991,7 +991,7 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = getFacilityUpgradeCost(s.economy.marketLv);
       return {
         speaker: "미축",
-        plan: "수입 극대화 — 시장/논 집중 투자",
+        plan: "수입 극대화 — 시장/농장 집중 투자",
         expected_points: { ip_delta: -cost },
       };
     },
@@ -1125,13 +1125,13 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const total = cost1 + cost2;
       return {
         speaker: "미축",
-        plan: `내정력 만충 — 시장+논 레벨업 동시 투자 (${total} 소비)`,
+        plan: `내정력 만충 — 시장+농장 레벨업 동시 투자 (${total} 소비)`,
         expected_points: { ip_delta: -total },
         facility_upgrades: [{ type: "market", level_delta: 1 }, { type: "farm", level_delta: 1 }],
       };
     },
     variations: [
-      { dialogue: "내정력이 가득 찼습니다! 시장과 논을 동시에 확장하겠습니다.", emotion: "excited" },
+      { dialogue: "내정력이 가득 찼습니다! 시장과 농장을 동시에 확장하겠습니다.", emotion: "excited" },
     ],
   },
   {
@@ -1162,13 +1162,13 @@ export const MI_PHASE3_CASES: Phase3CaseDefinition[] = [
       const cost = s.economy.bankUpgradeCost;
       return {
         speaker: "미축",
-        plan: `시장·논 균형 완성 — 이제 은행 건설 (내정력 ${cost} 소비)`,
+        plan: `시장·농장 균형 완성 — 이제 은행 건설 (내정력 ${cost} 소비)`,
         expected_points: { ip_delta: -cost },
         facility_upgrades: [{ type: "bank", level_delta: 1 }],
       };
     },
     variations: [
-      { dialogue: "시장과 논이 균형을 맞췄습니다. 이제 은행을 지어 상한을 올리겠습니다.", emotion: "thoughtful" },
+      { dialogue: "시장과 농장이 균형을 맞췄습니다. 이제 은행을 지어 상한을 올리겠습니다.", emotion: "thoughtful" },
     ],
   },
   {

@@ -6,7 +6,8 @@
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "qa": "tsx --tsconfig tsconfig.json scripts/qa-flow.ts"
   },
   "dependencies": {
     "@vercel/speed-insights": "^1.3.1",
@@ -19,6 +20,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.4.0"
   }
 }

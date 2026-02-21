@@ -151,7 +151,7 @@ export default function WorldStatus({ worldState, show, onClose }: WorldStatusPr
 
               {/* 시설 */}
               <div style={{ fontSize: "10px", color: "var(--text-dim)", marginBottom: "4px" }}>
-                시장 {faction.facilities.market.count}개(Lv{faction.facilities.market.level}) · 논 {faction.facilities.farm.count}개(Lv{faction.facilities.farm.level}) · 은행 Lv{faction.facilities.bank}
+                시장 {faction.facilities.market.count}개(Lv{faction.facilities.market.level}) · 농장 {faction.facilities.farm.count}개(Lv{faction.facilities.farm.level}) · 은행 Lv{faction.facilities.bank}
               </div>
 
               {/* 성채 */}

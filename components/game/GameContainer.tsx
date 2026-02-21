@@ -138,6 +138,7 @@ export default function GameContainer() {
   const [meetingPhase, setMeetingPhase] = useState<MeetingPhase>(1);
   const [statusReports, setStatusReports] = useState<StatusReport[]>([]);
   const [planReports, setPlanReports] = useState<PlanReport[]>([]);
+  const [approvedPlans, setApprovedPlans] = useState<Set<number>>(new Set());
 
   // 타이핑 인디케이터
   const [typingIndicator, setTypingIndicator] = useState<{ speaker: string } | null>(null);
@@ -379,11 +380,6 @@ export default function GameContainer() {
         }
       }
 
-      if (notifications.length > 0) {
-        const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-        addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
-      }
-
       setNpcProcessing(false);
       return notifications;
     } catch (err) {
@@ -423,10 +419,6 @@ export default function GameContainer() {
             applyNPCAction(result.factionId, action);
           }
         }
-        if (notifications.length > 0) {
-          const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-          addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
-        }
         setNpcProcessing(false);
         return notifications;
       } catch (llmErr) {
@@ -436,8 +428,6 @@ export default function GameContainer() {
           applyDeterministicAction(npc.id);
           notifications.push({ factionId: npc.id, summary: "내정에 집중하고 있습니다.", icon: npc.icon });
         }
-        const lines = notifications.map(n => `${n.icon || "🏴"} ${FACTION_NAMES[n.factionId]} — ${n.summary}`).join("\n");
-        addSystemCouncilMsg(`📢 타국 동향\n${lines}`);
         setNpcProcessing(false);
         return notifications;
       }
@@ -505,6 +495,8 @@ export default function GameContainer() {
         });
         break;
       case "공격": {
+        // 초반 6턴: 게임 적응 기간 — 모든 전투 차단
+        if (world.currentTurn <= 6) break;
         if (!action.target || !faction) break;
         const targetCastle = world.castles.find(c => c.name === action.target);
         if (!targetCastle || targetCastle.owner === factionId) break;
@@ -665,6 +657,7 @@ export default function GameContainer() {
     setCouncilMessages([]);
     setStatusReports([]);
     setPlanReports([]);
+    setApprovedPlans(new Set());
     setReplyTarget(null);
     setThreads({});
     setThreadTyping(null);
@@ -701,13 +694,7 @@ export default function GameContainer() {
         setStatusReports(flowResult.statusReports);
         setPlanReports(flowResult.planReports);
         setMeetingPhase(2);
-
-        const player = worldStateRef.current.factions.find(f => f.isPlayer);
-        if (player && player.points.ap >= 1) {
-          setIsLoading(false);
-        } else {
-          await delay(500);
-        }
+        setIsLoading(false);
         return;
       }
 
@@ -755,16 +742,8 @@ export default function GameContainer() {
           await animateCouncilMessages(merged, true, {});
           setStatusReports(phase1.statusReports);
           setPlanReports(phase3.planReports);
-
           setMeetingPhase(2);
-
-          const player = worldStateRef.current.factions.find(f => f.isPlayer);
-          if (player && player.points.ap >= 1) {
-            setIsLoading(false);
-          } else {
-            // AP 부족 — 바로 실행
-            await delay(500);
-          }
+          setIsLoading(false);
           return;
         }
       }
@@ -1010,22 +989,10 @@ export default function GameContainer() {
     playerConqueredThisTurnRef.current = false; // Phase 4 공격 성채 획득 플래그 초기화
 
     try {
-      // ① 케이스 기반 planReport 실행 (state_changes가 null이었던 경우)
-      if (pendingCasePlanReportsRef.current.length > 0) {
-        for (const planReport of pendingCasePlanReportsRef.current) {
-          if (planReport.expected_points || planReport.facility_upgrades) {
-            applyPlayerChanges({
-              point_deltas: planReport.expected_points,
-              facility_upgrades: planReport.facility_upgrades,
-            }, addMsgToCouncil);
-          }
-        }
-        pendingCasePlanReportsRef.current = [];
-      }
+      pendingCasePlanReportsRef.current = [];
 
-      // ② NPC 턴 (플레이어 공격은 pendingInvasions로 수집)
-      const npcResults = await processNPCTurns();
-      if (npcResults.length > 0) setTurnNotifications(npcResults);
+      // ① NPC 턴 (플레이어 공격은 pendingInvasions로 수집)
+      await processNPCTurns();
 
       // ② 침공 순차 해결
       const invasions = [...pendingInvasionsRef.current];
@@ -1404,6 +1371,45 @@ export default function GameContainer() {
     }
   }, [addThreadMessage, scrollToBottom]);
 
+  // ---- 안건 승인 ----
+  const handleApprovePlan = useCallback((planIndex: number) => {
+    const plan = planReports[planIndex];
+    if (!plan || approvedPlans.has(planIndex)) return;
+
+    setApprovedPlans(prev => new Set([...prev, planIndex]));
+
+    // 포인트/시설 변동 적용
+    const hasPoints = plan.expected_points && Object.values(plan.expected_points).some(v => v !== undefined && v !== 0);
+    const hasFacilities = plan.facility_upgrades && plan.facility_upgrades.length > 0;
+    if (hasPoints || hasFacilities) {
+      applyPlayerChanges({
+        ...(hasPoints ? { point_deltas: plan.expected_points } : {}),
+        ...(hasFacilities ? { facility_upgrades: plan.facility_upgrades } : {}),
+      }, addMsgToCouncil);
+    }
+
+    // 플레이어 발언 추가
+    const playerMsgIdx = councilMsgsRef.current.length;
+    setCouncilMessages(prev => [...prev, {
+      speaker: "유비",
+      dialogue: `${plan.speaker}의 안건이 좋아 보인다. 진행하라.`,
+      emotion: "calm" as const,
+      phase: 2,
+    }]);
+    scrollToBottom();
+
+    // 참모 댓글 추가 (약간 딜레이)
+    setTimeout(() => {
+      addThreadMessage(playerMsgIdx, {
+        type: "advisor",
+        speaker: plan.speaker,
+        text: "알겠사옵니다. 즉시 시행하겠습니다.",
+        emotion: "excited" as const,
+      });
+      scrollToBottom();
+    }, 600);
+  }, [planReports, approvedPlans, applyPlayerChanges, addMsgToCouncil, setCouncilMessages, councilMsgsRef, addThreadMessage, scrollToBottom]);
+
   // ---- 참모 발언 클릭 ----
   const handleMessageClick = useCallback((msg: CouncilMessage, index: number) => {
     if (isLoading) return;
@@ -1632,13 +1638,7 @@ export default function GameContainer() {
         </div>
       )}
 
-      {/* NPC 턴 결과 알림 */}
-      {turnNotifications.length > 0 && !npcProcessing && (
-        <TurnNotification
-          notifications={turnNotifications}
-          onDismiss={() => setTurnNotifications([])}
-        />
-      )}
+      {/* 타국 동향 팝업 제거 (항상 숨김) */}
 
       {/* Chat Area (with point overlay) */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -1683,6 +1683,11 @@ export default function GameContainer() {
               onMessageClick={handleMessageClick}
               replyTarget={replyTarget}
               disabled={isLoading}
+              planReports={planReports}
+              approvedPlans={approvedPlans}
+              onApprovePlan={isLoading ? undefined : handleApprovePlan}
+              meetingPhase={meetingPhase}
+              onOpenMap={() => setShowFactionMap(true)}
             />
           )}
 

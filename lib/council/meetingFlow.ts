@@ -13,7 +13,7 @@ import type { GameSituation, MeetingFlowResult, ToneLevel, ToneMap, NormalizedSi
 import { normalizeSituation, deriveToneMap, toneToEmotion } from "./situationNormalizer";
 import { ZHUGE_TEMPLATES, GUAN_YU_TEMPLATES, MI_ZHU_TEMPLATES, PANG_TONG_TEMPLATES, buildDialogueVariables, pickDialogue } from "./dialogueTemplates";
 import type { DialogueCategory } from "./types";
-import { RECRUIT_TROOPS_PER_IP } from "@/constants/gameConstants";
+import { RECRUIT_TROOPS_PER_IP, IP_CAP_PER_BANK_LEVEL, TROOP_MAINTENANCE_DIVISOR } from "@/constants/gameConstants";
 
 // ===================== 도메인 우선순위 =====================
 
@@ -52,6 +52,16 @@ function buildTurnResultSummary(situation: GameSituation): string | null {
 
 // ===================== 원조 가능 세력 계산 =====================
 
+/** 원조 외교 대상: 주요 3세력 중 조조·손권만 허용 */
+const AID_ELIGIBLE_FACTION_IDS = new Set(["cao_cao", "sun_quan"]);
+
+/** 받침 유무에 따라 '과'/'와' 반환 */
+function gwa(name: string): string {
+  const code = name.charCodeAt(name.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) return "과";
+  return (code - 0xAC00) % 28 !== 0 ? "과" : "와";
+}
+
 function getAidEligibleFactions(world: WorldState): Array<{
   factionId: string;
   rulerName: string;
@@ -60,7 +70,7 @@ function getAidEligibleFactions(world: WorldState): Array<{
 }> {
   const player = world.factions.find(f => f.isPlayer)!;
   return world.factions
-    .filter(f => !f.isPlayer)
+    .filter(f => !f.isPlayer && AID_ELIGIBLE_FACTION_IDS.has(f.id))
     .map(f => {
       const rel = world.relations.find(r =>
         (r.factionA === player.id && r.factionB === f.id) ||
@@ -95,10 +105,12 @@ function derivePlanReports(
       });
     }
   } else if (toneMap.military === "uneasy" || toneMap.military === "adequate") {
+    const mpGain = Math.floor(situation.military.troops * 0.1 * situation.military.morale);
     reports.push({
       speaker: "관우",
       plan: "훈련 실시: 훈련도 +10%",
       expected_points: { ip_delta: -15, mp_training_delta: 0.1 },
+      extra_note: `(군사력 +${mpGain.toLocaleString()})`,
     });
   }
 
@@ -114,7 +126,7 @@ function derivePlanReports(
     } else if (situation.economy.canBuildFarm) {
       reports.push({
         speaker: "미축",
-        plan: `논 건설 (비용: 내정력 ${situation.economy.farmBuildCost})`,
+        plan: `농장 건설 (비용: 내정력 ${situation.economy.farmBuildCost})`,
         expected_points: { ip_delta: -situation.economy.farmBuildCost },
         facility_upgrades: [{ type: "farm", count_delta: 1 }],
       });
@@ -133,6 +145,18 @@ function derivePlanReports(
         plan: `시장 건설 (비용: 내정력 ${situation.economy.marketBuildCost})`,
         expected_points: { ip_delta: -situation.economy.marketBuildCost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
+      });
+    }
+  }
+
+  // 내정 안정 시 은행 업그레이드
+  if (toneMap.economy === "comfortable" || toneMap.economy === "stable") {
+    if (situation.economy.canUpgradeBank) {
+      reports.push({
+        speaker: "미축",
+        plan: `은행 업그레이드 (비용: 내정포인트 ${situation.economy.bankUpgradeCost}, 내정포인트 상한 +${IP_CAP_PER_BANK_LEVEL})`,
+        expected_points: { ip_delta: -situation.economy.bankUpgradeCost },
+        facility_upgrades: [{ type: "bank", level_delta: 1 }],
       });
     }
   }
@@ -177,9 +201,34 @@ export function runMeetingFlow(
 ): MeetingFlowResult {
   const normalized = normalizeSituation(situation, world);
   const toneMap = deriveToneMap(normalized);
+
+  // 초반 3턴: 게임 적응 기간 — 군사·외교 위기 톤을 "adequate"로 완화
+  // (내정 톤은 그대로 유지하여 시설 건설 조언은 계속 제공)
+  if (turn <= 3) {
+    const floorToAdequate = (t: ToneLevel): ToneLevel =>
+      TONE_URGENCY[t] < TONE_URGENCY["adequate"] ? "adequate" : t;
+    toneMap.military = floorToAdequate(toneMap.military);
+    toneMap.diplomacy = floorToAdequate(toneMap.diplomacy);
+    toneMap.overall = floorToAdequate(toneMap.overall);
+  }
+
   const variables = buildDialogueVariables(situation, normalized);
 
   const messages: CouncilMessage[] = [];
+
+  // 0. [시스템] 내정 현황 요약 (매턴)
+  const econ = situation.economy;
+  const player = world.factions.find(f => f.isPlayer)!;
+  const maintenance = Math.floor(player.points.mp_troops / TROOP_MAINTENANCE_DIVISOR);
+  const netIP = econ.ipRegen - maintenance;
+  const netStr = netIP >= 0 ? `+${netIP}` : `${netIP}`;
+  const bankInfo = econ.bankLv > 0 ? ` · 은행 Lv${econ.bankLv}` : "";
+  messages.push({
+    speaker: "__system__",
+    dialogue: `내정포인트: ${econ.ip}/${econ.ipCap} (수입 +${econ.ipRegen}, 유지비 -${maintenance}, 순 ${netStr}/턴) | 시장 ${econ.marketCount}개(Lv${econ.marketLv}) · 농장 ${econ.farmCount}개(Lv${econ.farmLv})${bankInfo}`,
+    emotion: "calm",
+    phase: 1,
+  });
 
   // 1. [시스템] 지난 턴 성과 요약 (2턴 이후)
   if (turn > 1) {
@@ -230,7 +279,13 @@ export function runMeetingFlow(
 
     // 경제 발언 시작 전: 관우의 IP 요청이 있었다면 먼저 응답
     if (!testMode && domain === "economy" && ipRequestPending) {
-      const reply = pickDialogue(MI_ZHU_TEMPLATES, "reply_ip_to_military", toneMap.economy, turn, variables);
+      // 원조 가능 세력이 없으면 방통 언급 없는 톤으로 강제 조정
+      const aidFactions = getAidEligibleFactions(world);
+      const hasAid = aidFactions.length > 0 && situation.diplomacy.dp >= 2;
+      const replyTone = (!hasAid && (toneMap.economy === "crisis" || toneMap.economy === "critical"))
+        ? "uneasy" as ToneLevel
+        : toneMap.economy;
+      const reply = pickDialogue(MI_ZHU_TEMPLATES, "reply_ip_to_military", replyTone, turn, variables);
       messages.push({
         speaker: "미축",
         dialogue: reply.text,
@@ -250,7 +305,7 @@ export function runMeetingFlow(
         const top = aidFactions[0];
         messages.push({
           speaker: "방통",
-          dialogue: `주공, 내정이 위태로우나 외교로 돌파구가 있사옵니다. ${top.rulerName}과의 관계(+${top.relationScore})를 활용해 원조를 요청하면 내정력 ${top.aidIP}를 확보할 수 있습니다. 외교력 2면 충분하옵니다.`,
+          dialogue: `주공, 내정이 위태로우나 외교로 돌파구가 있사옵니다. ${top.rulerName}${gwa(top.rulerName)}의 관계(+${top.relationScore})를 활용해 원조를 요청하면 내정포인트 ${top.aidIP}를 확보할 수 있습니다. 외교포인트 2면 충분하옵니다.`,
           emotion: "thoughtful",
           phase: 1,
           messageMode: "interactive",
@@ -287,7 +342,12 @@ export function runMeetingFlow(
 
   // 경제가 군사보다 먼저 처리된 경우(경제 위기 더 긴급) — 관우 요청 후 지연 응답
   if (!testMode && ipRequestPending) {
-    const reply = pickDialogue(MI_ZHU_TEMPLATES, "reply_ip_to_military", toneMap.economy, turn, variables);
+    const aidFactions2 = getAidEligibleFactions(world);
+    const hasAid2 = aidFactions2.length > 0 && situation.diplomacy.dp >= 2;
+    const replyTone2 = (!hasAid2 && (toneMap.economy === "crisis" || toneMap.economy === "critical"))
+      ? "uneasy" as ToneLevel
+      : toneMap.economy;
+    const reply = pickDialogue(MI_ZHU_TEMPLATES, "reply_ip_to_military", replyTone2, turn, variables);
     messages.push({
       speaker: "미축",
       dialogue: reply.text,

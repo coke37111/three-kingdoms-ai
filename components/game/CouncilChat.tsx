@@ -1,6 +1,7 @@
 "use client";
 
-import type { AdvisorState, CouncilMessage, ThreadMessage } from "@/types/council";
+import React from "react";
+import type { AdvisorState, CouncilMessage, ThreadMessage, PlanReport } from "@/types/council";
 import type { Emotion } from "@/types/chat";
 import { getPointColor, POINT_REGEX } from "@/constants/uiConstants";
 
@@ -12,21 +13,94 @@ const EMOTION_EMOJI: Record<Emotion, string> = {
   thoughtful: "🤔",
 };
 
-/** 대사 내의 포인트 용어를 감지하여 컬러링 */
-function formatDialogue(text: string) {
+const PLAN_LABEL_COLOR: Record<string, { label: string; color: string }> = {
+  ip_delta:          { label: "내정력",   color: "#ffa726" },
+  dp_delta:          { label: "외교력",   color: "#ba68c8" },
+  ap_delta:          { label: "행동력",   color: "#64b464" },
+  sp_delta:          { label: "특수능력", color: "#5c9aff" },
+  mp_troops_delta:   { label: "병력",     color: "#e65c5c" },
+  mp_training_delta: { label: "훈련도",   color: "#e65c5c" },
+  mp_morale_delta:   { label: "사기",     color: "#e65c5c" },
+};
+
+/** 계획의 expected_points를 컬러 JSX 요약으로 변환 */
+function formatPlanSummary(
+  expected_points: PlanReport["expected_points"],
+  extra_note?: string,
+): React.ReactNode {
+  if (!expected_points) return null;
+
+  const costs: React.ReactNode[] = [];
+  const gains: React.ReactNode[] = [];
+
+  for (const [key, val] of Object.entries(expected_points)) {
+    if (val === undefined || val === 0) continue;
+    const { label, color } = PLAN_LABEL_COLOR[key] ?? { label: key, color: "#888" };
+    let formatted: string;
+    if (key === "mp_training_delta") {
+      const pct = Math.round((val as number) * 100);
+      formatted = pct >= 0 ? `+${pct}%` : `${pct}%`;
+    } else {
+      const n = val as number;
+      formatted = n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString();
+    }
+    const node = <span key={key} style={{ color, fontWeight: 600 }}>{label} {formatted}</span>;
+    (val as number) < 0 ? costs.push(node) : gains.push(node);
+  }
+
+  const parts: React.ReactNode[] = [];
+  costs.forEach((c, i) => { if (i > 0) parts.push(<span key={`cs${i}`}>, </span>); parts.push(c); });
+  if (costs.length && gains.length) parts.push(<span key="arr"> → </span>);
+  gains.forEach((g, i) => { if (i > 0) parts.push(<span key={`gs${i}`}>, </span>); parts.push(g); });
+  if (extra_note) {
+    parts.push(<span key="note" style={{ color: "#e65c5c", marginLeft: "2px" }}>{extra_note}</span>);
+  }
+
+  return parts.length > 0 ? <>{parts}</> : null;
+}
+
+/** 대사 내의 포인트 용어를 감지하여 컬러링, "지도" 키워드는 클릭 가능한 링크로 변환 */
+function formatDialogue(text: string, onOpenMap?: () => void) {
   if (!text) return null;
   const parts = text.split(POINT_REGEX);
   return (
     <>
       {parts.map((part, index) => {
         const color = getPointColor(part);
-        return color !== "inherit" ? (
-          <span key={index} style={{ color, fontWeight: 600 }}>
-            {part}
-          </span>
-        ) : (
-          part
-        );
+        if (color !== "inherit") {
+          return (
+            <span key={index} style={{ color, fontWeight: 600 }}>
+              {part}
+            </span>
+          );
+        }
+        // 평문 파트에서 "지도" 키워드를 클릭 가능한 링크로 변환
+        if (onOpenMap && part.includes("지도")) {
+          const subParts = part.split(/(지도)/g);
+          return (
+            <React.Fragment key={index}>
+              {subParts.map((sub, j) =>
+                sub === "지도" ? (
+                  <span
+                    key={j}
+                    onClick={onOpenMap}
+                    style={{
+                      color: "#64b4e4",
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    지도
+                  </span>
+                ) : (
+                  sub
+                ),
+              )}
+            </React.Fragment>
+          );
+        }
+        return part;
       })}
     </>
   );
@@ -169,6 +243,11 @@ interface CouncilChatProps {
   onMessageClick?: (msg: CouncilMessage, index: number) => void;
   replyTarget?: { msg: CouncilMessage; index: number } | null;
   disabled?: boolean;
+  planReports?: PlanReport[];
+  approvedPlans?: Set<number>;
+  onApprovePlan?: (index: number) => void;
+  meetingPhase?: number;
+  onOpenMap?: () => void;
 }
 
 export default function CouncilChat({
@@ -176,7 +255,21 @@ export default function CouncilChat({
   typingIndicator,
   threads, threadTyping,
   onMessageClick, replyTarget, disabled,
+  planReports, approvedPlans, onApprovePlan, meetingPhase,
+  onOpenMap,
 }: CouncilChatProps) {
+  // 각 참모의 마지막 메시지 인덱스와 planReport 인덱스를 사전 계산
+  const speakerPlanMap = new Map<string, number>(); // speaker → planReport index
+  const lastMsgBySpeaker = new Map<string, number>(); // speaker → last message index
+  if (meetingPhase === 2 && planReports && planReports.length > 0 && onApprovePlan) {
+    planReports.forEach((plan, i) => {
+      if (!speakerPlanMap.has(plan.speaker)) speakerPlanMap.set(plan.speaker, i);
+    });
+    messages.forEach((msg, i) => {
+      if (speakerPlanMap.has(msg.speaker)) lastMsgBySpeaker.set(msg.speaker, i);
+    });
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
       {/* 회의 제목 (도입 서사(0회)는 표시하지 않음) */}
@@ -222,7 +315,7 @@ export default function CouncilChat({
                 letterSpacing: "0.5px",
                 whiteSpace: "pre-line",
               }}>
-                {formatDialogue(msg.dialogue)}
+                {formatDialogue(msg.dialogue, onOpenMap)}
               </span>
             </div>
           );
@@ -336,7 +429,7 @@ export default function CouncilChat({
                 {phaseBadge}
               </div>
               <div style={{ fontSize: "13px", lineHeight: 1.7, color: "var(--text-primary)" }}>
-                {formatDialogue(msg.dialogue)}
+                {formatDialogue(msg.dialogue, onOpenMap)}
               </div>
             </div>
           );
@@ -439,8 +532,36 @@ export default function CouncilChat({
                     display: "inline-block",
                     textAlign: "left",
                   }}>
-                  {formatDialogue(msg.dialogue)}
+                  {formatDialogue(msg.dialogue, onOpenMap)}
                 </div>
+                {/* 승인 버튼 — 이 참모의 마지막 메시지에만 표시 */}
+                {lastMsgBySpeaker.get(msg.speaker) === i && speakerPlanMap.has(msg.speaker) && (() => {
+                  const planIdx = speakerPlanMap.get(msg.speaker)!;
+                  const isApproved = approvedPlans?.has(planIdx) ?? false;
+                  const plan = planReports?.[planIdx];
+                  const summary = formatPlanSummary(plan?.expected_points, plan?.extra_note);
+                  return (
+                    <div style={{ marginTop: "5px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      {summary && (
+                        <span style={{ fontSize: "10px" }}>{summary}</span>
+                      )}
+                      {isApproved ? (
+                        <span style={{
+                          fontSize: "10px", padding: "2px 8px", borderRadius: "8px",
+                          background: "rgba(100,200,100,0.15)", color: "#64c864",
+                          border: "1px solid rgba(100,200,100,0.35)",
+                        }}>✓ 승인됨</span>
+                      ) : (
+                        <button onClick={() => onApprovePlan!(planIdx)} style={{
+                          fontSize: "11px", padding: "3px 10px", borderRadius: "8px",
+                          background: "rgba(201,168,76,0.15)", color: "var(--gold)",
+                          border: "1px solid rgba(201,168,76,0.4)", cursor: "pointer",
+                          fontWeight: 600,
+                        }}>승인</button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

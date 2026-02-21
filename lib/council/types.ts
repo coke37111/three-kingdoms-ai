@@ -55,8 +55,8 @@ export interface GameSituation {
     // 시설
     marketCount: number;          // 건설된 시장 수 (성채당 1개)
     marketLv: number;             // 시장 레벨
-    farmCount: number;            // 건설된 논 수
-    farmLv: number;               // 논 레벨
+    farmCount: number;            // 건설된 농장 수
+    farmLv: number;               // 농장 레벨
     bankLv: number;               // 은행 레벨
     castleCount: number;          // 보유 성채 수 (시설 한도)
     noFacilities: boolean;        // market.count+farm.count+bank === 0
