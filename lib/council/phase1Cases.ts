@@ -1515,7 +1515,7 @@ export const MI_PHASE1_CASES: CaseDefinition[] = [
     condition: (s) => (s.economy.canBuildMarket || s.economy.canBuildFarm || s.economy.canUpgradeMarket || s.economy.canUpgradeFarm || s.economy.canUpgradeBank) && s.economy.ipAdequate,
     variations: [
       {
-        dialogue: (s) => `시설 업그레이드 가능합니다. 시장 업그레이드에 내정력 ${s.economy.marketUpgradeCost}이 필요합니다.`,
+        dialogue: (s) => `시설 확장 가능합니다. 시장 확장에 내정력 ${s.economy.marketUpgradeCost}이 필요합니다.`,
         emotion: "calm",
       },
     ],

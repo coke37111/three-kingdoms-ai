@@ -77,33 +77,41 @@ doPhase1And3()
 
 ---
 
-## Phase 5 실행 (중요)
+## Phase 3 실행 — 승인 안건 처리
 
-> **케이스 모드와 LLM 모드의 실행 타이밍 차이**
+### 승인/거절/무시 시스템
 
-| 모드 | state_changes 적용 시점 |
-|------|------------------------|
-| LLM 모드 | Phase 1 응답 즉시 (state_changes 포함) |
-| 케이스 모드 | **Phase 5 시작 시** (pendingCasePlanReportsRef) |
+Phase 2 토론 중 각 참모의 마지막 메시지 하단에 **승인/거절 버튼** 표시.
 
-케이스 모드(`state_changes === null`)에서:
-1. `runMeetingPhase1And3()`에서 `planReports`를 `pendingCasePlanReportsRef`에 저장
-2. `handleExecuteTurn()`(Phase 5) 최초에 해당 planReports를 순서대로 `applyPlayerChanges()` 호출
-3. `expected_points`(포인트 변동) + `facility_upgrades`(시설 레벨 변동) 모두 적용
+| 조치 | 즉시 효과 | Phase 3 시작 시 |
+|------|----------|----------------|
+| **승인** | 열정 +1, 기록 저장 | 포인트·시설 변동 적용 |
+| **거절** | 열정 -1, 참모 응답 표시 | 변동 없음 |
+| **무시** | — | 열정 -2 패널티 |
 
+> 승인 클릭 시 즉시 포인트가 변동되지 않음. 실제 적용은 항상 Phase 3(실행) 시작 시.
+
+### Phase 3 실행 순서
+
+```
+handleExecuteTurn() 시작
+  1. 무시된 안건: 열정 -2 + 시스템 메시지
+  2. 승인된 안건: applyPlayerChanges() 일괄 실행
+     - expected_points (포인트 변동)
+     - facility_upgrades (시설 레벨/개수 변동)
+     - pendingTurnSummaryRef에 서머리 저장
+  3. NPC 턴 실행
+  4. 포인트 충전, 승패 판정, 자동 저장
+  5. runMeetingPhase1And3() → 새 회의 시작
+     → 첫 메시지로 "✅ 지난 회의 결정 반영" 서머리 표시
+```
+
+### 안건 이름 자동 매칭
+
+Phase 2에서 유저 입력이 `planReport.plan`의 키워드와 일치하면 **LLM 없이 자동 승인**:
 ```typescript
-// GameContainer.tsx - Phase 5 실행부
-if (pendingCasePlanReportsRef.current.length > 0) {
-  for (const planReport of pendingCasePlanReportsRef.current) {
-    if (planReport.expected_points || planReport.facility_upgrades) {
-      applyPlayerChanges({
-        point_deltas: planReport.expected_points,
-        facility_upgrades: planReport.facility_upgrades,
-      }, addMsgToCouncil);
-    }
-  }
-  pendingCasePlanReportsRef.current = [];
-}
+// "시장 확장" 입력 → plan.plan.split(/[(:]/)[0] === "시장 확장" 매칭
+// → handleApprovePlan() 직접 호출, LLM 미사용
 ```
 
 ---

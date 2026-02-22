@@ -121,7 +121,7 @@ critical    < 0.15
 | 군사 crisis/critical | 긴급 모병 (IP 80% 투입) |
 | 군사 uneasy/adequate | 훈련 실시 (+10%) |
 | 내정 crisis/critical | 시장/논 건설 |
-| 내정 uneasy/adequate | 시장 업그레이드 또는 건설 |
+| 내정 uneasy/adequate | 시장 확장 또는 건설 |
 | 외교 crisis/critical | 외교 관계 개선 (DP 2 소비) |
 
 ---

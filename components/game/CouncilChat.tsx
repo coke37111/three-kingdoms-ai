@@ -13,6 +13,53 @@ const EMOTION_EMOJI: Record<Emotion, string> = {
   thoughtful: "🤔",
 };
 
+/** 클릭 시 말풍선 툴팁을 보여주는 아이콘 */
+function StatIcon({ icon, label, value, color }: { icon: string; label: string; value: number; color: string }) {
+  const [showTooltip, setShowTooltip] = React.useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowTooltip(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setShowTooltip(false), 1500);
+  };
+
+  React.useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  return (
+    <span
+      onClick={handleClick}
+      style={{ cursor: "pointer", position: "relative", userSelect: "none" }}
+    >
+      {icon}{value}
+      {showTooltip && (
+        <span style={{
+          position: "absolute",
+          bottom: "calc(100% + 4px)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "#2a2a2e",
+          color,
+          fontSize: "9px",
+          fontWeight: 600,
+          padding: "2px 6px",
+          borderRadius: "4px",
+          border: `1px solid ${color}66`,
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+          animation: "fadeInUp 0.15s ease",
+          zIndex: 10,
+        }}>
+          {label}
+        </span>
+      )}
+    </span>
+  );
+}
+
 const PLAN_LABEL_COLOR: Record<string, { label: string; color: string }> = {
   ip_delta:          { label: "내정력",   color: "#ffa726" },
   dp_delta:          { label: "외교력",   color: "#ba68c8" },
@@ -53,7 +100,7 @@ function formatPlanSummary(
   if (costs.length && gains.length) parts.push(<span key="arr"> → </span>);
   gains.forEach((g, i) => { if (i > 0) parts.push(<span key={`gs${i}`}>, </span>); parts.push(g); });
   if (extra_note) {
-    parts.push(<span key="note" style={{ color: "#e65c5c", marginLeft: "2px" }}>{extra_note}</span>);
+    parts.push(<span key="note" style={{ color: "#aaa", marginLeft: "2px" }}>{extra_note}</span>);
   }
 
   return parts.length > 0 ? <>{parts}</> : null;
@@ -180,8 +227,9 @@ function renderThread(threadMsgs: ThreadMessage[], advisors: AdvisorState[], thr
               }}>
                 <span>{tm.speaker}</span>
                 {tmStats && (
-                  <span style={{ fontSize: "9px", color: "var(--text-dim)", opacity: 0.8, fontWeight: 400 }}>
-                    ♥{tmStats.loyalty} 🔥{tmStats.enthusiasm}
+                  <span style={{ fontSize: "9px", color: "var(--text-dim)", opacity: 0.8, fontWeight: 400, display: "inline-flex", gap: "4px" }}>
+                    <StatIcon icon="♥" label="충성도" value={tmStats.loyalty} color="#e87d7d" />
+                    <StatIcon icon="🔥" label="열정" value={tmStats.enthusiasm} color="#ff9f40" />
                   </span>
                 )}
               </div>
@@ -282,6 +330,8 @@ interface CouncilChatProps {
   planReports?: PlanReport[];
   approvedPlans?: Set<number>;
   onApprovePlan?: (index: number) => void;
+  rejectedPlans?: Set<number>;
+  onRejectPlan?: (index: number) => void;
   meetingPhase?: number;
   onOpenMap?: () => void;
 }
@@ -291,7 +341,9 @@ export default function CouncilChat({
   typingIndicator,
   threads, threadTyping,
   onMessageClick, replyTarget, disabled,
-  planReports, approvedPlans, onApprovePlan, meetingPhase,
+  planReports, approvedPlans, onApprovePlan,
+  rejectedPlans, onRejectPlan,
+  meetingPhase,
   onOpenMap,
 }: CouncilChatProps) {
   // 각 참모의 마지막 메시지 인덱스와 planReport 인덱스를 사전 계산
@@ -410,19 +462,6 @@ export default function CouncilChat({
         // ── broadcast 메시지 (제갈량 전략 선언) ──
         if (msg.messageMode === "broadcast") {
           const { icon, color, role } = getSpeakerInfo(msg.speaker, advisors);
-          const phaseLabels: Record<number, string> = { 1: "보고", 2: "토론", 3: "계획", 4: "토론" };
-          const phaseBadge = msg.phase ? (
-            <span style={{
-              fontSize: "8px",
-              padding: "0px 4px",
-              borderRadius: "4px",
-              background: "rgba(201,168,76,0.1)",
-              color: "var(--text-dim)",
-              marginLeft: "4px",
-            }}>
-              {phaseLabels[msg.phase] || `P${msg.phase}`}
-            </span>
-          ) : null;
           return (
             <div key={i} style={{
               margin: "6px 14px",
@@ -462,7 +501,6 @@ export default function CouncilChat({
                 {msg.emotion && (
                   <span style={{ opacity: 0.6 }}>{EMOTION_EMOJI[msg.emotion] || ""}</span>
                 )}
-                {phaseBadge}
               </div>
               <div style={{ fontSize: "13px", lineHeight: 1.7, color: "var(--text-primary)" }}>
                 {formatDialogue(msg.dialogue, onOpenMap)}
@@ -475,21 +513,6 @@ export default function CouncilChat({
         const stats = getAdvisorStats(msg.speaker, advisors);
         const isSelected = replyTarget && replyTarget.index === i;
         const isRuler = msg.speaker === "유비";
-
-        // Phase 배지
-        const phaseLabels: Record<number, string> = { 1: "보고", 2: "토론", 3: "계획", 4: "토론" };
-        const phaseBadge = msg.phase ? (
-          <span style={{
-            fontSize: "8px",
-            padding: "0px 4px",
-            borderRadius: "4px",
-            background: "rgba(201,168,76,0.1)",
-            color: "var(--text-dim)",
-            marginLeft: "4px",
-          }}>
-            {phaseLabels[msg.phase] || `P${msg.phase}`}
-          </span>
-        ) : null;
 
         // 이 메시지의 쓰레드
         const msgThreads = threads?.[i];
@@ -541,14 +564,16 @@ export default function CouncilChat({
                   {msg.emotion && !isRuler && (
                     <span style={{ opacity: 0.6 }}>{EMOTION_EMOJI[msg.emotion] || ""}</span>
                   )}
-                  {phaseBadge}
                   {stats && (
                     <span style={{
                       fontSize: "9px",
                       color: "var(--text-dim)",
                       opacity: 0.7,
+                      display: "inline-flex",
+                      gap: "4px",
                     }}>
-                      ♥{stats.loyalty} 🔥{stats.enthusiasm}
+                      <StatIcon icon="♥" label="충성도" value={stats.loyalty} color="#e87d7d" />
+                      <StatIcon icon="🔥" label="열정" value={stats.enthusiasm} color="#ff9f40" />
                     </span>
                   )}
                 </div>
@@ -570,10 +595,11 @@ export default function CouncilChat({
                   }}>
                   {formatDialogue(msg.dialogue, onOpenMap)}
                 </div>
-                {/* 승인 버튼 — 이 참모의 마지막 메시지에만 표시 */}
+                {/* 승인/거절 버튼 — 이 참모의 마지막 메시지에만 표시 */}
                 {lastMsgBySpeaker.get(msg.speaker) === i && speakerPlanMap.has(msg.speaker) && (() => {
                   const planIdx = speakerPlanMap.get(msg.speaker)!;
                   const isApproved = approvedPlans?.has(planIdx) ?? false;
+                  const isRejected = rejectedPlans?.has(planIdx) ?? false;
                   const plan = planReports?.[planIdx];
                   const summary = formatPlanSummary(plan?.expected_points, plan?.extra_note);
                   return (
@@ -587,13 +613,27 @@ export default function CouncilChat({
                           background: "rgba(100,200,100,0.15)", color: "#64c864",
                           border: "1px solid rgba(100,200,100,0.35)",
                         }}>✓ 승인됨</span>
+                      ) : isRejected ? (
+                        <span style={{
+                          fontSize: "10px", padding: "2px 8px", borderRadius: "8px",
+                          background: "rgba(180,80,80,0.15)", color: "#e06060",
+                          border: "1px solid rgba(180,80,80,0.35)",
+                        }}>✗ 거절됨</span>
                       ) : (
-                        <button onClick={() => onApprovePlan!(planIdx)} style={{
-                          fontSize: "11px", padding: "3px 10px", borderRadius: "8px",
-                          background: "rgba(201,168,76,0.15)", color: "var(--gold)",
-                          border: "1px solid rgba(201,168,76,0.4)", cursor: "pointer",
-                          fontWeight: 600,
-                        }}>승인</button>
+                        <>
+                          <button onClick={() => onApprovePlan!(planIdx)} style={{
+                            fontSize: "11px", padding: "3px 10px", borderRadius: "8px",
+                            background: "rgba(201,168,76,0.15)", color: "var(--gold)",
+                            border: "1px solid rgba(201,168,76,0.4)", cursor: "pointer",
+                            fontWeight: 600,
+                          }}>승인</button>
+                          <button onClick={() => onRejectPlan!(planIdx)} style={{
+                            fontSize: "11px", padding: "3px 10px", borderRadius: "8px",
+                            background: "rgba(180,80,80,0.1)", color: "#e06060",
+                            border: "1px solid rgba(180,80,80,0.35)", cursor: "pointer",
+                            fontWeight: 600,
+                          }}>거절</button>
+                        </>
                       )}
                     </div>
                   );

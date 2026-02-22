@@ -59,9 +59,9 @@ export function buildDialogueVariables(
   const econ = situation.economy;
   let buildAdvice: string;
   if (econ.canUpgradeMarket) {
-    buildAdvice = `시장 업그레이드(비용 ${econ.marketUpgradeCost}) 즉시 가능`;
+    buildAdvice = `시장 확장(비용 ${econ.marketUpgradeCost}) 즉시 가능`;
   } else if (econ.canUpgradeFarm) {
-    buildAdvice = `농장 업그레이드(비용 ${econ.farmUpgradeCost}) 즉시 가능`;
+    buildAdvice = `농장 확장(비용 ${econ.farmUpgradeCost}) 즉시 가능`;
   } else if (econ.canBuildMarket) {
     buildAdvice = `시장 건설(비용 ${econ.marketBuildCost}) 즉시 가능`;
   } else if (econ.canBuildFarm) {
@@ -469,10 +469,10 @@ export const MI_ZHU_TEMPLATES: Partial<TemplateMap> = {
   },
   countermeasure_economy: {
     comfortable: [
-      { text: "여유가 있으니 은행 업그레이드로 내정포인트 상한을 늘리거나, 기존 시설을 업그레이드하는 것이 좋겠습니다.", emotion: "calm" },
+      { text: "여유가 있으니 은행 확장으로 내정포인트 상한을 늘리거나, 기존 시설을 확장하는 것이 좋겠습니다.", emotion: "calm" },
     ],
     stable: [
-      { text: "시장이나 농장을 업그레이드해 수입을 더 늘리면 좋겠습니다.", emotion: "calm" },
+      { text: "시장이나 농장을 확장해 수입을 더 늘리면 좋겠습니다.", emotion: "calm" },
     ],
     adequate: [
       { text: "시설 투자를 권합니다. {buildAdvice}.", emotion: "thoughtful" },

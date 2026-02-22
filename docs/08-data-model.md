@@ -165,15 +165,24 @@ interface StatusReport {
 }
 ```
 
-### PlanReport — 계획 보고 (Phase 3)
+### PlanReport — 계획 보고
 
 ```typescript
 interface PlanReport {
   speaker: string;
-  plan: string;
-  expected_points?: PointDeltas;
+  plan: string;                   // 계획 이름 (예: "시장 확장 (비용: 내정력 40)")
+  expected_points?: PointDeltas;  // 포인트 변동 (비용은 음수, 일회성)
+  facility_upgrades?: {           // 시설 변동
+    type: "market" | "farm" | "bank";
+    count_delta?: number;         // 시설 개수 변동
+    level_delta?: number;         // 시설 레벨 변동
+  }[];
+  extra_note?: string;            // 추가 표시 메모 (UI에서 회색으로 표시)
+                                  // 예: "→ 턴당 내정력 +3", "(군사력 +200)"
 }
 ```
+
+> **승인 타이밍**: 승인 클릭 시 기록만, 실제 변동은 Phase 3 실행 시작 시 일괄 적용.
 
 ### CouncilResponse — Phase 1+3 통합 응답
 

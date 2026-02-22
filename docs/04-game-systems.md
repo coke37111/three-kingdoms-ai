@@ -3,39 +3,36 @@
 ## 턴 시스템
 
 - **턴 제한**: 120턴 (`TURN_LIMIT`)
-- 턴마다 5-Phase 회의 시스템 실행
+- 턴마다 3-Phase 회의 시스템 실행
 
-### 턴 진행 — 5-Phase 회의 시스템
+### 턴 진행 — 3-Phase 회의 시스템
 
 ```
-Phase 1: 상태 보고 (자동, API 1회 — Phase 3과 합산)
-  ├─ 4인 참모가 각 분야 현황 보고 (status_reports)
-  ├─ 회의 대사 (council_messages) 애니메이션 표시
-  └─ state_changes 즉시 적용
+Phase 1: 보고 (자동, API 1회)
+  ├─ buildPhase1And3Prompt() → callCouncilLLM()
+  ├─ 상태 보고(status_reports) + 계획 보고(plan_reports) 한 번에 생성·표시
+  └─ state_changes 적용 (LLM 모드)
 
-Phase 2: 군주 토론 (AP 1 소비/발언, API 0~N회)
+Phase 2: 토론 (AP 1 소비/발언, API 0~N회)
   ├─ 참모 발언 클릭 → 쓰레드 대화 (지정 참모 우선 응답)
   ├─ 자유 입력 → AI 반응 (callReactionLLM)
-  └─ "다음" 버튼 → Phase 3
+  ├─ 계획 승인/거절: 각 참모 마지막 메시지 하단 버튼으로 처리
+  │   ├─ 승인: 기록만 (열정 +1), 실제 변동은 Phase 3 시작 시 적용
+  │   ├─ 거절: 열정 -1, 참모 응답 템플릿
+  │   └─ 무시(아무것도 안 함): Phase 3 시작 시 열정 -2 패널티
+  └─ "실행" 버튼 → Phase 3
 
-Phase 3: 계획 보고 (자동, API 0회 — Phase 1과 함께 생성)
-  ├─ 참모별 계획 발표 (plan_reports)
-  └─ 기대 포인트 변동 표시
-
-Phase 4: 군주 피드백 (AP 1 소비/발언, API 0~N회)
-  ├─ 계획에 대한 피드백/boost (callReactionLLM)
-  └─ "실행" 버튼 → Phase 5
-
-Phase 5: 턴 실행 (자동)
-  ├─ [케이스 모드] pendingCasePlanReports 적용 (IP 차감, 시설 업그레이드 등)
+Phase 3: 실행 (자동)
+  ├─ 승인된 안건 일괄 적용 (포인트 변동 + 시설 변동)
+  ├─ 무시된 안건 패널티 적용 (열정 -2)
   ├─ NPC 턴 (API 1회, 배치 처리)
   ├─ advanceWorldTurn(): 포인트 충전, 부상 회복
   ├─ checkGameEnd(): 승패 판정
   ├─ autoSave(): Firebase 자동 저장
-  └─ Phase 1 복귀
+  └─ Phase 1 복귀 (다음 회의 시작 시 "✅ 지난 회의 결정 반영" 서머리 표시)
 ```
 
-> Phase 3 계획 실행 타이밍: LLM 모드는 Phase 1 응답 즉시, 케이스 모드는 Phase 5 시작 시.
+> `MeetingPhase` 타입은 `1 | 2 | 3`. `CouncilMessage.phase`는 `1 | 2 | 3 | 4` (레거시 호환).
 > 자세한 내용: `docs/11-case-system.md`
 
 ---

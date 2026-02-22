@@ -139,6 +139,7 @@ export default function GameContainer() {
   const [statusReports, setStatusReports] = useState<StatusReport[]>([]);
   const [planReports, setPlanReports] = useState<PlanReport[]>([]);
   const [approvedPlans, setApprovedPlans] = useState<Set<number>>(new Set());
+  const [rejectedPlans, setRejectedPlans] = useState<Set<number>>(new Set());
 
   // 타이핑 인디케이터
   const [typingIndicator, setTypingIndicator] = useState<{ speaker: string } | null>(null);
@@ -158,6 +159,7 @@ export default function GameContainer() {
   const pendingCasePlanReportsRef = useRef<import("@/types/council").PlanReport[]>([]);
   const turnCtxRef = useRef(createInitialTurnContext());
   const playerConqueredThisTurnRef = useRef(false); // Phase 2 공격으로 성채 획득 여부 추적
+  const pendingTurnSummaryRef = useRef<string | null>(null); // 다음 회의 시작 시 표시할 이전 턴 결정 서머리
 
   // 침공 대응 모달
   const [pendingInvasion, setPendingInvasion] = useState<PendingInvasion | null>(null);
@@ -658,11 +660,18 @@ export default function GameContainer() {
     setStatusReports([]);
     setPlanReports([]);
     setApprovedPlans(new Set());
+    setRejectedPlans(new Set());
     setReplyTarget(null);
     setThreads({});
     setThreadTyping(null);
     setMeetingPhase(1);
     setIsLoading(true);
+
+    // 이전 턴 결정 서머리 추출 (애니메이션 시 첫 메시지로 주입)
+    const summaryMsg: CouncilMessage | null = pendingTurnSummaryRef.current
+      ? { speaker: "__system__", dialogue: pendingTurnSummaryRef.current, emotion: "calm" as const, phase: 1 as const }
+      : null;
+    pendingTurnSummaryRef.current = null;
 
     try {
       // ── 케이스 엔진 경로 ──
@@ -690,7 +699,7 @@ export default function GameContainer() {
         pendingCasePlanReportsRef.current = flowResult.planReports;
         turnCtxRef.current = { ...turnCtxRef.current, consecutiveCaseTurns: consecutive + 1 };
 
-        await animateCouncilMessages(flowResult.messages, true, {});
+        await animateCouncilMessages(summaryMsg ? [summaryMsg, ...flowResult.messages] : flowResult.messages, true, {});
         setStatusReports(flowResult.statusReports);
         setPlanReports(flowResult.planReports);
         setMeetingPhase(2);
@@ -739,7 +748,7 @@ export default function GameContainer() {
             }
           }
 
-          await animateCouncilMessages(merged, true, {});
+          await animateCouncilMessages(summaryMsg ? [summaryMsg, ...merged] : merged, true, {});
           setStatusReports(phase1.statusReports);
           setPlanReports(phase3.planReports);
           setMeetingPhase(2);
@@ -777,7 +786,7 @@ export default function GameContainer() {
       }
 
       // 모든 메시지를 순서대로 애니메이션 (구분선 없음)
-      await animateCouncilMessages(processedMessages, true, { apiElapsedMs: elapsedMs });
+      await animateCouncilMessages(summaryMsg ? [summaryMsg, ...processedMessages] : processedMessages, true, { apiElapsedMs: elapsedMs });
       setStatusReports(council.status_reports);
       setPlanReports(council.plan_reports);
 
@@ -990,6 +999,55 @@ export default function GameContainer() {
 
     try {
       pendingCasePlanReportsRef.current = [];
+
+      // 무시된 안건 패널티 (승인도 거절도 안 된 계획 → 열정 -2)
+      const ignoredPlans = planReports.filter((_, i) => !approvedPlans.has(i) && !rejectedPlans.has(i));
+      if (ignoredPlans.length > 0) {
+        updateAdvisorStats(ignoredPlans.map(p => ({ name: p.speaker, enthusiasm_delta: -2 })));
+        for (const p of ignoredPlans) {
+          addSystemCouncilMsg(`⚠️ ${p.speaker}의 안건이 무시되었습니다. (열정 -2)`);
+        }
+      }
+
+      // 승인된 안건 지연 실행 (Phase 2 승인 → Phase 3 시작 시 실제 적용)
+      if (approvedPlans.size > 0) {
+        const summaryLines: string[] = [];
+        for (const planIdx of approvedPlans) {
+          const plan = planReports[planIdx];
+          if (!plan) continue;
+          const hasPoints = plan.expected_points && Object.values(plan.expected_points).some(v => v !== undefined && v !== 0);
+          const hasFacilities = plan.facility_upgrades && plan.facility_upgrades.length > 0;
+          if (hasPoints || hasFacilities) {
+            applyPlayerChanges({
+              ...(hasPoints ? { point_deltas: plan.expected_points } : {}),
+              ...(hasFacilities ? { facility_upgrades: plan.facility_upgrades } : {}),
+            }, addMsgToCouncil);
+          }
+          // 서머리 라인 빌드
+          const planName = plan.plan.split(/[(:]/)[0].trim();
+          const changes: string[] = [];
+          const ep = plan.expected_points;
+          if (ep) {
+            if (ep.ip_delta) changes.push(`내정력 ${ep.ip_delta > 0 ? "+" : ""}${ep.ip_delta}`);
+            if (ep.dp_delta) changes.push(`외교력 ${ep.dp_delta > 0 ? "+" : ""}${ep.dp_delta}`);
+            if (ep.ap_delta) changes.push(`행동력 ${ep.ap_delta > 0 ? "+" : ""}${ep.ap_delta}`);
+            if (ep.mp_troops_delta) changes.push(`병력 ${ep.mp_troops_delta > 0 ? "+" : ""}${ep.mp_troops_delta.toLocaleString()}`);
+            if (ep.mp_training_delta) changes.push(`훈련도 ${ep.mp_training_delta > 0 ? "+" : ""}${Math.round(ep.mp_training_delta * 100)}%`);
+          }
+          if (plan.facility_upgrades) {
+            for (const fu of plan.facility_upgrades) {
+              const fname = fu.type === "market" ? "시장" : fu.type === "farm" ? "농장" : "은행";
+              if (fu.level_delta) changes.push(`${fname} Lv.+${fu.level_delta}`);
+              else if (fu.count_delta) changes.push(`${fname} +${fu.count_delta}개`);
+            }
+          }
+          if (plan.extra_note) changes.push(plan.extra_note.replace(/^→\s*/, ""));
+          summaryLines.push(`${plan.speaker}: ${planName}${changes.length ? ` (${changes.join(", ")})` : ""}`);
+        }
+        if (summaryLines.length > 0) {
+          pendingTurnSummaryRef.current = `✅ 지난 회의 결정 반영\n${summaryLines.map(l => `• ${l}`).join("\n")}`;
+        }
+      }
 
       // ① NPC 턴 (플레이어 공격은 pendingInvasions로 수집)
       await processNPCTurns();
@@ -1243,7 +1301,7 @@ export default function GameContainer() {
     } finally {
       setIsLoading(false);
     }
-  }, [processNPCTurns, advanceWorldTurn, doCheckGameEnd, doAutoSave, runMeetingPhase1And3, waitForInvasionResponse, waitForBattleReportClose, applyPlayerChanges, applyNPCChanges, addMsgToCouncil, addSystemCouncilMsg, worldStateRef]);
+  }, [processNPCTurns, advanceWorldTurn, doCheckGameEnd, doAutoSave, runMeetingPhase1And3, waitForInvasionResponse, waitForBattleReportClose, applyPlayerChanges, applyNPCChanges, addMsgToCouncil, addSystemCouncilMsg, worldStateRef, planReports, approvedPlans, rejectedPlans, updateAdvisorStats, pendingTurnSummaryRef]);
 
   // ---- 도입 서사 ----
   const buildIntroMessages = useCallback((): CouncilMessage[] => {
@@ -1378,15 +1436,7 @@ export default function GameContainer() {
 
     setApprovedPlans(prev => new Set([...prev, planIndex]));
 
-    // 포인트/시설 변동 적용
-    const hasPoints = plan.expected_points && Object.values(plan.expected_points).some(v => v !== undefined && v !== 0);
-    const hasFacilities = plan.facility_upgrades && plan.facility_upgrades.length > 0;
-    if (hasPoints || hasFacilities) {
-      applyPlayerChanges({
-        ...(hasPoints ? { point_deltas: plan.expected_points } : {}),
-        ...(hasFacilities ? { facility_upgrades: plan.facility_upgrades } : {}),
-      }, addMsgToCouncil);
-    }
+    // 포인트/시설 변동은 실행(Phase 3) 시작 시 지연 적용됨
 
     // 플레이어 발언 추가
     const playerMsgIdx = councilMsgsRef.current.length;
@@ -1412,7 +1462,37 @@ export default function GameContainer() {
       });
       scrollToBottom();
     }, 600);
-  }, [planReports, approvedPlans, applyPlayerChanges, addMsgToCouncil, setCouncilMessages, councilMsgsRef, addThreadMessage, scrollToBottom]);
+  }, [planReports, approvedPlans, setCouncilMessages, councilMsgsRef, addThreadMessage, updateAdvisorStats, scrollToBottom]);
+
+  // ---- 안건 거절 ----
+  const handleRejectPlan = useCallback((planIndex: number) => {
+    const plan = planReports[planIndex];
+    if (!plan || approvedPlans.has(planIndex) || rejectedPlans.has(planIndex)) return;
+
+    setRejectedPlans(prev => new Set([...prev, planIndex]));
+
+    updateAdvisorStats([{ name: plan.speaker, enthusiasm_delta: -1 }]);
+
+    const playerMsgIdx = councilMsgsRef.current.length;
+    setCouncilMessages(prev => [...prev, {
+      speaker: "유비",
+      dialogue: `${plan.speaker}의 안건은 받아들이기 어렵다.`,
+      emotion: "calm" as const,
+      phase: 2,
+    }]);
+    scrollToBottom();
+
+    setTimeout(() => {
+      addThreadMessage(playerMsgIdx, {
+        type: "advisor",
+        speaker: plan.speaker,
+        text: "...알겠사옵니다.",
+        emotion: "worried" as const,
+        stat_delta: { enthusiasm_delta: -1 },
+      });
+      scrollToBottom();
+    }, 600);
+  }, [planReports, approvedPlans, rejectedPlans, updateAdvisorStats, setCouncilMessages, councilMsgsRef, addThreadMessage, scrollToBottom]);
 
   // ---- 참모 발언 클릭 ----
   const handleMessageClick = useCallback((msg: CouncilMessage, index: number) => {
@@ -1436,6 +1516,24 @@ export default function GameContainer() {
     const reply = replyTarget;
     setInput("");
     setReplyTarget(null);
+
+    // ── 안건 키워드 매칭: 플랜 이름이 포함된 입력 → LLM 없이 자동 승인 ──
+    if (meetingPhase === 2 && !reply && planReports.length > 0) {
+      const matchedIndex = planReports.findIndex((plan, i) => {
+        if (approvedPlans.has(i) || rejectedPlans.has(i)) return false;
+        const keyword = plan.plan.split(/[(:]/)[0].trim();
+        return keyword.length >= 2 && text.includes(keyword);
+      });
+      if (matchedIndex !== -1) {
+        setIsLoading(true);
+        consumeAP(1);
+        handleApprovePlan(matchedIndex);
+        setIsLoading(false);
+        processingTurnRef.current = false;
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     const ADVISOR_NAMES = ["관우", "미축", "방통", "제갈량"];
@@ -1499,7 +1597,7 @@ export default function GameContainer() {
       setIsLoading(false);
       processingTurnRef.current = false;
     }
-  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMsgToCouncil, addSystemCouncilMsg, addThreadMessage, animateThreadMessages, doPhase2Reply, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom]);
+  }, [input, isLoading, replyTarget, meetingPhase, worldStateRef, consumeAP, addMsgToCouncil, addSystemCouncilMsg, addThreadMessage, animateThreadMessages, doPhase2Reply, animateCouncilMessages, applyPlayerChanges, updateAdvisorStats, doAutoSave, scrollToBottom, planReports, approvedPlans, rejectedPlans, handleApprovePlan]);
 
   // ---- Restart / Mic ----
   const handleRestart = useCallback(() => {
@@ -1690,6 +1788,8 @@ export default function GameContainer() {
               planReports={planReports}
               approvedPlans={approvedPlans}
               onApprovePlan={isLoading ? undefined : handleApprovePlan}
+              rejectedPlans={rejectedPlans}
+              onRejectPlan={isLoading ? undefined : handleRejectPlan}
               meetingPhase={meetingPhase}
               onOpenMap={() => setShowFactionMap(true)}
             />

@@ -13,7 +13,7 @@ import type { GameSituation, MeetingFlowResult, ToneLevel, ToneMap, NormalizedSi
 import { normalizeSituation, deriveToneMap, toneToEmotion } from "./situationNormalizer";
 import { ZHUGE_TEMPLATES, GUAN_YU_TEMPLATES, MI_ZHU_TEMPLATES, PANG_TONG_TEMPLATES, buildDialogueVariables, pickDialogue } from "./dialogueTemplates";
 import type { DialogueCategory } from "./types";
-import { RECRUIT_TROOPS_PER_IP, IP_CAP_PER_BANK_LEVEL, TROOP_MAINTENANCE_DIVISOR } from "@/constants/gameConstants";
+import { RECRUIT_TROOPS_PER_IP, IP_CAP_PER_BANK_LEVEL, TROOP_MAINTENANCE_DIVISOR, IP_REGEN_PER_MARKET_LEVEL, IP_REGEN_PER_FARM_LEVEL } from "@/constants/gameConstants";
 
 // ===================== 도메인 우선순위 =====================
 
@@ -122,6 +122,7 @@ function derivePlanReports(
         plan: `시장 건설 (비용: 내정력 ${situation.economy.marketBuildCost})`,
         expected_points: { ip_delta: -situation.economy.marketBuildCost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
+        extra_note: `→ 턴당 내정력 +${IP_REGEN_PER_MARKET_LEVEL}`,
       });
     } else if (situation.economy.canBuildFarm) {
       reports.push({
@@ -129,15 +130,17 @@ function derivePlanReports(
         plan: `농장 건설 (비용: 내정력 ${situation.economy.farmBuildCost})`,
         expected_points: { ip_delta: -situation.economy.farmBuildCost },
         facility_upgrades: [{ type: "farm", count_delta: 1 }],
+        extra_note: `→ 턴당 내정력 +${IP_REGEN_PER_FARM_LEVEL}`,
       });
     }
   } else if (toneMap.economy === "uneasy" || toneMap.economy === "adequate") {
     if (situation.economy.canUpgradeMarket) {
       reports.push({
         speaker: "미축",
-        plan: `시장 업그레이드 (비용: 내정력 ${situation.economy.marketUpgradeCost})`,
+        plan: `시장 확장 (비용: 내정력 ${situation.economy.marketUpgradeCost})`,
         expected_points: { ip_delta: -situation.economy.marketUpgradeCost },
         facility_upgrades: [{ type: "market", level_delta: 1 }],
+        extra_note: `→ 턴당 내정력 +${IP_REGEN_PER_MARKET_LEVEL}`,
       });
     } else if (situation.economy.canBuildMarket) {
       reports.push({
@@ -145,18 +148,20 @@ function derivePlanReports(
         plan: `시장 건설 (비용: 내정력 ${situation.economy.marketBuildCost})`,
         expected_points: { ip_delta: -situation.economy.marketBuildCost },
         facility_upgrades: [{ type: "market", count_delta: 1 }],
+        extra_note: `→ 턴당 내정력 +${IP_REGEN_PER_MARKET_LEVEL}`,
       });
     }
   }
 
-  // 내정 안정 시 은행 업그레이드
+  // 내정 안정 시 은행 확장
   if (toneMap.economy === "comfortable" || toneMap.economy === "stable") {
     if (situation.economy.canUpgradeBank) {
       reports.push({
         speaker: "미축",
-        plan: `은행 업그레이드 (비용: 내정포인트 ${situation.economy.bankUpgradeCost}, 내정포인트 상한 +${IP_CAP_PER_BANK_LEVEL})`,
+        plan: `은행 확장 (비용: 내정포인트 ${situation.economy.bankUpgradeCost})`,
         expected_points: { ip_delta: -situation.economy.bankUpgradeCost },
         facility_upgrades: [{ type: "bank", level_delta: 1 }],
+        extra_note: `→ 내정력 상한 +${IP_CAP_PER_BANK_LEVEL}`,
       });
     }
   }
