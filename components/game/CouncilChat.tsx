@@ -354,7 +354,7 @@ export default function CouncilChat({
       if (!speakerPlanMap.has(plan.speaker)) speakerPlanMap.set(plan.speaker, i);
     });
     messages.forEach((msg, i) => {
-      if (speakerPlanMap.has(msg.speaker)) lastMsgBySpeaker.set(msg.speaker, i);
+      if (speakerPlanMap.has(msg.speaker) && msg.phase === 1) lastMsgBySpeaker.set(msg.speaker, i);
     });
   }
 

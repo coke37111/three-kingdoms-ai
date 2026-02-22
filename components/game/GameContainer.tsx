@@ -23,7 +23,7 @@ import { getResponseOptions, executeInvasionResponse } from "@/lib/game/invasion
 import type { InvasionResponseType, PendingInvasion } from "@/types/game";
 import { FACTION_NAMES } from "@/constants/factions";
 import { INITIAL_ADVISORS } from "@/constants/advisors";
-import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost, getFacilityBuildCost, SPECIAL_STRATEGY_INITIAL_RATE, SPECIAL_STRATEGY_USE_PENALTY, SPECIAL_STRATEGY_MIN_RATE, SPECIAL_STRATEGY_MAX_RATE, SPECIAL_STRATEGY_RECOVERY, SPECIAL_STRATEGY_COOLDOWN_TURNS } from "@/constants/gameConstants";
+import { XP_PER_AP_SPENT, XP_PER_BATTLE_WIN, XP_PER_CASTLE_GAINED, RECRUIT_TROOPS_PER_IP, TRAIN_IP_COST, SP_TO_DP_COST, DP_CONVERSION_RATE, DP_REGEN_PER_TURN, getFacilityUpgradeCost, getFacilityBuildCost, SPECIAL_STRATEGY_INITIAL_RATE, SPECIAL_STRATEGY_USE_PENALTY, SPECIAL_STRATEGY_MIN_RATE, SPECIAL_STRATEGY_MAX_RATE, SPECIAL_STRATEGY_RECOVERY, SPECIAL_STRATEGY_COOLDOWN_TURNS, TROOP_MAINTENANCE_DIVISOR } from "@/constants/gameConstants";
 import { POINT_COLORS, getDeltaColor } from "@/constants/uiConstants";
 import { SKILL_TREE } from "@/constants/skills";
 import { useAuth } from "@/hooks/useAuth";
@@ -1646,7 +1646,9 @@ export default function GameContainer() {
     const def = SKILL_TREE.find(s => s.id === sid);
     return sum + (def?.effect.type === "ap_regen" ? def.effect.value : 0);
   }, 0);
-  const ipRegen = playerFaction.points.ip_regen;
+  const ipRegenGross = playerFaction.points.ip_regen;
+  const ipMaintenance = Math.floor(playerFaction.points.mp_troops / TROOP_MAINTENANCE_DIVISOR);
+  const ipRegen = ipRegenGross - ipMaintenance;
   const dpRegenTotal = DP_REGEN_PER_TURN * (1 + playerFaction.skills.reduce((sum, sid) => {
     const def = SKILL_TREE.find(s => s.id === sid);
     return sum + (def?.effect.type === "dp_bonus" ? def.effect.value : 0);
@@ -1759,7 +1761,7 @@ export default function GameContainer() {
           </div>
           <div style={{ color: POINT_COLORS.SP.color }}>특수능력 {playerFaction.points.sp} <span style={{ color: getDeltaColor(1), fontSize: "10px" }}>(+1)</span></div>
           <div style={{ color: POINT_COLORS.MP.color }}>군사력 {playerFaction.points.mp.toLocaleString()}</div>
-          <div style={{ color: POINT_COLORS.IP.color }}>내정력 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: getDeltaColor(ipRegen), fontSize: "10px" }}>(+{ipRegen})</span></div>
+          <div style={{ color: POINT_COLORS.IP.color }}>내정력 {playerFaction.points.ip}/{playerFaction.points.ip_cap} <span style={{ color: getDeltaColor(ipRegen), fontSize: "10px" }}>({ipRegen >= 0 ? "+" : ""}{ipRegen})</span></div>
           <div style={{ color: POINT_COLORS.DP.color }}>외교력 {playerFaction.points.dp} <span style={{ color: getDeltaColor(dpRegenTotal), fontSize: "10px" }}>(+{dpRegenTotal % 1 === 0 ? dpRegenTotal : dpRegenTotal.toFixed(1)})</span></div>
         </div>
 

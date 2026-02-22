@@ -10,7 +10,7 @@ export const INITIAL_FACTIONS: Faction[] = [
       ap: 3, ap_max: 10, ap_regen: 5,
       sp: 30,
       mp: 0, mp_troops: 30000, mp_training: 0.7, mp_morale: 1.1,
-      ip: 30, ip_cap: 60, ip_regen: 8,
+      ip: 30, ip_cap: 60, ip_regen: 5,
       dp: 5,
     },
     castles: ["신야"],
